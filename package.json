@@ -10,6 +10,8 @@
     "dev": "bun run --filter '*' dev",
     "dev:web": "bun run --cwd apps/web dev",
     "dev:api": "bun run --cwd apps/api dev",
+    "dev:landing": "bun run --cwd apps/landing dev",
+    "deploy:landing": "bun run --cwd apps/landing deploy",
     "build": "bun run --filter '@kapi/web' build",
     "lint": "bun run --filter '@kapi/web' lint",
     "test": "bun run --filter '@kapi/web' test"

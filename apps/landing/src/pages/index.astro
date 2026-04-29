@@ -1,0 +1,136 @@
+---
+import "../styles/global.css";
+
+const githubUrl = "https://github.com/devaryakjha/kapi.run";
+
+const items = [
+  {
+    name: "Smash burger",
+    person: "Arya",
+    note: "double patty",
+    price: "₹438",
+    image:
+      "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=160&q=90",
+  },
+  {
+    name: "Paneer makhani bowl",
+    person: "Anjali",
+    note: "no onions",
+    price: "₹319",
+    image:
+      "https://images.unsplash.com/photo-1631452180539-96aca7d48617?auto=format&fit=crop&w=160&q=90",
+  },
+  {
+    name: "Masala fries",
+    person: "VM",
+    note: "team add-on",
+    price: "₹189",
+    image:
+      "https://images.unsplash.com/photo-1630384060421-cb20d0e0649d?auto=format&fit=crop&w=160&q=90",
+  },
+];
+
+const steps = ["Create a run", "Share the link", "Sync the cart"];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="kapi.run is a small convenience tool for shared Swiggy lunch runs."
+    />
+    <meta property="og:title" content="kapi.run" />
+    <meta property="og:description" content="Shared lunch runs without the back-and-forth." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://kapi.run" />
+    <link rel="icon" href="/kapi-mark.svg" type="image/svg+xml" />
+    <title>kapi.run</title>
+  </head>
+  <body>
+    <main class="page">
+      <nav class="topbar" aria-label="Primary">
+        <a class="brand" href="/" aria-label="kapi.run home">
+          <img class="brand-mark" src="/kapi-mark.svg" alt="" />
+          <span>kapi.run</span>
+        </a>
+        <a class="button button-ghost" href={githubUrl} rel="noreferrer">
+          <svg aria-hidden="true" viewBox="0 0 16 16">
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.67 7.67 0 0 1 8 3.86c.68 0 1.36.09 2 .27 1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+            ></path>
+          </svg>
+          GitHub
+        </a>
+      </nav>
+
+      <section class="hero" aria-labelledby="title">
+        <div class="hero-copy">
+          <h1 id="title">kapi.run</h1>
+          <p class="lede">Shared lunch runs without the back-and-forth.</p>
+          <p class="body-copy">A small convenience tool for shared lunch runs.</p>
+
+          <a class="button button-primary" href={githubUrl} rel="noreferrer">
+            <span aria-hidden="true">★</span>
+            Star on GitHub
+          </a>
+
+          <a class="integration" href="https://mcp.swiggy.com/builders/" rel="noreferrer">
+            <img src="/swiggy.svg" alt="" />
+            Powered by Swiggy MCP
+          </a>
+        </div>
+
+        <section class="order-card" aria-label="Lunch run example">
+          <header class="order-head">
+            <p><strong>Lunch run</strong><span>·</span>Truffles, Indiranagar</p>
+            <p><span class="status-dot" aria-hidden="true"></span>closes in 08:42</p>
+          </header>
+
+          <div class="item-list">
+            {
+              items.map((item) => (
+                <article class="item-row">
+                  <img src={item.image} alt="" />
+                  <div>
+                    <h2>{item.name}</h2>
+                    <p>
+                    {item.person} <span>·</span> {item.note}
+                    </p>
+                  </div>
+                  <strong>{item.price}</strong>
+                </article>
+              ))
+            }
+          </div>
+
+          <footer class="order-total">
+            <div class="avatars" aria-label="Participants">
+              <span>AJ</span>
+              <span>NK</span>
+              <span>VM</span>
+            </div>
+            <div class="total-copy">
+              <p>9 items · 3 people</p>
+              <strong>₹1,482</strong>
+            </div>
+            <button class="button button-sync" type="button">Sync cart</button>
+          </footer>
+        </section>
+      </section>
+
+      <section class="flow" aria-label="How it works">
+        {
+          steps.map((step, index) => (
+            <p>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              {step}
+            </p>
+          ))
+        }
+      </section>
+    </main>
+  </body>
+</html>

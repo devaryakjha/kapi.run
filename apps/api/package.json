@@ -8,7 +8,10 @@
     "start": "bun run src/index.ts"
   },
   "dependencies": {
-    "elysia": "latest"
+    "@elysiajs/cors": "^1.4.2",
+    "@kapi/spec": "workspace:*",
+    "elysia": "latest",
+    "valibot": "^1.3.1"
   },
   "devDependencies": {
     "bun-types": "latest"

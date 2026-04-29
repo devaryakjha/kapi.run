@@ -1,0 +1,14 @@
+{
+  "name": "@kapi/landing",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --host 0.0.0.0 --port 8788",
+    "build": "astro build",
+    "preview": "astro preview --host 0.0.0.0 --port 8789",
+    "deploy": "bun run build && bunx wrangler@latest pages deploy dist --project-name kapi-run"
+  },
+  "devDependencies": {
+    "astro": "^6.1.10"
+  }
+}
