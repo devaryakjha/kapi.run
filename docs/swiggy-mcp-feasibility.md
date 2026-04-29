@@ -186,7 +186,7 @@ Swiggy treats tool-call data as PII under DPDP. For this product:
 
 Build the app with a provider abstraction:
 
-- `FoodProvider`
+  - `FoodProvider`
   - `getAddresses`
   - `searchRestaurants`
   - `getRestaurantMenu`
