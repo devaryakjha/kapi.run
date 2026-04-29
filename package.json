@@ -1,0 +1,17 @@
+{
+  "name": "kapi.run",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter '*' dev",
+    "dev:web": "bun run --cwd apps/web dev",
+    "dev:api": "bun run --cwd apps/api dev",
+    "build": "bun run --filter '@kapi/web' build",
+    "lint": "bun run --filter '@kapi/web' lint",
+    "test": "bun run --filter '@kapi/web' test"
+  }
+}
