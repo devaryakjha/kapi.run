@@ -3,7 +3,7 @@ import { Elysia } from "elysia";
 const port = Number(process.env.PORT ?? 3001);
 
 const app = new Elysia()
-  .get("/", () => ({ name: "kapi-api", status: "ok" }))
+  .get("/", () => ({ name: "kapi.run", status: "ok", version: "2" }))
   .get("/health", () => ({ status: "ok" }))
   .listen(port);
 
