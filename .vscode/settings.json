@@ -10,5 +10,17 @@
     },
     "files.readonlyInclude": {
         "**/routeTree.gen.ts": true
+    },
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+    "editor.formatOnSave": false, // disable default behavior
+    "editor.codeActionsOnSave": {
+        "source.format.oxc": "always", // run formatter first
+        "source.fixAll.oxc": "always" // run lint fixes after
+    },
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "vscode.typescript-language-features"
     }
 }

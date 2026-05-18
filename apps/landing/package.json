@@ -9,6 +9,6 @@
     "deploy": "bun run build && bunx wrangler@latest pages deploy dist --project-name kapi-run"
   },
   "devDependencies": {
-    "astro": "^6.1.10"
+    "astro": "6.3.3"
   }
 }
