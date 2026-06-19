@@ -5,11 +5,12 @@ import type { CartLine, KapiSession, MenuItem } from '@kapi/spec'
 import { ParticipantMenuPage } from '#/features/group-ordering/participant-page'
 import type { DraftCart } from '#/features/group-ordering/shared'
 import {
+  ApiError,
   ErrorAlert,
   api,
   audit,
   getSessionLinkParts,
-  loadEncryptedSession,
+  loadEncryptedSessionRecord,
   publishSession,
 } from '#/features/group-ordering/shared'
 
@@ -49,14 +50,16 @@ function RouteComponent() {
     initialMenuState,
   )
   const sessionKeyRef = useRef('')
+  const relayUpdatedAtRef = useRef<string | null>(null)
 
   async function refreshSessionFromRelay() {
     if (!state.session || !sessionKeyRef.current) return state.session
-    const loaded = await loadEncryptedSession(
+    const loaded = await loadEncryptedSessionRecord(
       state.session.id,
       sessionKeyRef.current,
     )
-    setState({ session: loaded })
+    relayUpdatedAtRef.current = loaded.relayUpdatedAt
+    setState({ session: loaded.session })
     return loaded
   }
 
@@ -67,8 +70,10 @@ function RouteComponent() {
     }
 
     sessionKeyRef.current = key
-    loadEncryptedSession(sessionId, key)
-      .then(async (loaded) => {
+    loadEncryptedSessionRecord(sessionId, key)
+      .then(async (loadedRecord) => {
+        relayUpdatedAtRef.current = loadedRecord.relayUpdatedAt
+        const loaded = loadedRecord.session
         const loadedMenu = await api<MenuItem[]>(
           `/food/restaurants/${loaded.restaurant.id}/menu?addressId=${loaded.address.id}`,
         )
@@ -101,62 +106,89 @@ function RouteComponent() {
 
     setState({ pending: true, error: null })
     try {
-      const latest = await refreshSessionFromRelay()
-      if (!latest) return
-      const submitted: CartLine[] = items.flatMap((line) => {
-        const item = state.menu.find(
-          (candidate) =>
-            candidate.id === line.menuItemId &&
-            candidate.restaurantId === latest.restaurant.id,
-        )
-        if (!item || line.quantity <= 0) return []
-        return {
-          id: crypto.randomUUID(),
-          participantName: state.participantName.trim() || 'Guest',
-          menuItemId: item.id,
-          name: item.name,
-          quantity: line.quantity,
-          price: item.price,
-          available: item.available,
-          swiggyItemId: item.swiggyItemId,
-        }
-      })
       const name = state.participantName.trim() || 'Guest'
-      const existingParticipant = latest.participants.find(
-        (participant) => participant.displayName === name,
-      )
-      const updated: KapiSession = {
-        ...latest,
-        participants: existingParticipant
-          ? latest.participants.map((participant) =>
-              participant.displayName === name
-                ? {
-                    ...participant,
-                    status: 'submitted',
-                    submittedAt: new Date().toISOString(),
-                  }
-                : participant,
-            )
-          : [
-              ...latest.participants,
-              {
-                id: crypto.randomUUID(),
-                displayName: name,
-                status: 'submitted',
-                joinedAt: new Date().toISOString(),
-                submittedAt: new Date().toISOString(),
-              },
-            ],
-        items: [
-          ...latest.items.filter((item) => item.participantName !== name),
-          ...submitted,
-        ],
-        audit: [
-          ...latest.audit,
-          audit(name, `submitted ${submitted.length} item lines`),
-        ],
+
+      const buildUpdated = (latest: KapiSession) => {
+        const submitted: CartLine[] = items.flatMap((line) => {
+          const item = state.menu.find(
+            (candidate) =>
+              candidate.id === line.menuItemId &&
+              candidate.restaurantId === latest.restaurant.id,
+          )
+          if (!item || line.quantity <= 0) return []
+          return {
+            id: crypto.randomUUID(),
+            participantName: name,
+            menuItemId: item.id,
+            name: item.name,
+            quantity: line.quantity,
+            price: item.price,
+            available: item.available,
+            swiggyItemId: item.swiggyItemId,
+          }
+        })
+        const existingParticipant = latest.participants.find(
+          (participant) => participant.displayName === name,
+        )
+        return {
+          ...latest,
+          participants: existingParticipant
+            ? latest.participants.map((participant) =>
+                participant.displayName === name
+                  ? {
+                      ...participant,
+                      status: 'submitted',
+                      submittedAt: new Date().toISOString(),
+                    }
+                  : participant,
+              )
+            : [
+                ...latest.participants,
+                {
+                  id: crypto.randomUUID(),
+                  displayName: name,
+                  status: 'submitted',
+                  joinedAt: new Date().toISOString(),
+                  submittedAt: new Date().toISOString(),
+                },
+              ],
+          items: [
+            ...latest.items.filter((item) => item.participantName !== name),
+            ...submitted,
+          ],
+          audit: [
+            ...latest.audit,
+            audit(name, `submitted ${submitted.length} item lines`),
+          ],
+        } satisfies KapiSession
       }
-      await publishSession(updated, sessionKeyRef.current)
+      let latest = await refreshSessionFromRelay()
+      if (!latest) return
+      let updated = buildUpdated(latest.session)
+      try {
+        const saved = await publishSession(
+          updated,
+          sessionKeyRef.current,
+          latest.relayUpdatedAt,
+        )
+        relayUpdatedAtRef.current = saved.relayUpdatedAt
+      } catch (caught) {
+        if (!(caught instanceof ApiError) || caught.status !== 409) throw caught
+        latest = await refreshSessionFromRelay()
+        if (!latest) return
+        updated = buildUpdated(latest.session)
+        const saved = await publishSession(
+          updated,
+          sessionKeyRef.current,
+          latest.relayUpdatedAt,
+        ).catch((retryError) => {
+          if (retryError instanceof ApiError && retryError.status === 409) {
+            throw new Error('Session changed again. Submit once more.')
+          }
+          throw retryError
+        })
+        relayUpdatedAtRef.current = saved.relayUpdatedAt
+      }
       setState({
         session: updated,
         draft: {},
