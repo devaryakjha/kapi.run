@@ -274,6 +274,35 @@ export function formatTimeLabel(value: string) {
   return `${hour % 12 || 12}:${minute} ${hour >= 12 ? 'PM' : 'AM'}`
 }
 
+function cutoffTime(session: KapiSession) {
+  if (!session.cutoffAt) return null
+  const time = new Date(session.cutoffAt).getTime()
+  return Number.isFinite(time) ? time : null
+}
+
+export function isSessionLockedForParticipants(
+  session: KapiSession,
+  now = new Date(),
+) {
+  if (session.status !== 'open') return true
+  const time = cutoffTime(session)
+  return time !== null && time <= now.getTime()
+}
+
+export function formatRemainingTime(session: KapiSession, now = new Date()) {
+  if (session.status !== 'open') return 'Locked'
+  const time = cutoffTime(session)
+  if (time === null) return `${session.cutoffTime} cutoff`
+  const minutes = Math.ceil((time - now.getTime()) / 60_000)
+  if (minutes <= 0) return 'Cutoff reached'
+  if (minutes >= 60 * 24) return `${Math.ceil(minutes / (60 * 24))}d remaining`
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60)
+    return `${hours}h ${String(minutes % 60).padStart(2, '0')}m remaining`
+  }
+  return `${minutes}m remaining`
+}
+
 export function formatAddressOption(address: Address) {
   return address.detail ? `${address.label} - ${address.detail}` : address.label
 }

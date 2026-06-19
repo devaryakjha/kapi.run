@@ -60,6 +60,7 @@ export type KapiSession = {
   address: Address
   restaurant: Restaurant
   cutoffTime: string
+  cutoffAt?: string
   shareUrl: string
   organizerSecretHash?: string
   status: SessionStatus
