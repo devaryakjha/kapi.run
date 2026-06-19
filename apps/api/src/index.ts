@@ -1,4 +1,4 @@
-import cors from "@elysiajs/cors";
+import { cors } from "@elysiajs/cors";
 import { Elysia, t } from "elysia";
 import { unlink } from "node:fs/promises";
 import type { Address, MenuItem, Restaurant, SwiggyCartPayload, SwiggyCartSummary } from "@kapi/spec";
@@ -21,6 +21,15 @@ type Token = { access_token: string; expires_at: number };
 type ToolEnvelope = { success?: boolean; data?: unknown; message?: string; error?: { message?: string } };
 type RelayStore = Record<string, { ciphertext: string; updatedAt: string }>;
 type RelayWrite = { ciphertext: string; expectedUpdatedAt?: string | null };
+type StatusSetter = { status?: number | string };
+type RequestContext = { request: Request };
+type AuthStartContext = RequestContext & { query: { next?: string } };
+type AuthCallbackContext = { query: { code?: string; state?: string }; set: StatusSetter };
+type RestaurantQueryContext = { query: { addressId: string; q: string } };
+type MenuQueryContext = { params: { restaurantId: string }; query: { addressId: string; q?: string } };
+type CartSyncContext = RequestContext & { body: SwiggyCartPayload; set: StatusSetter };
+type RelayReadContext = { params: { sessionId: string }; set: StatusSetter };
+type RelayWriteContext = RequestContext & { params: { sessionId: string }; body: RelayWrite; set: StatusSetter };
 
 const authStates = new Map<string, { codeVerifier: string; next: string }>();
 const relay: RelayStore = await readJson<RelayStore>(relayFile, {});
@@ -274,15 +283,15 @@ function normalizeMenuItem(raw: unknown, restaurantId: string): MenuItem {
 }
 
 const app = new Elysia()
-  .use(cors({ origin: (request) => isAllowedOrigin(request) }))
+  .use(cors({ origin: (request: Request) => isAllowedOrigin(request) }))
   .onError(({ error }) => {
     const status = typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 500;
-    return jsonResponse({ error: error.message }, status);
+    return jsonResponse({ error: error instanceof Error ? error.message : "Request failed." }, status);
   })
   .get("/", () => ({ name: "kapi.run", status: "ok", version: "5", providerMode: "swiggy" }))
   .get("/health", () => ({ status: "ok" }))
   .get("/auth/status", () => ({ connected: Boolean(token && token.expires_at > Date.now() + 60_000), expiresAt: token?.expires_at ?? null }))
-  .get("/auth/start", async ({ query, request }) => {
+  .get("/auth/start", async ({ query, request }: AuthStartContext) => {
     assertAllowedOrigin(request);
     const client = await getOAuthClient();
     const state = randomBase64Url(24);
@@ -298,13 +307,18 @@ const app = new Elysia()
     url.searchParams.set("scope", "mcp:tools");
     return Response.redirect(url.toString(), 302);
   }, { query: t.Object({ next: t.Optional(t.String()) }) })
-  .get("/auth/callback", async ({ query, set }) => {
-    const state = query.state ? authStates.get(query.state) : undefined;
-    if (!query.code || !state) {
+  .get("/auth/callback", async ({ query, set }: AuthCallbackContext) => {
+    const stateKey = query.state;
+    if (!query.code || !stateKey) {
       set.status = 400;
       return "Swiggy connection failed.";
     }
-    authStates.delete(query.state);
+    const state = authStates.get(stateKey);
+    if (!state) {
+      set.status = 400;
+      return "Swiggy connection failed.";
+    }
+    authStates.delete(stateKey);
     const client = await getOAuthClient();
     const response = await fetch(`${swiggyBase}/auth/token`, {
       method: "POST",
@@ -319,7 +333,7 @@ const app = new Elysia()
     await saveToken({ access_token: body.access_token, expires_at: Date.now() + (body.expires_in ?? 432000) * 1000 });
     return Response.redirect(state.next, 302);
   }, { query: t.Object({ code: t.Optional(t.String()), state: t.Optional(t.String()) }) })
-  .post("/auth/logout", async ({ request }) => {
+  .post("/auth/logout", async ({ request }: RequestContext) => {
     assertAllowedOrigin(request);
     await saveToken(null);
     return { connected: false };
@@ -328,11 +342,11 @@ const app = new Elysia()
     const data = await callSwiggyTool("get_addresses");
     return findArray(data).map(normalizeAddress).filter((address) => address.id);
   })
-  .get("/food/restaurants", async ({ query }) => {
+  .get("/food/restaurants", async ({ query }: RestaurantQueryContext) => {
     const data = await callSwiggyTool("search_restaurants", { addressId: query.addressId, query: query.q });
     return findArray(data).map(normalizeRestaurant).filter((restaurant) => restaurant.id);
   }, { query: t.Object({ addressId: t.String(), q: t.String() }) })
-  .get("/food/restaurants/:restaurantId/menu", async ({ params, query }) => {
+  .get("/food/restaurants/:restaurantId/menu", async ({ params, query }: MenuQueryContext) => {
     const data = await callSwiggyTool("get_restaurant_menu", { addressId: query.addressId, restaurantId: params.restaurantId, pageSize: 8 });
     return flattenMenu(data)
       .map((item) => normalizeMenuItem(item, params.restaurantId))
@@ -341,14 +355,14 @@ const app = new Elysia()
     params: t.Object({ restaurantId: t.String() }),
     query: t.Object({ addressId: t.String(), q: t.Optional(t.String()) }),
   })
-  .get("/food/cart", async ({ request }) => {
+  .get("/food/cart", async ({ request }: RequestContext) => {
     assertAllowedOrigin(request);
     const cart = await callSwiggyTool("get_food_cart");
     return normalizeCartSummary(cart);
   })
-  .post("/food/cart/sync", async ({ body, request, set }) => {
+  .post("/food/cart/sync", async ({ body, request, set }: CartSyncContext) => {
     assertAllowedOrigin(request);
-    const payload = body as SwiggyCartPayload;
+    const payload = body;
     const existingCart = normalizeCartSummary(await callSwiggyTool("get_food_cart"));
     if (!existingCart.empty && payload.replaceExistingCart !== true) {
       set.status = 409;
@@ -374,7 +388,7 @@ const app = new Elysia()
       cartItems: t.Array(t.Object({ itemId: t.String(), quantity: t.Number() })),
     }),
   })
-  .get("/relay/sessions/:sessionId", ({ params, set }) => {
+  .get("/relay/sessions/:sessionId", ({ params, set }: RelayReadContext) => {
     const record = relay[params.sessionId];
     if (!record) {
       set.status = 404;
@@ -382,10 +396,10 @@ const app = new Elysia()
     }
     return record;
   }, { params: t.Object({ sessionId: t.String() }) })
-  .put("/relay/sessions/:sessionId", async ({ params, body, request, set }) => {
+  .put("/relay/sessions/:sessionId", async ({ params, body, request, set }: RelayWriteContext) => {
     assertAllowedOrigin(request);
     const current = relay[params.sessionId];
-    const expectedUpdatedAt = (body as RelayWrite).expectedUpdatedAt;
+    const expectedUpdatedAt = body.expectedUpdatedAt;
     if (current && !expectedUpdatedAt) {
       set.status = 409;
       return { error: "Session has changed. Refresh and try again.", updatedAt: current.updatedAt };
@@ -394,7 +408,7 @@ const app = new Elysia()
       set.status = 409;
       return { error: "Session has changed. Refresh and try again.", updatedAt: current.updatedAt };
     }
-    relay[params.sessionId] = { ciphertext: (body as RelayWrite).ciphertext, updatedAt: new Date().toISOString() };
+    relay[params.sessionId] = { ciphertext: body.ciphertext, updatedAt: new Date().toISOString() };
     await writeJson(relayFile, relay);
     return relay[params.sessionId];
   }, {

@@ -1,12 +1,11 @@
 import type {
   Address,
-  CartLine,
   KapiSession,
   ManualFallbackSummary,
   Restaurant,
 } from '@kapi/spec'
 import type { LucideIcon } from 'lucide-react'
-import { AlertTriangle, CheckCircle2, Utensils } from 'lucide-react'
+import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import { Badge } from '#/components/ui/badge'
