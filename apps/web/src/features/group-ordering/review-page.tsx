@@ -68,7 +68,8 @@ export function OrganizerReviewPage({
     ]
     return keys.map((key) => {
       const items = session.items.filter(
-        (item) => (item.participantId || `name:${item.participantName}`) === key,
+        (item) =>
+          (item.participantId || `name:${item.participantName}`) === key,
       )
       return {
         key,
