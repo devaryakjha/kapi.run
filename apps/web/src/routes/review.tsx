@@ -4,12 +4,13 @@ import type { KapiSession, ManualFallbackSummary } from '@kapi/spec'
 
 import { OrganizerReviewPage } from '#/features/group-ordering/review-page'
 import {
+  ApiError,
   ErrorAlert,
   api,
   audit,
   getSessionLinkParts,
   hasOrganizerCapability,
-  loadEncryptedSession,
+  loadEncryptedSessionRecord,
   localOrganizerKeyKey,
   makeCartPayload,
   makeManualFallback,
@@ -50,21 +51,49 @@ function RouteComponent() {
     initialReviewState,
   )
   const sessionKeyRef = useRef('')
+  const relayUpdatedAtRef = useRef<string | null>(null)
 
-  async function saveSession(nextSession: KapiSession) {
+  async function saveSession(
+    mutate: (session: KapiSession) => KapiSession,
+    fallbackSession = state.session,
+  ) {
     if (!sessionKeyRef.current) throw new Error('Session key is missing.')
-    const saved = await publishSession(nextSession, sessionKeyRef.current)
-    setState({ session: saved })
-    return saved
+    if (!fallbackSession) throw new Error('Session is missing.')
+    let nextSession = mutate(fallbackSession)
+    try {
+      const saved = await publishSession(
+        nextSession,
+        sessionKeyRef.current,
+        relayUpdatedAtRef.current,
+      )
+      relayUpdatedAtRef.current = saved.relayUpdatedAt
+      setState({ session: saved.session })
+      return saved.session
+    } catch (caught) {
+      if (!(caught instanceof ApiError) || caught.status !== 409) throw caught
+      const refreshed = await refreshSessionFromRelay()
+      if (!refreshed) throw caught
+      nextSession = mutate(refreshed.session)
+      const saved = await publishSession(
+        nextSession,
+        sessionKeyRef.current,
+        refreshed.relayUpdatedAt,
+      )
+      relayUpdatedAtRef.current = saved.relayUpdatedAt
+      setState({ session: saved.session })
+      return saved.session
+    }
   }
 
   async function refreshSessionFromRelay() {
     if (!state.session || !sessionKeyRef.current) return
-    const loaded = await loadEncryptedSession(
+    const loaded = await loadEncryptedSessionRecord(
       state.session.id,
       sessionKeyRef.current,
     )
-    setState({ session: loaded })
+    relayUpdatedAtRef.current = loaded.relayUpdatedAt
+    setState({ session: loaded.session })
+    return loaded
   }
 
   useEffect(() => {
@@ -74,8 +103,10 @@ function RouteComponent() {
     }
 
     sessionKeyRef.current = key
-    loadEncryptedSession(sessionId, key)
-      .then(async (session) => {
+    loadEncryptedSessionRecord(sessionId, key)
+      .then(async (loaded) => {
+        relayUpdatedAtRef.current = loaded.relayUpdatedAt
+        const session = loaded.session
         const isOrganizer =
           owner && (await hasOrganizerCapability(session, organizerSecret))
         if (isOrganizer && organizerSecret) {
@@ -100,19 +131,19 @@ function RouteComponent() {
         method: 'POST',
         body: JSON.stringify(makeCartPayload(state.session)),
       })
-      await saveSession({
-        ...state.session,
+      await saveSession((session) => ({
+        ...session,
         status: result?.status === 'synced' ? 'synced' : 'sync_failed',
-        items: state.session.items.map((item) => ({
+        items: session.items.map((item) => ({
           ...item,
           synced: item.available && result?.status === 'synced',
         })),
         sync: result,
         audit: [
-          ...state.session.audit,
+          ...session.audit,
           audit('Organiser', 'synced cart to Swiggy'),
         ],
-      })
+      }))
     } catch (caught) {
       setState({
         error:
@@ -127,11 +158,11 @@ function RouteComponent() {
     if (!state.session || !state.isOrganizer) return
     setState({ pending: true, error: null })
     try {
-      await saveSession({
-        ...state.session,
+      await saveSession((session) => ({
+        ...session,
         status: 'locked',
-        audit: [...state.session.audit, audit('Organiser', 'locked session')],
-      })
+        audit: [...session.audit, audit('Organiser', 'locked session')],
+      }))
     } catch (caught) {
       setState({
         error:
@@ -146,15 +177,15 @@ function RouteComponent() {
     if (!state.session || !state.isOrganizer) return
     setState({ pending: true, error: null })
     try {
-      await saveSession({
-        ...state.session,
-        items: state.session.items.map((item) =>
+      await saveSession((session) => ({
+        ...session,
+        items: session.items.map((item) =>
           item.id === itemId
             ? { ...item, quantity: Math.max(1, Math.floor(quantity)) }
             : item,
         ),
-        audit: [...state.session.audit, audit('Organiser', 'updated item')],
-      })
+        audit: [...session.audit, audit('Organiser', 'updated item')],
+      }))
     } catch (caught) {
       setState({
         error:
@@ -169,11 +200,11 @@ function RouteComponent() {
     if (!state.session || !state.isOrganizer) return
     setState({ pending: true, error: null })
     try {
-      await saveSession({
-        ...state.session,
-        items: state.session.items.filter((item) => item.id !== itemId),
-        audit: [...state.session.audit, audit('Organiser', 'removed item')],
-      })
+      await saveSession((session) => ({
+        ...session,
+        items: session.items.filter((item) => item.id !== itemId),
+        audit: [...session.audit, audit('Organiser', 'removed item')],
+      }))
     } catch (caught) {
       setState({
         error:

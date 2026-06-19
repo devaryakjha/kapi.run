@@ -13,6 +13,11 @@ import { Badge } from '#/components/ui/badge'
 import { cn } from '#/lib/utils'
 
 export type DraftCart = Record<string, number>
+export type RelaySessionRecord = { ciphertext: string; updatedAt: string }
+export type LoadedSessionRecord = {
+  session: KapiSession
+  relayUpdatedAt: string | null
+}
 
 export const API_URL =
   import.meta.env.VITE_KAPI_API_URL ?? 'http://127.0.0.1:3001'
@@ -20,6 +25,15 @@ export const setupImage = '/assets/kapi-setup-illustration.png'
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message)
+  }
+}
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
@@ -31,7 +45,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     const body = await response
       .json()
       .catch(() => ({ error: 'Request failed.' }))
-    throw new Error(body.error ?? 'Request failed.')
+    throw new ApiError(body.error ?? 'Request failed.', response.status)
   }
 
   return response.json() as Promise<T>
@@ -144,35 +158,53 @@ export function getSessionLinkParts() {
   return { key, organizerSecret, owner, sessionId }
 }
 
-export async function loadEncryptedSession(sessionId: string, key: string) {
+export async function loadEncryptedSessionRecord(
+  sessionId: string,
+  key: string,
+): Promise<LoadedSessionRecord> {
   try {
-    const record = await api<{ ciphertext: string }>(
-      `/relay/sessions/${sessionId}`,
-    )
+    const record = await api<RelaySessionRecord>(`/relay/sessions/${sessionId}`)
     const loaded = await decryptSession(record.ciphertext, key)
     localStorage.setItem(localSessionKey(sessionId), JSON.stringify(loaded))
     localStorage.setItem(localKeyKey(sessionId), key)
-    return loaded
+    return { session: loaded, relayUpdatedAt: record.updatedAt }
   } catch {
     const local = localStorage.getItem(localSessionKey(sessionId))
-    if (local) return JSON.parse(local) as KapiSession
+    if (local) {
+      return {
+        session: JSON.parse(local) as KapiSession,
+        relayUpdatedAt: null,
+      }
+    }
     throw new Error('Session not found.')
   }
 }
 
-export async function publishSession(nextSession: KapiSession, key: string) {
+export async function loadEncryptedSession(sessionId: string, key: string) {
+  return (await loadEncryptedSessionRecord(sessionId, key)).session
+}
+
+export async function publishSession(
+  nextSession: KapiSession,
+  key: string,
+  expectedUpdatedAt?: string | null,
+): Promise<LoadedSessionRecord> {
+  const record = await api<RelaySessionRecord>(
+    `/relay/sessions/${nextSession.id}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        ciphertext: await encryptSession(nextSession, key),
+        expectedUpdatedAt,
+      }),
+    },
+  )
   localStorage.setItem(
     localSessionKey(nextSession.id),
     JSON.stringify(nextSession),
   )
   localStorage.setItem(localKeyKey(nextSession.id), key)
-  await api(`/relay/sessions/${nextSession.id}`, {
-    method: 'PUT',
-    body: JSON.stringify({
-      ciphertext: await encryptSession(nextSession, key),
-    }),
-  })
-  return nextSession
+  return { session: nextSession, relayUpdatedAt: record.updatedAt }
 }
 
 export function audit(actor: string, action: string) {

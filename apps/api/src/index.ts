@@ -20,6 +20,7 @@ type OAuthClient = { client_id: string };
 type Token = { access_token: string; expires_at: number };
 type ToolEnvelope = { success?: boolean; data?: unknown; message?: string; error?: { message?: string } };
 type RelayStore = Record<string, { ciphertext: string; updatedAt: string }>;
+type RelayWrite = { ciphertext: string; expectedUpdatedAt?: string | null };
 
 const authStates = new Map<string, { codeVerifier: string; next: string }>();
 const relay: RelayStore = await readJson<RelayStore>(relayFile, {});
@@ -314,14 +315,24 @@ const app = new Elysia()
     }
     return record;
   }, { params: t.Object({ sessionId: t.String() }) })
-  .put("/relay/sessions/:sessionId", async ({ params, body, request }) => {
+  .put("/relay/sessions/:sessionId", async ({ params, body, request, set }) => {
     assertAllowedOrigin(request);
-    relay[params.sessionId] = { ciphertext: (body as { ciphertext: string }).ciphertext, updatedAt: new Date().toISOString() };
+    const current = relay[params.sessionId];
+    const expectedUpdatedAt = (body as RelayWrite).expectedUpdatedAt;
+    if (current && !expectedUpdatedAt) {
+      set.status = 409;
+      return { error: "Session has changed. Refresh and try again.", updatedAt: current.updatedAt };
+    }
+    if (current && expectedUpdatedAt !== current.updatedAt) {
+      set.status = 409;
+      return { error: "Session has changed. Refresh and try again.", updatedAt: current.updatedAt };
+    }
+    relay[params.sessionId] = { ciphertext: (body as RelayWrite).ciphertext, updatedAt: new Date().toISOString() };
     await writeJson(relayFile, relay);
     return relay[params.sessionId];
   }, {
     params: t.Object({ sessionId: t.String() }),
-    body: t.Object({ ciphertext: t.String() }),
+    body: t.Object({ ciphertext: t.String(), expectedUpdatedAt: t.Optional(t.Nullable(t.String())) }),
   })
   .listen(port);
 
