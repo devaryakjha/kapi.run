@@ -1,15 +1,30 @@
-# Elysia with Bun runtime
+# Kapi API
 
-## Getting Started
-To get started with this template, simply paste this command into your terminal:
-```bash
-bun create elysia ./elysia-example
+Local API for Swiggy OAuth/MCP proxy calls and encrypted Kapi session relay.
+
+## Commands
+
+```sh
+bun run --cwd apps/api dev
+bun run --cwd apps/api start
 ```
 
-## Development
-To start the development server run:
-```bash
-bun run dev
-```
+## Environment
 
-Open http://localhost:3000/ with your browser to see the result.
+- `PORT`: API port.
+- `KAPI_WEB_URL`: allowed web origin for local flows.
+- `SWIGGY_REDIRECT_URI`: OAuth redirect URL.
+- `SWIGGY_MCP_ACCESS_TOKEN`: optional local override only; do not commit or share a value.
+
+## Local Files
+
+- `.kapi-swiggy-token.json`: ignored local Swiggy token file.
+- `.kapi-session-relay.json`: ignored local encrypted session relay file.
+
+These are development files only.
+
+## Safety
+
+- Do not log Swiggy tokens or raw account data.
+- Do not call order placement.
+- Cart sync requires organiser confirmation in the web flow.
