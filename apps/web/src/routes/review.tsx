@@ -155,10 +155,7 @@ function RouteComponent() {
           synced: item.available && result?.status === 'synced',
         })),
         sync: result,
-        audit: [
-          ...session.audit,
-          audit('Organiser', 'synced cart to Swiggy'),
-        ],
+        audit: [...session.audit, audit('Organiser', 'synced cart to Swiggy')],
       }))
     } catch (caught) {
       setState({

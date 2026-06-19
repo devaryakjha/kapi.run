@@ -1,7 +1,12 @@
 import type { KapiSession, SessionStatus } from '@kapi/spec'
 import { describe, expect, it } from 'vitest'
 
-import { isSessionLockedForParticipants } from './shared'
+import {
+  hasOrganizerCapability,
+  hashOrganizerSecret,
+  isSessionLockedForParticipants,
+  makeCartPayload,
+} from './shared'
 
 function session(status: SessionStatus, cutoffAt?: string): KapiSession {
   return {
@@ -22,6 +27,23 @@ function session(status: SessionStatus, cutoffAt?: string): KapiSession {
     participants: [],
     items: [],
     audit: [],
+  }
+}
+
+function cartItem(
+  swiggyItemId: string,
+  quantity: number,
+  available = true,
+): KapiSession['items'][number] {
+  return {
+    id: `${swiggyItemId}-${quantity}`,
+    participantName: 'Asha',
+    menuItemId: `menu-${swiggyItemId}`,
+    name: 'Dosa',
+    quantity,
+    price: 120,
+    available,
+    swiggyItemId,
   }
 }
 
@@ -60,8 +82,66 @@ describe('isSessionLockedForParticipants', () => {
   })
 
   it('keeps an open session with invalid cutoffAt editable', () => {
-    expect(isSessionLockedForParticipants(session('open', 'not-a-date'), now)).toBe(
+    expect(
+      isSessionLockedForParticipants(session('open', 'not-a-date'), now),
+    ).toBe(false)
+  })
+})
+
+describe('hasOrganizerCapability', () => {
+  it('accepts a matching organizer secret', async () => {
+    const organizerSecret = 'organizer-secret'
+    const current = {
+      ...session('open'),
+      organizerSecretHash: await hashOrganizerSecret(organizerSecret),
+    }
+
+    await expect(
+      hasOrganizerCapability(current, organizerSecret),
+    ).resolves.toBe(true)
+  })
+
+  it('rejects a wrong organizer secret', async () => {
+    const current = {
+      ...session('open'),
+      organizerSecretHash: await hashOrganizerSecret('organizer-secret'),
+    }
+
+    await expect(hasOrganizerCapability(current, 'wrong-secret')).resolves.toBe(
       false,
     )
+  })
+
+  it('rejects a missing organizer secret', async () => {
+    const current = {
+      ...session('open'),
+      organizerSecretHash: await hashOrganizerSecret('organizer-secret'),
+    }
+
+    await expect(hasOrganizerCapability(current, null)).resolves.toBe(false)
+  })
+})
+
+describe('makeCartPayload', () => {
+  it('groups duplicate available Swiggy item ids by quantity', () => {
+    expect(
+      makeCartPayload({
+        ...session('open'),
+        items: [cartItem('swiggy-1', 2), cartItem('swiggy-1', 3)],
+      }),
+    ).toEqual({
+      restaurantId: 'restaurant-1',
+      addressId: 'address-1',
+      cartItems: [{ itemId: 'swiggy-1', quantity: 5 }],
+    })
+  })
+
+  it('excludes unavailable items', () => {
+    expect(
+      makeCartPayload({
+        ...session('open'),
+        items: [cartItem('swiggy-1', 2), cartItem('swiggy-2', 3, false)],
+      }).cartItems,
+    ).toEqual([{ itemId: 'swiggy-1', quantity: 2 }])
   })
 })
