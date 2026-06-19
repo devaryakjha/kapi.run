@@ -1,7 +1,7 @@
 import { cors } from "@elysiajs/cors";
 import { Elysia, t } from "elysia";
 import { unlink } from "node:fs/promises";
-import type { Address, MenuItem, Restaurant, SwiggyCartPayload, SwiggyCartSummary } from "@kapi/spec";
+import type { Address, MenuItem, Restaurant, SwiggyCartPayload, SwiggyCartSummary, SwiggyCartToolPayload } from "@kapi/spec";
 
 const port = Number(process.env.PORT ?? 3001);
 const publicWebUrl = process.env.KAPI_WEB_URL ?? "http://127.0.0.1:3000";
@@ -177,6 +177,14 @@ function normalizeCartSummary(raw: unknown): SwiggyCartSummary {
     restaurantName: firstText(raw, ["restaurantName", "restaurant_name", "name"]),
     total: firstPositiveNumber(raw, ["total", "totalAmount", "subtotal", "cartTotal"]),
     itemCount: itemCount && itemCount > 0 ? itemCount : undefined,
+  };
+}
+
+function toSwiggyCartToolPayload(payload: SwiggyCartPayload): SwiggyCartToolPayload & Record<string, unknown> {
+  return {
+    restaurantId: payload.restaurantId,
+    addressId: payload.addressId,
+    cartItems: payload.cartItems,
   };
 }
 
@@ -371,7 +379,7 @@ const app = new Elysia()
         cart: existingCart,
       };
     }
-    await callSwiggyTool("update_food_cart", payload);
+    await callSwiggyTool("update_food_cart", toSwiggyCartToolPayload(payload));
     const cart = normalizeCartSummary(await callSwiggyTool("get_food_cart"));
     return {
       status: "synced",
