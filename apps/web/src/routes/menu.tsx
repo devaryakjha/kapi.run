@@ -3,7 +3,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import type { CartLine, KapiSession, MenuItem } from '@kapi/spec'
 
 import { ParticipantMenuPage } from '#/features/group-ordering/participant-page'
-import type { DraftCart } from '#/features/group-ordering/shared'
+import type {
+  DraftCart,
+  LoadedSessionRecord,
+} from '#/features/group-ordering/shared'
 import {
   ApiError,
   ErrorAlert,
@@ -53,8 +56,8 @@ function RouteComponent() {
   const sessionKeyRef = useRef('')
   const relayUpdatedAtRef = useRef<string | null>(null)
 
-  async function refreshSessionFromRelay() {
-    if (!state.session || !sessionKeyRef.current) return state.session
+  async function refreshSessionFromRelay(): Promise<LoadedSessionRecord | null> {
+    if (!state.session || !sessionKeyRef.current) return null
     const loaded = await loadEncryptedSessionRecord(
       state.session.id,
       sessionKeyRef.current,

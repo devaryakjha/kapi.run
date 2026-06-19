@@ -13,7 +13,7 @@
     "dev:landing": "bun run --cwd apps/landing dev",
     "deploy:landing": "bun run --cwd apps/landing deploy",
     "build": "bun run --filter '@kapi/web' build",
-    "check": "bun run --cwd apps/web check",
+    "check": "bun run --cwd apps/web check && bun run --cwd apps/web typecheck && bun run --cwd apps/api typecheck",
     "lint": "bun run --filter '@kapi/web' lint",
     "test": "bun run --filter '@kapi/web' test"
   }
