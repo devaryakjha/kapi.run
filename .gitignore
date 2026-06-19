@@ -8,3 +8,5 @@ build
 .env.*
 !.env.example
 .kapi-*.json
+
+plans/
