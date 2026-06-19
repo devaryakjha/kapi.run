@@ -161,8 +161,13 @@ function normalizeRestaurant(raw: unknown): Restaurant {
   return {
     id: text(item.id, text(item.restaurantId)),
     name: text(item.name, "Restaurant"),
-    area: text(item.area, text(item.locality, text(item.displayText))),
+    area: text(item.areaName, text(item.area, text(item.locality, text(item.displayText)))),
     rating: number(item.rating, number(item.avgRating)),
+    totalRatings: text(item.totalRatings) || undefined,
+    costForTwo: text(item.costForTwo) || undefined,
+    distanceKm: typeof item.distanceKm === "number" ? item.distanceKm : undefined,
+    deliveryTimeRange: text(item.deliveryTimeRange) || undefined,
+    offer: text(item.offer) || undefined,
     imageUrl: text(item.imageUrl, text(item.cloudinaryImageId)) || undefined,
     availabilityStatus: text(item.availabilityStatus, "CLOSED").toUpperCase() === "OPEN" ? "OPEN" : "CLOSED",
   };

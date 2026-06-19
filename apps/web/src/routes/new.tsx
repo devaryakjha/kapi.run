@@ -26,9 +26,11 @@ import {
 } from 'lucide-react'
 
 import { Badge } from '#/components/ui/badge'
-import { Button } from '#/components/ui/button'
+import { Button, buttonVariants } from '#/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import { Avatar, AvatarFallback } from '#/components/ui/avatar'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '#/components/ui/command'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '#/components/ui/dialog'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '#/components/ui/empty'
 import { Field, FieldGroup, FieldLabel } from '#/components/ui/field'
 import { Input } from '#/components/ui/input'
@@ -150,6 +152,21 @@ function formatTimeLabel(value: string) {
 
 function formatAddressOption(address: Address) {
   return address.detail ? `${address.label} - ${address.detail}` : address.label
+}
+
+function formatRestaurantLocationMeta(restaurant: Restaurant) {
+  return [
+    restaurant.area,
+    typeof restaurant.distanceKm === 'number' ? `${restaurant.distanceKm.toFixed(1)} km` : '',
+    restaurant.deliveryTimeRange,
+  ].filter(Boolean).join(' · ')
+}
+
+function formatRestaurantValueMeta(restaurant: Restaurant) {
+  return [
+    restaurant.costForTwo,
+    restaurant.totalRatings ? `${restaurant.totalRatings} ratings` : '',
+  ].filter(Boolean).join(' · ')
 }
 
 function RouteComponent() {
@@ -512,6 +529,17 @@ function RouteComponent() {
   )
 }
 
+function ErrorAlert({ message, className }: { message: string | null; className?: string }) {
+  if (!message) return null
+  return (
+    <Alert variant="destructive" className={className}>
+      <AlertTriangle />
+      <AlertTitle>Something went wrong</AlertTitle>
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
+  )
+}
+
 function OrganizerSetup({
   addresses,
   authStatus,
@@ -545,10 +573,14 @@ function OrganizerSetup({
   onRestaurantChange: (restaurantId: string) => void
   onRestaurantQueryChange: (query: string) => void
 }) {
+  const [isRestaurantCommandOpen, setRestaurantCommandOpen] = useState(false)
   const addressItems = [
     { label: authStatus.connected ? 'Choose address' : 'Connect first', value: '', title: authStatus.connected ? 'Choose address' : 'Connect first', detail: '' },
     ...addresses.map((address) => ({ label: formatAddressOption(address), value: address.id, title: address.label, detail: address.detail })),
   ]
+  const selectedRestaurant = restaurants.find((restaurant) => restaurant.id === selectedRestaurantId)
+  const selectedRestaurantLocationMeta = selectedRestaurant ? formatRestaurantLocationMeta(selectedRestaurant) : ''
+  const selectedRestaurantValueMeta = selectedRestaurant ? formatRestaurantValueMeta(selectedRestaurant) : ''
 
   return (
     <main className="flex min-h-svh bg-background text-foreground">
@@ -643,45 +675,105 @@ function OrganizerSetup({
 
           <SetupStep title="Step 3: Venue">
             <div className="flex flex-col gap-4">
-              <InputGroup>
-                <InputGroupInput
-                  value={restaurantQuery}
-                  onChange={(event) => onRestaurantQueryChange(event.target.value)}
+              <Dialog open={isRestaurantCommandOpen} onOpenChange={setRestaurantCommandOpen}>
+                <button
+                  type="button"
                   disabled={!selectedAddressId}
-                  placeholder="Search restaurants or cuisine"
-                />
-                <InputGroupAddon>
-                  {pending && restaurantQuery.trim() ? <Loader2 className="animate-spin" /> : <Search />}
-                </InputGroupAddon>
-              </InputGroup>
-              {restaurants.length ? (
-                <div className="grid gap-2">
-                  {restaurants.map((restaurant) => (
-                    <Button
-                      key={restaurant.id}
-                      type="button"
-                      variant="outline"
-                      onClick={() => onRestaurantChange(restaurant.id)}
-                      disabled={restaurant.availabilityStatus !== 'OPEN'}
-                      className={cn(
-                        'h-auto justify-start gap-4 p-3 text-left',
-                        selectedRestaurantId === restaurant.id && 'border-primary ring-2 ring-primary/10',
+                  onClick={() => setRestaurantCommandOpen(true)}
+                  className={cn(
+                    buttonVariants({ variant: 'outline' }),
+                    selectedRestaurant
+                      ? 'h-auto min-h-16 w-full items-start justify-start gap-3 rounded-lg p-3 text-left font-normal whitespace-normal'
+                      : 'h-9 w-full justify-start gap-2 rounded-lg px-3 text-left font-normal',
+                  )}
+                >
+                  {selectedRestaurant ? (
+                    <>
+                      {selectedRestaurant.imageUrl ? (
+                        <img src={selectedRestaurant.imageUrl} alt={selectedRestaurant.name} className="size-10 shrink-0 border border-border object-cover grayscale-[0.45]" />
+                      ) : (
+                        <IconTile icon={Utensils} className="size-10" />
                       )}
-                    >
-                      {restaurant.imageUrl ? <img src={restaurant.imageUrl} alt={restaurant.name} className="size-12 shrink-0 border border-border object-cover grayscale-[0.45]" /> : <IconTile icon={Utensils} className="size-12" />}
                       <span className="min-w-0 flex-1">
-                        <span className="block text-base font-semibold leading-6">{restaurant.name}</span>
-                        <span className="block text-[13px] leading-4.5 text-muted-foreground">{restaurant.area || restaurant.availabilityStatus}</span>
+                        <span className="block text-sm font-semibold leading-5">{selectedRestaurant.name}</span>
+                        {selectedRestaurantLocationMeta ? <span className="mt-0.5 block truncate text-[13px] leading-4.5 text-muted-foreground">{selectedRestaurantLocationMeta}</span> : null}
+                        {selectedRestaurantValueMeta ? <span className="block truncate text-[12px] leading-4 text-muted-foreground">{selectedRestaurantValueMeta}</span> : null}
                       </span>
-                      {restaurant.rating ? (
-                        <span className="flex items-center gap-1 text-[11px] font-bold text-primary">
-                          <Star className="fill-current" /> {restaurant.rating}
+                      {selectedRestaurant.rating ? (
+                        <span className="ml-auto flex w-12 shrink-0 items-center justify-end gap-1 text-[11px] font-bold tabular-nums text-primary">
+                          <Star className="fill-current" />
+                          <span className="w-5 text-left">{Number(selectedRestaurant.rating).toFixed(1)}</span>
                         </span>
+                      ) : (
+                        <span className="w-12 shrink-0" />
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Search data-icon="inline-start" />
+                      <span className="min-w-0 flex-1 truncate text-sm">Search restaurants or cuisine</span>
+                    </>
+                  )}
+                </button>
+                <DialogContent className="top-1/3 translate-y-0 overflow-hidden rounded-4xl! p-0" showCloseButton={false}>
+                  <DialogHeader className="sr-only">
+                    <DialogTitle>Choose Restaurant</DialogTitle>
+                    <DialogDescription>Search restaurants or cuisine</DialogDescription>
+                  </DialogHeader>
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      value={restaurantQuery}
+                      onValueChange={onRestaurantQueryChange}
+                      disabled={!selectedAddressId}
+                      placeholder="Search restaurants or cuisine"
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {restaurantQuery.trim() ? (pending ? 'Searching restaurants...' : 'No restaurants found.') : 'Type to search restaurants.'}
+                      </CommandEmpty>
+                      {restaurants.length ? (
+                        <CommandGroup heading="Restaurants">
+                          {restaurants.map((restaurant) => {
+                            const locationMeta = formatRestaurantLocationMeta(restaurant)
+                            const valueMeta = formatRestaurantValueMeta(restaurant)
+                            return (
+                              <CommandItem
+                                key={restaurant.id}
+                                value={`${restaurant.name} ${restaurant.area} ${restaurant.availabilityStatus}`}
+                                disabled={restaurant.availabilityStatus !== 'OPEN'}
+                                onSelect={() => {
+                                  onRestaurantChange(restaurant.id)
+                                  setRestaurantCommandOpen(false)
+                                }}
+                                className="items-start gap-3 data-[disabled=true]:opacity-45"
+                              >
+                                {restaurant.imageUrl ? (
+                                  <img src={restaurant.imageUrl} alt={restaurant.name} className="size-10 shrink-0 border border-border object-cover grayscale-[0.45]" />
+                                ) : (
+                                  <IconTile icon={Utensils} className="size-10" />
+                                )}
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-sm font-semibold leading-5">{restaurant.name}</span>
+                                  {locationMeta ? <span className="mt-0.5 block truncate text-[13px] leading-4.5 text-muted-foreground">{locationMeta}</span> : null}
+                                  {valueMeta ? <span className="block truncate text-[12px] leading-4 text-muted-foreground">{valueMeta}</span> : null}
+                                </span>
+                                {restaurant.rating ? (
+                                  <span className="ml-auto flex w-12 shrink-0 items-center justify-end gap-1 text-[11px] font-bold tabular-nums text-primary">
+                                    <Star className="fill-current" />
+                                    <span className="w-5 text-left">{Number(restaurant.rating).toFixed(1)}</span>
+                                  </span>
+                                ) : (
+                                  <span className="w-12 shrink-0" />
+                                )}
+                              </CommandItem>
+                            )
+                          })}
+                        </CommandGroup>
                       ) : null}
-                    </Button>
-                  ))}
-                </div>
-              ) : null}
+                    </CommandList>
+                  </Command>
+                </DialogContent>
+              </Dialog>
             </div>
           </SetupStep>
 
@@ -1273,17 +1365,6 @@ function SummaryRow({ label, value, strong }: { label: string; value: string; st
       <span>{label}</span>
       <span className={cn('font-mono', strong && 'font-medium text-foreground')}>{value}</span>
     </div>
-  )
-}
-
-function ErrorAlert({ message, className }: { message: string | null; className?: string }) {
-  if (!message) return null
-  return (
-    <Alert variant="destructive" className={className}>
-      <AlertTriangle />
-      <AlertTitle>Something went wrong</AlertTitle>
-      <AlertDescription>{message}</AlertDescription>
-    </Alert>
   )
 }
 

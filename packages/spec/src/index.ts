@@ -11,6 +11,11 @@ export type Restaurant = {
   name: string
   area: string
   rating: number
+  totalRatings?: string
+  costForTwo?: string
+  distanceKm?: number
+  deliveryTimeRange?: string
+  offer?: string
   imageUrl?: string
   availabilityStatus: 'OPEN' | 'CLOSED'
 }
