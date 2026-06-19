@@ -63,6 +63,26 @@ export async function makeSessionKey() {
   )
 }
 
+export function makeOrganizerSecret() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  return bytesToBase64Url(bytes)
+}
+
+export async function hashOrganizerSecret(secret: string) {
+  const hash = await crypto.subtle.digest('SHA-256', encoder.encode(secret))
+  return bytesToBase64Url(new Uint8Array(hash))
+}
+
+export async function hasOrganizerCapability(
+  session: KapiSession,
+  organizerSecret: string | null,
+) {
+  if (!session.organizerSecretHash || !organizerSecret) return false
+  return (
+    session.organizerSecretHash === (await hashOrganizerSecret(organizerSecret))
+  )
+}
+
 async function importSessionKey(key: string) {
   return crypto.subtle.importKey(
     'raw',
@@ -106,14 +126,22 @@ export function localKeyKey(sessionId: string) {
   return `kapi:key:${sessionId}`
 }
 
+export function localOrganizerKeyKey(sessionId: string) {
+  return `kapi:owner-key:${sessionId}`
+}
+
 export function getSessionLinkParts() {
   const search = new URLSearchParams(window.location.search)
   const sessionId = search.get('session')
   const owner = search.get('owner') === '1'
+  const hash = new URLSearchParams(window.location.hash.slice(1))
   const key =
-    new URLSearchParams(window.location.hash.slice(1)).get('key') ??
+    hash.get('key') ??
     (sessionId ? localStorage.getItem(localKeyKey(sessionId)) : null)
-  return { key, owner, sessionId }
+  const organizerSecret =
+    hash.get('ownerKey') ??
+    (sessionId ? localStorage.getItem(localOrganizerKeyKey(sessionId)) : null)
+  return { key, organizerSecret, owner, sessionId }
 }
 
 export async function loadEncryptedSession(sessionId: string, key: string) {

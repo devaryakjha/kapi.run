@@ -61,6 +61,7 @@ export type KapiSession = {
   restaurant: Restaurant
   cutoffTime: string
   shareUrl: string
+  organizerSecretHash?: string
   status: SessionStatus
   participants: Participant[]
   items: CartLine[]

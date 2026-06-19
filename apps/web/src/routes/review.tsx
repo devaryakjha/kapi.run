@@ -8,7 +8,9 @@ import {
   api,
   audit,
   getSessionLinkParts,
+  hasOrganizerCapability,
   loadEncryptedSession,
+  localOrganizerKeyKey,
   makeCartPayload,
   makeManualFallback,
   publishSession,
@@ -21,6 +23,7 @@ export const Route = createFileRoute('/review')({
 type ReviewState = {
   session: KapiSession | null
   fallback: ManualFallbackSummary | null
+  isOrganizer: boolean
   pending: boolean
   error: string | null
 }
@@ -30,6 +33,7 @@ function initialReviewState(): ReviewState {
   return {
     session: null,
     fallback: null,
+    isOrganizer: false,
     pending: false,
     error: !sessionId || !key ? 'Session link is invalid.' : null,
   }
@@ -46,7 +50,6 @@ function RouteComponent() {
     initialReviewState,
   )
   const sessionKeyRef = useRef('')
-  const isOrganizer = getSessionLinkParts().owner
 
   async function saveSession(nextSession: KapiSession) {
     if (!sessionKeyRef.current) throw new Error('Session key is missing.')
@@ -65,19 +68,26 @@ function RouteComponent() {
   }
 
   useEffect(() => {
-    const { key, sessionId } = getSessionLinkParts()
+    const { key, organizerSecret, owner, sessionId } = getSessionLinkParts()
     if (!sessionId || !key) {
       return
     }
 
     sessionKeyRef.current = key
     loadEncryptedSession(sessionId, key)
-      .then((session) => setState({ session }))
+      .then(async (session) => {
+        const isOrganizer =
+          owner && (await hasOrganizerCapability(session, organizerSecret))
+        if (isOrganizer && organizerSecret) {
+          localStorage.setItem(localOrganizerKeyKey(sessionId), organizerSecret)
+        }
+        setState({ isOrganizer, session })
+      })
       .catch((caught: Error) => setState({ error: caught.message }))
   }, [])
 
   async function syncCart() {
-    if (!state.session) return
+    if (!state.session || !state.isOrganizer) return
     if (
       !window.confirm(
         'Add these items to your Swiggy cart? This will not place the order.',
@@ -114,7 +124,7 @@ function RouteComponent() {
   }
 
   async function lockSession() {
-    if (!state.session) return
+    if (!state.session || !state.isOrganizer) return
     setState({ pending: true, error: null })
     try {
       await saveSession({
@@ -133,7 +143,7 @@ function RouteComponent() {
   }
 
   async function updateSubmittedItem(itemId: string, quantity: number) {
-    if (!state.session) return
+    if (!state.session || !state.isOrganizer) return
     setState({ pending: true, error: null })
     try {
       await saveSession({
@@ -156,7 +166,7 @@ function RouteComponent() {
   }
 
   async function removeSubmittedItem(itemId: string) {
-    if (!state.session) return
+    if (!state.session || !state.isOrganizer) return
     setState({ pending: true, error: null })
     try {
       await saveSession({
@@ -175,7 +185,7 @@ function RouteComponent() {
   }
 
   async function loadManualFallback() {
-    if (!state.session) return
+    if (!state.session || !state.isOrganizer) return
     setState({ pending: true, error: null })
     try {
       setState({ fallback: makeManualFallback(state.session) })
@@ -203,7 +213,7 @@ function RouteComponent() {
     <OrganizerReviewPage
       error={state.error}
       fallback={state.fallback}
-      isOrganizer={isOrganizer}
+      isOrganizer={state.isOrganizer}
       pending={state.pending}
       session={state.session}
       onFallback={loadManualFallback}

@@ -131,16 +131,18 @@ export function OrganizerReviewPage({
             >
               {session.status}
             </Badge>
-            <Button
-              onClick={onLock}
-              disabled={pending || session.status !== 'open'}
-              variant="outline"
-              size="sm"
-              className="rounded"
-            >
-              <LockKeyhole data-icon="inline-start" />
-              Lock
-            </Button>
+            {isOrganizer ? (
+              <Button
+                onClick={onLock}
+                disabled={pending || session.status !== 'open'}
+                variant="outline"
+                size="sm"
+                className="rounded"
+              >
+                <LockKeyhole data-icon="inline-start" />
+                Lock
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -187,6 +189,7 @@ export function OrganizerReviewPage({
             {groups.map((group) => (
               <ParticipantGroup
                 key={group.name}
+                isOrganizer={isOrganizer}
                 name={group.name}
                 items={group.items}
                 onRemoveItem={onRemoveItem}
@@ -226,28 +229,32 @@ export function OrganizerReviewPage({
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <Button
-                  onClick={onSync}
-                  disabled={pending || !session.items.length}
-                  className="h-12 text-base font-semibold"
-                >
-                  {pending ? (
-                    <Loader2
-                      className="animate-spin"
-                      data-icon="inline-start"
-                    />
-                  ) : (
-                    <ShoppingCart data-icon="inline-start" />
-                  )}
-                  {session.status === 'synced'
-                    ? 'Cart Ready'
-                    : 'Add to Swiggy Cart'}
-                </Button>
+                {isOrganizer ? (
+                  <Button
+                    onClick={onSync}
+                    disabled={pending || !session.items.length}
+                    className="h-12 text-base font-semibold"
+                  >
+                    {pending ? (
+                      <Loader2
+                        className="animate-spin"
+                        data-icon="inline-start"
+                      />
+                    ) : (
+                      <ShoppingCart data-icon="inline-start" />
+                    )}
+                    {session.status === 'synced'
+                      ? 'Cart Ready'
+                      : 'Add to Swiggy Cart'}
+                  </Button>
+                ) : null}
                 <Button variant="outline">Download Receipt</Button>
-                <Button onClick={onFallback} variant="outline">
-                  <ClipboardList data-icon="inline-start" />
-                  Manual Checklist
-                </Button>
+                {isOrganizer ? (
+                  <Button onClick={onFallback} variant="outline">
+                    <ClipboardList data-icon="inline-start" />
+                    Manual Checklist
+                  </Button>
+                ) : null}
               </div>
               <ErrorAlert message={error} className="mt-3" />
               {session.sync ? (
@@ -268,23 +275,25 @@ export function OrganizerReviewPage({
               ) : null}
             </section>
 
-            <section className="border-l border-border pl-4">
-              <p className="mb-1 text-[11px] font-bold uppercase leading-3.5 tracking-[0.03em] text-primary">
-                Next Step
-              </p>
-              <h3 className="mb-2 text-base font-semibold leading-6">
-                Open Swiggy Cart
-              </h3>
-              <p className="mb-4 text-[13px] leading-4.5 text-muted-foreground">
-                Review the synced cart in Swiggy, apply coupons or payment
-                details there, then complete checkout.
-              </p>
-              <Button variant="link" className="h-auto gap-1 px-0 text-xs">
-                <ShoppingCart data-icon="inline-start" /> Continue in Swiggy
-              </Button>
-            </section>
+            {isOrganizer ? (
+              <section className="border-l border-border pl-4">
+                <p className="mb-1 text-[11px] font-bold uppercase leading-3.5 tracking-[0.03em] text-primary">
+                  Next Step
+                </p>
+                <h3 className="mb-2 text-base font-semibold leading-6">
+                  Open Swiggy Cart
+                </h3>
+                <p className="mb-4 text-[13px] leading-4.5 text-muted-foreground">
+                  Review the synced cart in Swiggy, apply coupons or payment
+                  details there, then complete checkout.
+                </p>
+                <Button variant="link" className="h-auto gap-1 px-0 text-xs">
+                  <ShoppingCart data-icon="inline-start" /> Continue in Swiggy
+                </Button>
+              </section>
+            ) : null}
 
-            {fallback ? (
+            {isOrganizer && fallback ? (
               <section className="border-l border-border pl-4">
                 <h3 className="mb-2 text-base font-semibold leading-6">
                   Manual Swiggy Checklist
@@ -313,11 +322,13 @@ export function OrganizerReviewPage({
 }
 
 function ParticipantGroup({
+  isOrganizer,
   name,
   items,
   onRemoveItem,
   onUpdateItem,
 }: {
+  isOrganizer: boolean
   name: string
   items: CartLine[]
   onRemoveItem: (itemId: string) => void
@@ -344,6 +355,7 @@ function ParticipantGroup({
         {items.map((item) => (
           <ReviewItem
             key={item.id}
+            isOrganizer={isOrganizer}
             item={item}
             onRemove={() => onRemoveItem(item.id)}
             onUpdate={(quantity) => onUpdateItem(item.id, quantity)}
@@ -355,10 +367,12 @@ function ParticipantGroup({
 }
 
 function ReviewItem({
+  isOrganizer,
   item,
   onRemove,
   onUpdate,
 }: {
+  isOrganizer: boolean
   item: CartLine
   onRemove: () => void
   onUpdate: (quantity: number) => void
@@ -410,32 +424,34 @@ function ReviewItem({
         <p className="text-[11px] font-medium leading-3.5 text-muted-foreground">
           Qty: {item.quantity}
         </p>
-        <div className="mt-2 flex items-center justify-end gap-1">
-          <Button
-            onClick={() => onUpdate(item.quantity - 1)}
-            variant="outline"
-            size="icon-xs"
-            className="rounded"
-          >
-            <Minus />
-          </Button>
-          <Button
-            onClick={() => onUpdate(item.quantity + 1)}
-            variant="outline"
-            size="icon-xs"
-            className="rounded"
-          >
-            <Plus />
-          </Button>
-          <Button
-            onClick={onRemove}
-            variant="ghost"
-            size="icon-xs"
-            className="rounded text-destructive"
-          >
-            <Trash2 />
-          </Button>
-        </div>
+        {isOrganizer ? (
+          <div className="mt-2 flex items-center justify-end gap-1">
+            <Button
+              onClick={() => onUpdate(item.quantity - 1)}
+              variant="outline"
+              size="icon-xs"
+              className="rounded"
+            >
+              <Minus />
+            </Button>
+            <Button
+              onClick={() => onUpdate(item.quantity + 1)}
+              variant="outline"
+              size="icon-xs"
+              className="rounded"
+            >
+              <Plus />
+            </Button>
+            <Button
+              onClick={onRemove}
+              variant="ghost"
+              size="icon-xs"
+              className="rounded text-destructive"
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        ) : null}
       </div>
     </div>
   )
