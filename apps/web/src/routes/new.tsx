@@ -15,7 +15,10 @@ import {
   audit,
   formatTimeLabel,
   getSessionLinkParts,
+  hashOrganizerSecret,
   localKeyKey,
+  localOrganizerKeyKey,
+  makeOrganizerSecret,
   makeSessionKey,
   publishSession,
 } from '#/features/group-ordering/shared'
@@ -134,6 +137,7 @@ function RouteComponent() {
     try {
       const id = crypto.randomUUID()
       const key = await makeSessionKey()
+      const organizerSecret = makeOrganizerSecret()
       const shareUrl = `${window.location.origin}/menu?session=${id}#key=${key}`
       const nextSession: KapiSession = {
         id,
@@ -142,6 +146,7 @@ function RouteComponent() {
         restaurant,
         cutoffTime: formatTimeLabel(state.cutoffTime),
         shareUrl,
+        organizerSecretHash: await hashOrganizerSecret(organizerSecret),
         status: 'open',
         participants: [],
         items: [],
@@ -151,8 +156,9 @@ function RouteComponent() {
         `/food/restaurants/${restaurant.id}/menu?addressId=${address.id}`,
       )
       localStorage.setItem(localKeyKey(id), key)
+      localStorage.setItem(localOrganizerKeyKey(id), organizerSecret)
       await publishSession(nextSession, key)
-      window.location.href = `/review?session=${id}&owner=1#key=${key}`
+      window.location.href = `/review?session=${id}&owner=1#key=${key}&ownerKey=${organizerSecret}`
     } catch (caught) {
       setState({
         error:
