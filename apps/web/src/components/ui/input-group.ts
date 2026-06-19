@@ -1,0 +1,6 @@
+export { InputGroup } from '#/components/ui/input-group-root'
+export { InputGroupAddon } from '#/components/ui/input-group-addon'
+export { InputGroupButton } from '#/components/ui/input-group-button'
+export { InputGroupText } from '#/components/ui/input-group-text'
+export { InputGroupInput } from '#/components/ui/input-group-input'
+export { InputGroupTextarea } from '#/components/ui/input-group-textarea'

@@ -1,6 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useReducer } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import type { Address, AuthStatus, KapiSession, MenuItem, Restaurant } from '@kapi/spec'
+import type {
+  Address,
+  AuthStatus,
+  KapiSession,
+  MenuItem,
+  Restaurant,
+} from '@kapi/spec'
 
 import { OrganizerSetupPage } from '#/features/group-ordering/setup-page'
 import {
@@ -18,58 +24,94 @@ export const Route = createFileRoute('/new')({
   component: RouteComponent,
 })
 
+type SetupState = {
+  addresses: Address[]
+  restaurants: Restaurant[]
+  authStatus: AuthStatus
+  selectedAddressId: string
+  selectedRestaurantId: string
+  cutoffTime: string
+  restaurantQuery: string
+  pending: boolean
+  error: string | null
+}
+
+const initialSetupState: SetupState = {
+  addresses: [],
+  restaurants: [],
+  authStatus: { connected: false, expiresAt: null },
+  selectedAddressId: '',
+  selectedRestaurantId: '',
+  cutoffTime: '12:45',
+  restaurantQuery: '',
+  pending: false,
+  error: null,
+}
+
+function patchSetupState(state: SetupState, patch: Partial<SetupState>) {
+  return { ...state, ...patch }
+}
+
+function connectSwiggy() {
+  window.location.href = `${API_URL}/auth/start?next=${encodeURIComponent(window.location.href)}`
+}
+
 function RouteComponent() {
-  const [addresses, setAddresses] = useState<Address[]>([])
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
-  const [authStatus, setAuthStatus] = useState<AuthStatus>({ connected: false, expiresAt: null })
-  const [selectedAddressId, setSelectedAddressId] = useState('')
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState('')
-  const [cutoffTime, setCutoffTime] = useState('12:45')
-  const [restaurantQuery, setRestaurantQuery] = useState('')
-  const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [state, setState] = useReducer(patchSetupState, initialSetupState)
 
   useEffect(() => {
     const { owner, sessionId } = getSessionLinkParts()
     if (sessionId) {
-      window.location.replace(`${owner ? '/review' : '/menu'}?session=${sessionId}${owner ? '&owner=1' : ''}${window.location.hash}`)
+      window.location.replace(
+        `${owner ? '/review' : '/menu'}?session=${sessionId}${owner ? '&owner=1' : ''}${window.location.hash}`,
+      )
       return
     }
 
     api<AuthStatus>('/auth/status')
       .then(async (status) => {
-        setAuthStatus(status)
-        if (!status.connected) return
+        if (!status.connected) {
+          setState({ authStatus: status })
+          return
+        }
         const nextAddresses = await api<Address[]>('/food/addresses')
-        setAddresses(nextAddresses)
-        setSelectedAddressId(nextAddresses[0]?.id ?? '')
+        setState({
+          authStatus: status,
+          addresses: nextAddresses,
+          selectedAddressId: nextAddresses[0]?.id ?? '',
+        })
       })
-      .catch((caught: Error) => setError(caught.message))
+      .catch((caught: Error) => setState({ error: caught.message }))
   }, [])
 
   useEffect(() => {
-    const query = restaurantQuery.trim()
-    if (!selectedAddressId || !query) {
-      setRestaurants([])
-      setSelectedRestaurantId('')
+    const query = state.restaurantQuery.trim()
+    if (!state.selectedAddressId || !query) {
+      setState({ restaurants: [], selectedRestaurantId: '' })
       return
     }
 
     let cancelled = false
     const timer = window.setTimeout(() => {
-      setPending(true)
-      setError(null)
-      api<Restaurant[]>(`/food/restaurants?addressId=${encodeURIComponent(selectedAddressId)}&q=${encodeURIComponent(query)}`)
+      setState({ pending: true, error: null })
+      api<Restaurant[]>(
+        `/food/restaurants?addressId=${encodeURIComponent(state.selectedAddressId)}&q=${encodeURIComponent(query)}`,
+      )
         .then((nextRestaurants) => {
           if (cancelled) return
-          setRestaurants(nextRestaurants)
-          setSelectedRestaurantId(nextRestaurants.find((restaurant) => restaurant.availabilityStatus === 'OPEN')?.id ?? '')
+          setState({
+            restaurants: nextRestaurants,
+            selectedRestaurantId:
+              nextRestaurants.find(
+                (restaurant) => restaurant.availabilityStatus === 'OPEN',
+              )?.id ?? '',
+          })
         })
         .catch((caught: Error) => {
-          if (!cancelled) setError(caught.message)
+          if (!cancelled) setState({ error: caught.message })
         })
         .finally(() => {
-          if (!cancelled) setPending(false)
+          if (!cancelled) setState({ pending: false })
         })
     }, 350)
 
@@ -77,19 +119,18 @@ function RouteComponent() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [restaurantQuery, selectedAddressId])
-
-  function connectSwiggy() {
-    window.location.href = `${API_URL}/auth/start?next=${encodeURIComponent(window.location.href)}`
-  }
+  }, [state.restaurantQuery, state.selectedAddressId])
 
   async function createSession() {
-    const address = addresses.find((candidate) => candidate.id === selectedAddressId)
-    const restaurant = restaurants.find((candidate) => candidate.id === selectedRestaurantId)
+    const address = state.addresses.find(
+      (candidate) => candidate.id === state.selectedAddressId,
+    )
+    const restaurant = state.restaurants.find(
+      (candidate) => candidate.id === state.selectedRestaurantId,
+    )
     if (!address || !restaurant) return
 
-    setPending(true)
-    setError(null)
+    setState({ pending: true, error: null })
     try {
       const id = crypto.randomUUID()
       const key = await makeSessionKey()
@@ -99,41 +140,52 @@ function RouteComponent() {
         organiserName: 'Organiser',
         address,
         restaurant,
-        cutoffTime: formatTimeLabel(cutoffTime),
+        cutoffTime: formatTimeLabel(state.cutoffTime),
         shareUrl,
         status: 'open',
         participants: [],
         items: [],
         audit: [audit('Organiser', 'created session')],
       }
-      await api<MenuItem[]>(`/food/restaurants/${restaurant.id}/menu?addressId=${address.id}`)
+      await api<MenuItem[]>(
+        `/food/restaurants/${restaurant.id}/menu?addressId=${address.id}`,
+      )
       localStorage.setItem(localKeyKey(id), key)
       await publishSession(nextSession, key)
       window.location.href = `/review?session=${id}&owner=1#key=${key}`
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not create session.')
+      setState({
+        error:
+          caught instanceof Error
+            ? caught.message
+            : 'Could not create session.',
+      })
     } finally {
-      setPending(false)
+      setState({ pending: false })
     }
   }
 
   return (
     <OrganizerSetupPage
-      addresses={addresses}
-      authStatus={authStatus}
-      error={error}
-      pending={pending}
-      restaurantQuery={restaurantQuery}
-      restaurants={restaurants}
-      cutoffTime={cutoffTime}
-      selectedAddressId={selectedAddressId}
-      selectedRestaurantId={selectedRestaurantId}
-      onAddressChange={setSelectedAddressId}
+      addresses={state.addresses}
+      authStatus={state.authStatus}
+      error={state.error}
+      pending={state.pending}
+      restaurantQuery={state.restaurantQuery}
+      restaurants={state.restaurants}
+      cutoffTime={state.cutoffTime}
+      selectedAddressId={state.selectedAddressId}
+      selectedRestaurantId={state.selectedRestaurantId}
+      onAddressChange={(selectedAddressId) => setState({ selectedAddressId })}
       onConnect={connectSwiggy}
-      onCutoffTimeChange={setCutoffTime}
+      onCutoffTimeChange={(cutoffTime) => setState({ cutoffTime })}
       onCreate={createSession}
-      onRestaurantChange={setSelectedRestaurantId}
-      onRestaurantQueryChange={setRestaurantQuery}
+      onRestaurantChange={(selectedRestaurantId) =>
+        setState({ selectedRestaurantId })
+      }
+      onRestaurantQueryChange={(restaurantQuery) =>
+        setState({ restaurantQuery })
+      }
     />
   )
 }
