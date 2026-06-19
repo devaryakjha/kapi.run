@@ -59,13 +59,23 @@ export function OrganizerReviewPage({
   onUpdateItem: (itemId: string, quantity: number) => void
 }) {
   const groups = useMemo(() => {
-    const names = [
-      ...new Set(session.items.map((item) => item.participantName)),
+    const keys = [
+      ...new Set(
+        session.items.map(
+          (item) => item.participantId || `name:${item.participantName}`,
+        ),
+      ),
     ]
-    return names.map((name) => ({
-      name,
-      items: session.items.filter((item) => item.participantName === name),
-    }))
+    return keys.map((key) => {
+      const items = session.items.filter(
+        (item) => (item.participantId || `name:${item.participantName}`) === key,
+      )
+      return {
+        key,
+        name: items.at(-1)?.participantName ?? 'Guest',
+        items,
+      }
+    })
   }, [session.items])
   const subtotal = session.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -188,7 +198,7 @@ export function OrganizerReviewPage({
             ) : null}
             {groups.map((group) => (
               <ParticipantGroup
-                key={group.name}
+                key={group.key}
                 isOrganizer={isOrganizer}
                 name={group.name}
                 items={group.items}

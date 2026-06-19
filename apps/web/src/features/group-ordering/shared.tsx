@@ -1,7 +1,9 @@
 import type {
   Address,
+  CartLine,
   KapiSession,
   ManualFallbackSummary,
+  MenuItem,
   Restaurant,
 } from '@kapi/spec'
 import type { LucideIcon } from 'lucide-react'
@@ -139,6 +141,19 @@ export function localKeyKey(sessionId: string) {
   return `kapi:key:${sessionId}`
 }
 
+export function localParticipantIdKey(sessionId: string) {
+  return `kapi:participant:${sessionId}`
+}
+
+export function getOrCreateLocalParticipantId(sessionId: string) {
+  const key = localParticipantIdKey(sessionId)
+  const existing = localStorage.getItem(key)
+  if (existing) return existing
+  const id = crypto.randomUUID()
+  localStorage.setItem(key, id)
+  return id
+}
+
 export function localOrganizerKeyKey(sessionId: string) {
   return `kapi:owner-key:${sessionId}`
 }
@@ -215,10 +230,85 @@ export function audit(actor: string, action: string) {
   }
 }
 
+export function applyParticipantSubmission({
+  latest,
+  menu,
+  participantId,
+  participantName,
+  draftItems,
+}: {
+  latest: KapiSession
+  menu: MenuItem[]
+  participantId: string
+  participantName: string
+  draftItems: Array<{ menuItemId: string; quantity: number; note?: string }>
+}) {
+  const submittedAt = new Date().toISOString()
+  const submitted: CartLine[] = draftItems.flatMap((line) => {
+    const item = menu.find(
+      (candidate) =>
+        candidate.id === line.menuItemId &&
+        candidate.restaurantId === latest.restaurant.id,
+    )
+    if (!item || line.quantity <= 0) return []
+    return {
+      id: crypto.randomUUID(),
+      participantId,
+      participantName,
+      menuItemId: item.id,
+      name: item.name,
+      quantity: line.quantity,
+      price: item.price,
+      note: line.note,
+      available: item.available,
+      swiggyItemId: item.swiggyItemId,
+    }
+  })
+  const existingParticipant = latest.participants.find(
+    (participant) => participant.id === participantId,
+  )
+  return {
+    ...latest,
+    participants: existingParticipant
+      ? latest.participants.map((participant) =>
+          participant.id === participantId
+            ? {
+                ...participant,
+                displayName: participantName,
+                status: 'submitted',
+                submittedAt,
+              }
+            : participant,
+        )
+      : [
+          ...latest.participants,
+          {
+            id: participantId,
+            displayName: participantName,
+            status: 'submitted',
+            joinedAt: submittedAt,
+            submittedAt,
+          },
+        ],
+    items: [
+      ...latest.items.filter((item) => item.participantId !== participantId),
+      ...submitted,
+    ],
+    audit: [
+      ...latest.audit,
+      audit(participantName, `submitted ${submitted.length} item lines`),
+    ],
+  } satisfies KapiSession
+}
+
+function participantGroupKey(item: CartLine) {
+  return item.participantId || `name:${item.participantName}`
+}
+
 export function makeManualFallback(
   session: KapiSession,
 ): ManualFallbackSummary {
-  const names = [...new Set(session.items.map((item) => item.participantName))]
+  const groups = [...new Set(session.items.map(participantGroupKey))]
   return {
     restaurantName: session.restaurant.name,
     addressLabel: session.address.label,
@@ -230,12 +320,12 @@ export function makeManualFallback(
       (item) =>
         `${item.quantity}x ${item.name}${item.note ? ` (${item.note})` : ''} - ${item.participantName}`,
     ),
-    byParticipant: names.map((participantName) => {
+    byParticipant: groups.map((key) => {
       const items = session.items.filter(
-        (item) => item.participantName === participantName,
+        (item) => participantGroupKey(item) === key,
       )
       return {
-        participantName,
+        participantName: items.at(-1)?.participantName ?? 'Guest',
         total: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
         items: items.map(
           (item) =>

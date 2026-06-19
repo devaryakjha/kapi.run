@@ -2,10 +2,12 @@ import type { KapiSession, SessionStatus } from '@kapi/spec'
 import { describe, expect, it } from 'vitest'
 
 import {
+  applyParticipantSubmission,
   hasOrganizerCapability,
   hashOrganizerSecret,
   isSessionLockedForParticipants,
   makeCartPayload,
+  makeManualFallback,
 } from './shared'
 
 function session(status: SessionStatus, cutoffAt?: string): KapiSession {
@@ -34,10 +36,13 @@ function cartItem(
   swiggyItemId: string,
   quantity: number,
   available = true,
+  participantId = 'participant-1',
+  participantName = 'Asha',
 ): KapiSession['items'][number] {
   return {
     id: `${swiggyItemId}-${quantity}`,
-    participantName: 'Asha',
+    participantId,
+    participantName,
     menuItemId: `menu-${swiggyItemId}`,
     name: 'Dosa',
     quantity,
@@ -46,6 +51,29 @@ function cartItem(
     swiggyItemId,
   }
 }
+
+const menu = [
+  {
+    id: 'menu-swiggy-1',
+    restaurantId: 'restaurant-1',
+    name: 'Dosa',
+    category: 'Breakfast',
+    description: 'Plain dosa',
+    price: 120,
+    available: true,
+    swiggyItemId: 'swiggy-1',
+  },
+  {
+    id: 'menu-swiggy-2',
+    restaurantId: 'restaurant-1',
+    name: 'Idli',
+    category: 'Breakfast',
+    description: 'Steamed idli',
+    price: 80,
+    available: true,
+    swiggyItemId: 'swiggy-2',
+  },
+]
 
 describe('isSessionLockedForParticipants', () => {
   const now = new Date('2026-06-19T12:00:00.000Z')
@@ -143,5 +171,107 @@ describe('makeCartPayload', () => {
         items: [cartItem('swiggy-1', 2), cartItem('swiggy-2', 3, false)],
       }).cartItems,
     ).toEqual([{ itemId: 'swiggy-1', quantity: 2 }])
+  })
+})
+
+describe('applyParticipantSubmission', () => {
+  it('keeps same-name participants separate', () => {
+    const first = applyParticipantSubmission({
+      latest: session('open'),
+      menu,
+      participantId: 'participant-1',
+      participantName: 'Alex',
+      draftItems: [{ menuItemId: 'menu-swiggy-1', quantity: 1 }],
+    })
+    const second = applyParticipantSubmission({
+      latest: first,
+      menu,
+      participantId: 'participant-2',
+      participantName: 'Alex',
+      draftItems: [{ menuItemId: 'menu-swiggy-2', quantity: 2 }],
+    })
+
+    expect(second.participants).toMatchObject([
+      { id: 'participant-1', displayName: 'Alex' },
+      { id: 'participant-2', displayName: 'Alex' },
+    ])
+    expect(second.items.map((item) => [item.participantId, item.name])).toEqual([
+      ['participant-1', 'Dosa'],
+      ['participant-2', 'Idli'],
+    ])
+  })
+
+  it("replaces only the submitting participant's old lines", () => {
+    const current = {
+      ...session('open'),
+      items: [
+        cartItem('swiggy-1', 1, true, 'participant-1', 'Alex'),
+        cartItem('swiggy-2', 1, true, 'participant-2', 'Alex'),
+      ],
+    }
+
+    const next = applyParticipantSubmission({
+      latest: current,
+      menu,
+      participantId: 'participant-1',
+      participantName: 'Alex',
+      draftItems: [{ menuItemId: 'menu-swiggy-2', quantity: 3 }],
+    })
+
+    expect(next.items.map((item) => [item.participantId, item.quantity])).toEqual(
+      [
+        ['participant-2', 1],
+        ['participant-1', 3],
+      ],
+    )
+  })
+
+  it('updates display name for the same id', () => {
+    const current = {
+      ...session('open'),
+      participants: [
+        {
+          id: 'participant-1',
+          displayName: 'Alex',
+          status: 'submitted' as const,
+          joinedAt: '2026-06-19T12:00:00.000Z',
+        },
+      ],
+    }
+
+    const next = applyParticipantSubmission({
+      latest: current,
+      menu,
+      participantId: 'participant-1',
+      participantName: 'Alec',
+      draftItems: [{ menuItemId: 'menu-swiggy-1', quantity: 1 }],
+    })
+
+    expect(next.participants[0]).toMatchObject({
+      id: 'participant-1',
+      displayName: 'Alec',
+      status: 'submitted',
+    })
+    expect(next.items[0]).toMatchObject({
+      participantId: 'participant-1',
+      participantName: 'Alec',
+    })
+  })
+})
+
+describe('makeManualFallback', () => {
+  it('does not merge same-name participants', () => {
+    const fallback = makeManualFallback({
+      ...session('open'),
+      items: [
+        cartItem('swiggy-1', 1, true, 'participant-1', 'Alex'),
+        cartItem('swiggy-2', 2, true, 'participant-2', 'Alex'),
+      ],
+    })
+
+    expect(fallback.byParticipant).toHaveLength(2)
+    expect(fallback.byParticipant.map((group) => group.total)).toEqual([
+      120, 240,
+    ])
   })
 })
