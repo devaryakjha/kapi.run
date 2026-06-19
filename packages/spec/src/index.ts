@@ -85,14 +85,17 @@ export type AuditEvent = {
   action: string
 }
 
-export type SwiggyCartPayload = {
+export type SwiggyCartToolPayload = {
   restaurantId: string
   addressId: string
-  replaceExistingCart?: boolean
   cartItems: Array<{
     itemId: string
     quantity: number
   }>
+}
+
+export type SwiggyCartPayload = SwiggyCartToolPayload & {
+  replaceExistingCart?: boolean
 }
 
 export type SwiggyCartSummary = {
