@@ -1,5 +1,7 @@
-import type { KapiSession, SessionStatus } from '@kapi/spec'
+import type { KapiSession, RelayWritePayload, SessionStatus } from '@kapi/spec'
 import { describe, expect, it } from 'vitest'
+import type { RelayRecord } from '../../../../api/src/index'
+import { decideRelayWrite } from '../../../../api/src/index'
 
 import {
   applyParticipantSubmission,
@@ -150,6 +152,133 @@ describe('hasOrganizerCapability', () => {
   })
 })
 
+describe('decideRelayWrite', () => {
+  async function currentRecord(
+    cutoffAt: string,
+    status: SessionStatus = 'open',
+  ): Promise<RelayRecord> {
+    return {
+      ciphertext: 'old-ciphertext',
+      updatedAt: 'version-1',
+      metadata: {
+        cutoffAt,
+        status,
+        organizerSecretHash: await hashOrganizerSecret('organizer-secret'),
+      },
+    }
+  }
+
+  function write(patch: Partial<RelayWritePayload> = {}): RelayWritePayload {
+    return {
+      ciphertext: 'new-ciphertext',
+      expectedUpdatedAt: 'version-1',
+      metadata: {
+        cutoffAt: '2026-06-19T12:01:00.000Z',
+        status: 'open',
+        organizerSecretHash: 'hash',
+      },
+      role: 'participant',
+      ...patch,
+    }
+  }
+
+  it('allows a participant write before cutoff', async () => {
+    const decision = await decideRelayWrite(
+      await currentRecord('2999-06-19T12:01:00.000Z'),
+      write({ metadata: { status: 'locked' } }),
+      null,
+    )
+
+    expect(decision.ok).toBe(true)
+    if (decision.ok) expect(decision.metadata?.status).toBe('open')
+  })
+
+  it('rejects a participant write after cutoff', async () => {
+    const decision = await decideRelayWrite(
+      await currentRecord('2000-06-19T12:01:00.000Z'),
+      write(),
+      null,
+    )
+
+    expect(decision).toMatchObject({ ok: false, status: 423 })
+  })
+
+  it('allows an organizer write with the correct secret after cutoff', async () => {
+    const decision = await decideRelayWrite(
+      await currentRecord('2000-06-19T12:01:00.000Z'),
+      write({
+        role: 'organizer',
+        metadata: {
+          cutoffAt: '2000-06-19T12:01:00.000Z',
+          status: 'locked',
+          organizerSecretHash: await hashOrganizerSecret('organizer-secret'),
+        },
+      }),
+      'organizer-secret',
+    )
+
+    expect(decision.ok).toBe(true)
+    if (decision.ok) expect(decision.metadata?.status).toBe('locked')
+  })
+
+  it('rejects an organizer write with a wrong or missing secret', async () => {
+    await expect(
+      decideRelayWrite(
+        await currentRecord('2000-06-19T12:01:00.000Z'),
+        write({ role: 'organizer' }),
+        'wrong-secret',
+      ),
+    ).resolves.toMatchObject({ ok: false, status: 403 })
+
+    await expect(
+      decideRelayWrite(
+        await currentRecord('2000-06-19T12:01:00.000Z'),
+        write({ role: 'organizer' }),
+        null,
+      ),
+    ).resolves.toMatchObject({ ok: false, status: 403 })
+  })
+
+  it('keeps stale writes as conflicts before checking organizer proof', async () => {
+    const current = await currentRecord('2000-06-19T12:01:00.000Z')
+    current.updatedAt = 'version-2'
+
+    await expect(
+      decideRelayWrite(current, write({ role: 'organizer' }), 'wrong-secret'),
+    ).resolves.toMatchObject({
+      ok: false,
+      status: 409,
+      body: { updatedAt: 'version-2' },
+    })
+  })
+
+  it('sanitizes relay metadata to allowed fields', async () => {
+    const decision = await decideRelayWrite(
+      undefined,
+      write({
+        metadata: {
+          cutoffAt: '2026-06-19T12:01:00.000Z',
+          status: 'open',
+          organizerSecretHash: 'hash',
+          address: 'forbidden',
+          cartItems: [],
+          participantName: 'forbidden',
+        } as RelayWritePayload['metadata'],
+      }),
+      null,
+    )
+
+    expect(decision.ok).toBe(true)
+    if (decision.ok) {
+      expect(decision.metadata).toEqual({
+        cutoffAt: '2026-06-19T12:01:00.000Z',
+        status: 'open',
+        organizerSecretHash: 'hash',
+      })
+    }
+  })
+})
+
 describe('makeCartPayload', () => {
   it('groups duplicate available Swiggy item ids by quantity', () => {
     expect(
@@ -195,10 +324,12 @@ describe('applyParticipantSubmission', () => {
       { id: 'participant-1', displayName: 'Alex' },
       { id: 'participant-2', displayName: 'Alex' },
     ])
-    expect(second.items.map((item) => [item.participantId, item.name])).toEqual([
-      ['participant-1', 'Dosa'],
-      ['participant-2', 'Idli'],
-    ])
+    expect(second.items.map((item) => [item.participantId, item.name])).toEqual(
+      [
+        ['participant-1', 'Dosa'],
+        ['participant-2', 'Idli'],
+      ],
+    )
   })
 
   it("replaces only the submitting participant's old lines", () => {
@@ -218,12 +349,12 @@ describe('applyParticipantSubmission', () => {
       draftItems: [{ menuItemId: 'menu-swiggy-2', quantity: 3 }],
     })
 
-    expect(next.items.map((item) => [item.participantId, item.quantity])).toEqual(
-      [
-        ['participant-2', 1],
-        ['participant-1', 3],
-      ],
-    )
+    expect(
+      next.items.map((item) => [item.participantId, item.quantity]),
+    ).toEqual([
+      ['participant-2', 1],
+      ['participant-1', 3],
+    ])
   })
 
   it('updates display name for the same id', () => {

@@ -55,6 +55,7 @@ function RouteComponent() {
     initialReviewState,
   )
   const sessionKeyRef = useRef('')
+  const organizerSecretRef = useRef<string | null>(null)
   const relayUpdatedAtRef = useRef<string | null>(null)
 
   async function saveSession(
@@ -65,11 +66,11 @@ function RouteComponent() {
     if (!fallbackSession) throw new Error('Session is missing.')
     let nextSession = mutate(fallbackSession)
     try {
-      const saved = await publishSession(
-        nextSession,
-        sessionKeyRef.current,
-        relayUpdatedAtRef.current,
-      )
+      const saved = await publishSession(nextSession, sessionKeyRef.current, {
+        expectedUpdatedAt: relayUpdatedAtRef.current,
+        role: 'organizer',
+        organizerSecret: organizerSecretRef.current,
+      })
       relayUpdatedAtRef.current = saved.relayUpdatedAt
       setState({ session: saved.session })
       return saved.session
@@ -78,11 +79,11 @@ function RouteComponent() {
       const refreshed = await refreshSessionFromRelay()
       if (!refreshed) throw caught
       nextSession = mutate(refreshed.session)
-      const saved = await publishSession(
-        nextSession,
-        sessionKeyRef.current,
-        refreshed.relayUpdatedAt,
-      )
+      const saved = await publishSession(nextSession, sessionKeyRef.current, {
+        expectedUpdatedAt: refreshed.relayUpdatedAt,
+        role: 'organizer',
+        organizerSecret: organizerSecretRef.current,
+      })
       relayUpdatedAtRef.current = saved.relayUpdatedAt
       setState({ session: saved.session })
       return saved.session
@@ -107,6 +108,7 @@ function RouteComponent() {
     }
 
     sessionKeyRef.current = key
+    organizerSecretRef.current = organizerSecret
     loadEncryptedSessionRecord(sessionId, key)
       .then(async (loaded) => {
         relayUpdatedAtRef.current = loaded.relayUpdatedAt

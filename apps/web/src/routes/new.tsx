@@ -180,7 +180,10 @@ function RouteComponent() {
       )
       localStorage.setItem(localKeyKey(id), key)
       localStorage.setItem(localOrganizerKeyKey(id), organizerSecret)
-      await publishSession(nextSession, key)
+      await publishSession(nextSession, key, {
+        role: 'organizer',
+        organizerSecret,
+      })
       window.location.href = `/review?session=${id}&owner=1#key=${key}&ownerKey=${organizerSecret}`
     } catch (caught) {
       setState({
