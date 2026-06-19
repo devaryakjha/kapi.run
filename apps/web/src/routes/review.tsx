@@ -1,6 +1,10 @@
 import { useEffect, useReducer, useRef } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import type { KapiSession, ManualFallbackSummary } from '@kapi/spec'
+import type {
+  KapiSession,
+  ManualFallbackSummary,
+  SwiggyCartSummary,
+} from '@kapi/spec'
 
 import { OrganizerReviewPage } from '#/features/group-ordering/review-page'
 import {
@@ -119,17 +123,29 @@ function RouteComponent() {
 
   async function syncCart() {
     if (!state.session || !state.isOrganizer) return
-    if (
-      !window.confirm(
-        'Add these items to your Swiggy cart? This will not place the order.',
-      )
-    )
-      return
     setState({ pending: true, error: null })
     try {
+      const cart = await api<SwiggyCartSummary>('/food/cart')
+      const details = [
+        cart.itemCount
+          ? `${cart.itemCount} item${cart.itemCount === 1 ? '' : 's'}`
+          : '',
+        cart.restaurantName ? `from ${cart.restaurantName}` : '',
+        typeof cart.total === 'number' ? `totalling ₹${cart.total}` : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+      const message = cart.empty
+        ? 'Add these items to your Swiggy cart? This will not place the order.'
+        : `Your Swiggy cart has ${details || 'items'}. Replace it with this group cart? This will not place the order.`
+      if (!window.confirm(message)) return
+
       const result = await api<KapiSession['sync']>('/food/cart/sync', {
         method: 'POST',
-        body: JSON.stringify(makeCartPayload(state.session)),
+        body: JSON.stringify({
+          ...makeCartPayload(state.session),
+          replaceExistingCart: !cart.empty,
+        }),
       })
       await saveSession((session) => ({
         ...session,

@@ -1,7 +1,7 @@
 import cors from "@elysiajs/cors";
 import { Elysia, t } from "elysia";
 import { unlink } from "node:fs/promises";
-import type { Address, MenuItem, Restaurant, SwiggyCartPayload } from "@kapi/spec";
+import type { Address, MenuItem, Restaurant, SwiggyCartPayload, SwiggyCartSummary } from "@kapi/spec";
 
 const port = Number(process.env.PORT ?? 3001);
 const publicWebUrl = process.env.KAPI_WEB_URL ?? "http://127.0.0.1:3000";
@@ -116,6 +116,59 @@ function findArray(value: unknown): unknown[] {
     if (found.length) return found;
   }
   return [];
+}
+
+function firstText(value: unknown, keys: string[]): string | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const item = value as Record<string, unknown>;
+  for (const key of keys) {
+    const found = text(item[key]);
+    if (found) return found;
+  }
+  for (const nested of Object.values(item)) {
+    const found = firstText(nested, keys);
+    if (found) return found;
+  }
+}
+
+function firstPositiveNumber(value: unknown, keys: string[]): number | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const item = value as Record<string, unknown>;
+  for (const key of keys) {
+    if (number(item[key], -1) > 0) return number(item[key]);
+  }
+  for (const nested of Object.values(item)) {
+    const found = firstPositiveNumber(nested, keys);
+    if (found !== undefined) return found;
+  }
+}
+
+function firstItemCount(value: unknown): number | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const item = value as Record<string, unknown>;
+  for (const key of ["itemCount", "itemsCount", "quantity", "totalQuantity"]) {
+    if (typeof item[key] === "number" && Number.isFinite(item[key])) return item[key];
+  }
+  for (const key of ["items", "cartItems", "lineItems", "itemDetails", "products"]) {
+    if (Array.isArray(item[key])) return item[key].length;
+    const found = firstItemCount(item[key]);
+    if (found !== undefined) return found;
+  }
+  for (const nested of Object.values(item)) {
+    const found = firstItemCount(nested);
+    if (found !== undefined) return found;
+  }
+}
+
+function normalizeCartSummary(raw: unknown): SwiggyCartSummary {
+  const itemCount = firstItemCount(raw);
+  return {
+    empty: itemCount === 0,
+    restaurantId: firstText(raw, ["restaurantId", "restaurant_id", "storeId"]),
+    restaurantName: firstText(raw, ["restaurantName", "restaurant_name", "name"]),
+    total: firstPositiveNumber(raw, ["total", "totalAmount", "subtotal", "cartTotal"]),
+    itemCount: itemCount && itemCount > 0 ? itemCount : undefined,
+  };
 }
 
 function unwrapToolPayload(json: unknown): ToolEnvelope {
@@ -288,15 +341,28 @@ const app = new Elysia()
     params: t.Object({ restaurantId: t.String() }),
     query: t.Object({ addressId: t.String(), q: t.Optional(t.String()) }),
   })
-  .post("/food/cart/sync", async ({ body, request }) => {
+  .get("/food/cart", async ({ request }) => {
+    assertAllowedOrigin(request);
+    const cart = await callSwiggyTool("get_food_cart");
+    return normalizeCartSummary(cart);
+  })
+  .post("/food/cart/sync", async ({ body, request, set }) => {
     assertAllowedOrigin(request);
     const payload = body as SwiggyCartPayload;
+    const existingCart = normalizeCartSummary(await callSwiggyTool("get_food_cart"));
+    if (!existingCart.empty && payload.replaceExistingCart !== true) {
+      set.status = 409;
+      return {
+        error: "Swiggy cart already has items. Confirm replacement before syncing.",
+        cart: existingCart,
+      };
+    }
     await callSwiggyTool("update_food_cart", payload);
-    const cart = await callSwiggyTool("get_food_cart");
+    const cart = normalizeCartSummary(await callSwiggyTool("get_food_cart"));
     return {
       status: "synced",
       message: "Swiggy cart updated. Review and pay in Swiggy.",
-      swiggyCartTotal: number((cart as Record<string, unknown>).total),
+      swiggyCartTotal: cart.total,
       syncedItemCount: payload.cartItems.reduce((sum, item) => sum + item.quantity, 0),
       payload,
     };
@@ -304,6 +370,7 @@ const app = new Elysia()
     body: t.Object({
       restaurantId: t.String(),
       addressId: t.String(),
+      replaceExistingCart: t.Optional(t.Boolean()),
       cartItems: t.Array(t.Object({ itemId: t.String(), quantity: t.Number() })),
     }),
   })

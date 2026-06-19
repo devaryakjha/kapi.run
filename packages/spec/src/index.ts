@@ -88,10 +88,19 @@ export type AuditEvent = {
 export type SwiggyCartPayload = {
   restaurantId: string
   addressId: string
+  replaceExistingCart?: boolean
   cartItems: Array<{
     itemId: string
     quantity: number
   }>
+}
+
+export type SwiggyCartSummary = {
+  empty: boolean
+  restaurantId?: string
+  restaurantName?: string
+  total?: number
+  itemCount?: number
 }
 
 export type AuthStatus = {
