@@ -35,6 +35,7 @@ export type MenuItem = {
 
 export type CartLine = {
   id: string
+  participantId: string
   participantName: string
   menuItemId: string
   name: string

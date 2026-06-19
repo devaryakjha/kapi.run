@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import type { CartLine, KapiSession, MenuItem } from '@kapi/spec'
+import type { KapiSession, MenuItem } from '@kapi/spec'
 
 import { ParticipantMenuPage } from '#/features/group-ordering/participant-page'
 import type {
@@ -10,8 +10,9 @@ import type {
 import {
   ApiError,
   ErrorAlert,
+  applyParticipantSubmission,
   api,
-  audit,
+  getOrCreateLocalParticipantId,
   getSessionLinkParts,
   isSessionLockedForParticipants,
   loadEncryptedSessionRecord,
@@ -54,6 +55,7 @@ function RouteComponent() {
     initialMenuState,
   )
   const sessionKeyRef = useRef('')
+  const participantIdRef = useRef('')
   const relayUpdatedAtRef = useRef<string | null>(null)
 
   async function refreshSessionFromRelay(): Promise<LoadedSessionRecord | null> {
@@ -74,6 +76,7 @@ function RouteComponent() {
     }
 
     sessionKeyRef.current = key
+    participantIdRef.current = getOrCreateLocalParticipantId(sessionId)
     loadEncryptedSessionRecord(sessionId, key)
       .then(async (loadedRecord) => {
         relayUpdatedAtRef.current = loadedRecord.relayUpdatedAt
@@ -111,60 +114,17 @@ function RouteComponent() {
     setState({ pending: true, error: null })
     try {
       const name = state.participantName.trim() || 'Guest'
+      const participantId =
+        participantIdRef.current || getOrCreateLocalParticipantId(state.session.id)
 
       const buildUpdated = (latest: KapiSession) => {
-        const submitted: CartLine[] = items.flatMap((line) => {
-          const item = state.menu.find(
-            (candidate) =>
-              candidate.id === line.menuItemId &&
-              candidate.restaurantId === latest.restaurant.id,
-          )
-          if (!item || line.quantity <= 0) return []
-          return {
-            id: crypto.randomUUID(),
-            participantName: name,
-            menuItemId: item.id,
-            name: item.name,
-            quantity: line.quantity,
-            price: item.price,
-            available: item.available,
-            swiggyItemId: item.swiggyItemId,
-          }
+        return applyParticipantSubmission({
+          latest,
+          menu: state.menu,
+          participantId,
+          participantName: name,
+          draftItems: items,
         })
-        const existingParticipant = latest.participants.find(
-          (participant) => participant.displayName === name,
-        )
-        return {
-          ...latest,
-          participants: existingParticipant
-            ? latest.participants.map((participant) =>
-                participant.displayName === name
-                  ? {
-                      ...participant,
-                      status: 'submitted',
-                      submittedAt: new Date().toISOString(),
-                    }
-                  : participant,
-              )
-            : [
-                ...latest.participants,
-                {
-                  id: crypto.randomUUID(),
-                  displayName: name,
-                  status: 'submitted',
-                  joinedAt: new Date().toISOString(),
-                  submittedAt: new Date().toISOString(),
-                },
-              ],
-          items: [
-            ...latest.items.filter((item) => item.participantName !== name),
-            ...submitted,
-          ],
-          audit: [
-            ...latest.audit,
-            audit(name, `submitted ${submitted.length} item lines`),
-          ],
-        } satisfies KapiSession
       }
       let latest = await refreshSessionFromRelay()
       if (!latest) return
