@@ -10,6 +10,11 @@ const swiggyBase = "https://mcp.swiggy.com";
 const swiggyFoodUrl = `${swiggyBase}/food`;
 const tokenFile = ".kapi-swiggy-token.json";
 const relayFile = ".kapi-session-relay.json";
+const allowedOrigins = new Set([
+  new URL(publicWebUrl).origin,
+  "http://127.0.0.1:3000",
+  "http://localhost:3000",
+]);
 
 type OAuthClient = { client_id: string };
 type Token = { access_token: string; expires_at: number };
@@ -53,6 +58,17 @@ function jsonResponse(body: unknown, status = 200) {
     status,
     headers: { "content-type": "application/json" },
   });
+}
+
+function isAllowedOrigin(request: Request) {
+  const origin = request.headers.get("origin");
+  return !origin || allowedOrigins.has(origin);
+}
+
+function assertAllowedOrigin(request: Request) {
+  if (!isAllowedOrigin(request)) {
+    throw Object.assign(new Error("Origin not allowed."), { status: 403 });
+  }
 }
 
 function randomBase64Url(bytes = 32) {
@@ -204,7 +220,7 @@ function normalizeMenuItem(raw: unknown, restaurantId: string): MenuItem {
 }
 
 const app = new Elysia()
-  .use(cors({ origin: true }))
+  .use(cors({ origin: (request) => isAllowedOrigin(request) }))
   .onError(({ error }) => {
     const status = typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 500;
     return jsonResponse({ error: error.message }, status);
@@ -212,7 +228,8 @@ const app = new Elysia()
   .get("/", () => ({ name: "kapi.run", status: "ok", version: "5", providerMode: "swiggy" }))
   .get("/health", () => ({ status: "ok" }))
   .get("/auth/status", () => ({ connected: Boolean(token && token.expires_at > Date.now() + 60_000), expiresAt: token?.expires_at ?? null }))
-  .get("/auth/start", async ({ query }) => {
+  .get("/auth/start", async ({ query, request }) => {
+    assertAllowedOrigin(request);
     const client = await getOAuthClient();
     const state = randomBase64Url(24);
     const codeVerifier = randomBase64Url(64);
@@ -248,7 +265,8 @@ const app = new Elysia()
     await saveToken({ access_token: body.access_token, expires_at: Date.now() + (body.expires_in ?? 432000) * 1000 });
     return Response.redirect(state.next, 302);
   }, { query: t.Object({ code: t.Optional(t.String()), state: t.Optional(t.String()) }) })
-  .post("/auth/logout", async () => {
+  .post("/auth/logout", async ({ request }) => {
+    assertAllowedOrigin(request);
     await saveToken(null);
     return { connected: false };
   })
@@ -269,7 +287,8 @@ const app = new Elysia()
     params: t.Object({ restaurantId: t.String() }),
     query: t.Object({ addressId: t.String(), q: t.Optional(t.String()) }),
   })
-  .post("/food/cart/sync", async ({ body }) => {
+  .post("/food/cart/sync", async ({ body, request }) => {
+    assertAllowedOrigin(request);
     const payload = body as SwiggyCartPayload;
     await callSwiggyTool("update_food_cart", payload);
     const cart = await callSwiggyTool("get_food_cart");
@@ -295,7 +314,8 @@ const app = new Elysia()
     }
     return record;
   }, { params: t.Object({ sessionId: t.String() }) })
-  .put("/relay/sessions/:sessionId", async ({ params, body }) => {
+  .put("/relay/sessions/:sessionId", async ({ params, body, request }) => {
+    assertAllowedOrigin(request);
     relay[params.sessionId] = { ciphertext: (body as { ciphertext: string }).ciphertext, updatedAt: new Date().toISOString() };
     await writeJson(relayFile, relay);
     return relay[params.sessionId];
