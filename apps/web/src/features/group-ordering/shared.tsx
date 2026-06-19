@@ -4,6 +4,8 @@ import type {
   KapiSession,
   ManualFallbackSummary,
   MenuItem,
+  RelaySessionMetadata,
+  RelayWriteRole,
   Restaurant,
 } from '@kapi/spec'
 import type { LucideIcon } from 'lucide-react'
@@ -14,7 +16,11 @@ import { Badge } from '#/components/ui/badge'
 import { cn } from '#/lib/utils'
 
 export type DraftCart = Record<string, number>
-export type RelaySessionRecord = { ciphertext: string; updatedAt: string }
+export type RelaySessionRecord = {
+  ciphertext: string
+  updatedAt: string
+  metadata?: RelaySessionMetadata
+}
 export type LoadedSessionRecord = {
   session: KapiSession
   relayUpdatedAt: string | null
@@ -201,15 +207,29 @@ export async function loadEncryptedSession(sessionId: string, key: string) {
 export async function publishSession(
   nextSession: KapiSession,
   key: string,
-  expectedUpdatedAt?: string | null,
+  options: {
+    expectedUpdatedAt?: string | null
+    role?: RelayWriteRole
+    organizerSecret?: string | null
+  } = {},
 ): Promise<LoadedSessionRecord> {
   const record = await api<RelaySessionRecord>(
     `/relay/sessions/${nextSession.id}`,
     {
       method: 'PUT',
+      headers:
+        options.role === 'organizer' && options.organizerSecret
+          ? { 'x-kapi-organizer-secret': options.organizerSecret }
+          : undefined,
       body: JSON.stringify({
         ciphertext: await encryptSession(nextSession, key),
-        expectedUpdatedAt,
+        expectedUpdatedAt: options.expectedUpdatedAt,
+        metadata: {
+          cutoffAt: nextSession.cutoffAt,
+          status: nextSession.status,
+          organizerSecretHash: nextSession.organizerSecretHash,
+        },
+        role: options.role,
       }),
     },
   )

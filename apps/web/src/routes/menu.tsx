@@ -115,7 +115,8 @@ function RouteComponent() {
     try {
       const name = state.participantName.trim() || 'Guest'
       const participantId =
-        participantIdRef.current || getOrCreateLocalParticipantId(state.session.id)
+        participantIdRef.current ||
+        getOrCreateLocalParticipantId(state.session.id)
 
       const buildUpdated = (latest: KapiSession) => {
         return applyParticipantSubmission({
@@ -137,11 +138,10 @@ function RouteComponent() {
       }
       let updated = buildUpdated(latest.session)
       try {
-        const saved = await publishSession(
-          updated,
-          sessionKeyRef.current,
-          latest.relayUpdatedAt,
-        )
+        const saved = await publishSession(updated, sessionKeyRef.current, {
+          expectedUpdatedAt: latest.relayUpdatedAt,
+          role: 'participant',
+        })
         relayUpdatedAtRef.current = saved.relayUpdatedAt
       } catch (caught) {
         if (!(caught instanceof ApiError) || caught.status !== 409) throw caught
@@ -155,11 +155,10 @@ function RouteComponent() {
           return
         }
         updated = buildUpdated(latest.session)
-        const saved = await publishSession(
-          updated,
-          sessionKeyRef.current,
-          latest.relayUpdatedAt,
-        ).catch((retryError) => {
+        const saved = await publishSession(updated, sessionKeyRef.current, {
+          expectedUpdatedAt: latest.relayUpdatedAt,
+          role: 'participant',
+        }).catch((retryError) => {
           if (retryError instanceof ApiError && retryError.status === 409) {
             throw new Error('Session changed again. Submit once more.')
           }
