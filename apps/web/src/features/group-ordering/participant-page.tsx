@@ -33,7 +33,12 @@ import { Separator } from '#/components/ui/separator'
 import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group'
 
 import type { DraftCart } from './shared'
-import { ErrorAlert, SummaryRow } from './shared'
+import {
+  ErrorAlert,
+  SummaryRow,
+  formatRemainingTime,
+  isSessionLockedForParticipants,
+} from './shared'
 
 export function ParticipantMenuPage({
   draft,
@@ -80,6 +85,8 @@ export function ParticipantMenuPage({
 
   const tileItems = filtered.slice(1, 5)
   const listItems = filtered.slice(5)
+  const locked = isSessionLockedForParticipants(session)
+  const remainingTime = formatRemainingTime(session)
 
   return (
     <main className="flex min-h-svh flex-col bg-background text-foreground">
@@ -109,13 +116,13 @@ export function ParticipantMenuPage({
               {session.cutoffTime} cutoff
             </span>
             <span className="text-[11px] font-medium leading-3.5 text-destructive">
-              18m remaining
+              {remainingTime}
             </span>
           </div>
           <div className="flex items-center gap-2 rounded-lg border border-border bg-muted px-4 py-2">
             <Clock className="text-[#ff9f1c]" />
             <span className="font-mono text-[13px] font-bold leading-5">
-              17:42
+              {remainingTime}
             </span>
           </div>
           <Button
@@ -187,6 +194,7 @@ export function ParticipantMenuPage({
                 <FeaturedItem
                   key={item.id}
                   item={item}
+                  locked={locked}
                   onAdd={() => onQuantityChange(item.id, 1)}
                 />
               ))}
@@ -194,11 +202,13 @@ export function ParticipantMenuPage({
                 <MenuTile
                   key={item.id}
                   item={item}
+                  locked={locked}
                   onAdd={() => onQuantityChange(item.id, 1)}
                 />
               ))}
               <MenuList
                 items={listItems}
+                locked={locked}
                 onAdd={(item) => onQuantityChange(item.id, 1)}
               />
               {!filtered.length ? (
@@ -220,6 +230,7 @@ export function ParticipantMenuPage({
         <CartSidebar
           draft={draft}
           error={error}
+          locked={locked}
           menu={menu}
           pending={pending}
           onQuantityChange={onQuantityChange}
@@ -229,6 +240,7 @@ export function ParticipantMenuPage({
       <MobileCartBar
         draft={draft}
         error={error}
+        locked={locked}
         menu={menu}
         pending={pending}
         onSubmit={onSubmit}
@@ -237,7 +249,15 @@ export function ParticipantMenuPage({
   )
 }
 
-function FeaturedItem({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
+function FeaturedItem({
+  item,
+  locked,
+  onAdd,
+}: {
+  item: MenuItem
+  locked: boolean
+  onAdd: () => void
+}) {
   return (
     <article className="col-span-12 overflow-hidden border border-border">
       <div className="flex flex-col md:flex-row">
@@ -281,7 +301,7 @@ function FeaturedItem({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
             </div>
             <Button
               onClick={onAdd}
-              disabled={!item.available}
+              disabled={locked || !item.available}
               className="rounded px-10"
             >
               <Plus data-icon="inline-start" /> Add to Cart
@@ -293,7 +313,15 @@ function FeaturedItem({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
   )
 }
 
-function MenuTile({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
+function MenuTile({
+  item,
+  locked,
+  onAdd,
+}: {
+  item: MenuItem
+  locked: boolean
+  onAdd: () => void
+}) {
   return (
     <article className="col-span-12 border border-border md:col-span-6">
       <div className="flex gap-4 p-4">
@@ -326,7 +354,7 @@ function MenuTile({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
           <div className="mt-2 flex justify-end">
             <Button
               onClick={onAdd}
-              disabled={!item.available}
+              disabled={locked || !item.available}
               variant="outline"
               size="icon-sm"
               className="rounded-full text-primary"
@@ -342,9 +370,11 @@ function MenuTile({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
 
 function MenuList({
   items,
+  locked,
   onAdd,
 }: {
   items: MenuItem[]
+  locked: boolean
   onAdd: (item: MenuItem) => void
 }) {
   if (!items.length) return null
@@ -389,7 +419,7 @@ function MenuList({
               <span className="font-mono text-[13px]">₹{item.price}</span>
               <Button
                 onClick={() => onAdd(item)}
-                disabled={!item.available}
+                disabled={locked || !item.available}
                 variant="outline"
                 size="sm"
                 className="rounded"
@@ -407,6 +437,7 @@ function MenuList({
 function CartSidebar({
   draft,
   error,
+  locked,
   menu,
   pending,
   onQuantityChange,
@@ -414,6 +445,7 @@ function CartSidebar({
 }: {
   draft: DraftCart
   error: string | null
+  locked: boolean
   menu: MenuItem[]
   pending: boolean
   onQuantityChange: (menuItemId: string, delta: number) => void
@@ -470,6 +502,7 @@ function CartSidebar({
                     </span>
                     <Button
                       onClick={() => onQuantityChange(item.id, 1)}
+                      disabled={locked}
                       variant="ghost"
                       size="icon-xs"
                       className="rounded-none text-muted-foreground"
@@ -504,7 +537,7 @@ function CartSidebar({
         </div>
         <Button
           onClick={onSubmit}
-          disabled={pending}
+          disabled={locked || pending}
           className="h-12 w-full rounded-lg text-base font-semibold"
         >
           {pending ? (
@@ -521,12 +554,14 @@ function CartSidebar({
 function MobileCartBar({
   draft,
   error,
+  locked,
   menu,
   pending,
   onSubmit,
 }: {
   draft: DraftCart
   error: string | null
+  locked: boolean
   menu: MenuItem[]
   pending: boolean
   onSubmit: () => void
@@ -553,7 +588,7 @@ function MobileCartBar({
         </div>
         <Button
           onClick={onSubmit}
-          disabled={pending}
+          disabled={locked || pending}
           className="h-11 rounded-lg px-4 text-sm font-semibold"
         >
           {pending ? (

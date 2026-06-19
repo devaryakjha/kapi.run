@@ -59,6 +59,28 @@ function connectSwiggy() {
   window.location.href = `${API_URL}/auth/start?next=${encodeURIComponent(window.location.href)}`
 }
 
+function cutoffAtFromTime(value: string) {
+  const [hourValue, minuteValue] = value.split(':')
+  const hour = Number(hourValue)
+  const minute = Number(minuteValue)
+  if (
+    !Number.isFinite(hour) ||
+    !Number.isFinite(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return cutoffAtFromTime(initialSetupState.cutoffTime)
+  }
+  const cutoff = new Date()
+  cutoff.setHours(hour, minute, 0, 0)
+  if (cutoff.getTime() <= Date.now()) {
+    cutoff.setDate(cutoff.getDate() + 1)
+  }
+  return cutoff.toISOString()
+}
+
 function RouteComponent() {
   const [state, setState] = useReducer(patchSetupState, initialSetupState)
 
@@ -145,6 +167,7 @@ function RouteComponent() {
         address,
         restaurant,
         cutoffTime: formatTimeLabel(state.cutoffTime),
+        cutoffAt: cutoffAtFromTime(state.cutoffTime),
         shareUrl,
         organizerSecretHash: await hashOrganizerSecret(organizerSecret),
         status: 'open',

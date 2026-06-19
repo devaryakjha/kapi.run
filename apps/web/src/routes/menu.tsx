@@ -10,6 +10,7 @@ import {
   api,
   audit,
   getSessionLinkParts,
+  isSessionLockedForParticipants,
   loadEncryptedSessionRecord,
   publishSession,
 } from '#/features/group-ordering/shared'
@@ -164,6 +165,13 @@ function RouteComponent() {
       }
       let latest = await refreshSessionFromRelay()
       if (!latest) return
+      if (isSessionLockedForParticipants(latest.session)) {
+        setState({
+          session: latest.session,
+          error: 'This group session is locked.',
+        })
+        return
+      }
       let updated = buildUpdated(latest.session)
       try {
         const saved = await publishSession(
@@ -176,6 +184,13 @@ function RouteComponent() {
         if (!(caught instanceof ApiError) || caught.status !== 409) throw caught
         latest = await refreshSessionFromRelay()
         if (!latest) return
+        if (isSessionLockedForParticipants(latest.session)) {
+          setState({
+            session: latest.session,
+            error: 'This group session is locked.',
+          })
+          return
+        }
         updated = buildUpdated(latest.session)
         const saved = await publishSession(
           updated,
