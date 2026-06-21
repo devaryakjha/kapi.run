@@ -247,6 +247,15 @@ function RouteComponent() {
     }
   }
 
+  function joinAsParticipant() {
+    if (!state.session || !sessionKeyRef.current) return
+    const url = new URL('/menu', window.location.origin)
+    url.searchParams.set('session', state.session.id)
+    url.searchParams.set('name', state.session.organiserName)
+    url.hash = new URLSearchParams({ key: sessionKeyRef.current }).toString()
+    window.location.href = `${url.pathname}${url.search}${url.hash}`
+  }
+
   if (!state.session) {
     return (
       <main className="min-h-svh bg-background p-6 text-foreground">
@@ -263,6 +272,7 @@ function RouteComponent() {
       pending={state.pending}
       session={state.session}
       onFallback={loadManualFallback}
+      onJoinOrder={joinAsParticipant}
       onLock={lockSession}
       onRemoveItem={removeSubmittedItem}
       onRefresh={refreshSessionFromRelay}

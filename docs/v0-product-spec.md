@@ -70,9 +70,16 @@ For v0, a normal short-lived backend may be acceptable if it stores only active 
 
 ## v0 Flow
 
+### 0. User Chooses A Role
+
+The root route (`/`) lets a user choose how to continue.
+
+- Organisers start a new session and continue to `/new`.
+- Participants join an existing session by entering an invite link, or by pasting the session id and session key together.
+
 ### 1. Organiser Starts A Session
 
-The organiser opens Kapi.run and starts creating a group order session.
+The organiser opens Kapi.run, chooses to create a new session, and starts creating a group order session.
 
 Required steps:
 

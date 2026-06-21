@@ -81,6 +81,11 @@ function cutoffAtFromTime(value: string) {
   return cutoff.toISOString()
 }
 
+function inferOrganiserName(address: Address) {
+  const [name] = address.detail.split(':')
+  return name.trim() || 'Organiser'
+}
+
 function RouteComponent() {
   const [state, setState] = useReducer(patchSetupState, initialSetupState)
 
@@ -161,9 +166,10 @@ function RouteComponent() {
       const key = await makeSessionKey()
       const organizerSecret = makeOrganizerSecret()
       const shareUrl = `${window.location.origin}/menu?session=${id}#key=${key}`
+      const organiserName = inferOrganiserName(address)
       const nextSession: KapiSession = {
         id,
-        organiserName: 'Organiser',
+        organiserName,
         address,
         restaurant,
         cutoffTime: formatTimeLabel(state.cutoffTime),
@@ -173,7 +179,7 @@ function RouteComponent() {
         status: 'open',
         participants: [],
         items: [],
-        audit: [audit('Organiser', 'created session')],
+        audit: [audit(organiserName, 'created session')],
       }
       await api<MenuItem[]>(
         `/food/restaurants/${restaurant.id}/menu?addressId=${address.id}`,

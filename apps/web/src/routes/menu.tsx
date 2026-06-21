@@ -16,6 +16,7 @@ import {
   getSessionLinkParts,
   isSessionLockedForParticipants,
   loadEncryptedSessionRecord,
+  localParticipantNameKey,
   publishSession,
 } from '#/features/group-ordering/shared'
 
@@ -34,11 +35,15 @@ type MenuState = {
 
 function initialMenuState(): MenuState {
   const { key, sessionId } = getSessionLinkParts()
+  const search = new URLSearchParams(window.location.search)
+  const name =
+    search.get('name') ??
+    (sessionId ? localStorage.getItem(localParticipantNameKey(sessionId)) : '')
   return {
     menu: [],
     session: null,
     draft: {},
-    participantName: 'Alex',
+    participantName: name ?? '',
     pending: false,
     error: !sessionId || !key ? 'Session link is invalid.' : null,
   }
@@ -110,13 +115,18 @@ function RouteComponent() {
       setState({ error: 'Add at least one item before submitting.' })
       return
     }
+    if (!state.participantName.trim()) {
+      setState({ error: 'Enter your name before submitting.' })
+      return
+    }
 
     setState({ pending: true, error: null })
     try {
-      const name = state.participantName.trim() || 'Guest'
+      const name = state.participantName.trim()
       const participantId =
         participantIdRef.current ||
         getOrCreateLocalParticipantId(state.session.id)
+      localStorage.setItem(localParticipantNameKey(state.session.id), name)
 
       const buildUpdated = (latest: KapiSession) => {
         return applyParticipantSubmission({

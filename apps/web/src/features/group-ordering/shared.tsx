@@ -152,6 +152,10 @@ export function localParticipantIdKey(sessionId: string) {
   return `kapi:participant:${sessionId}`
 }
 
+export function localParticipantNameKey(sessionId: string) {
+  return `kapi:participant-name:${sessionId}`
+}
+
 export function getOrCreateLocalParticipantId(sessionId: string) {
   const key = localParticipantIdKey(sessionId)
   const existing = localStorage.getItem(key)

@@ -36,6 +36,7 @@ export function OrganizerReviewPage({
   pending,
   session,
   onFallback,
+  onJoinOrder,
   onLock,
   onRemoveItem,
   onRefresh,
@@ -48,6 +49,7 @@ export function OrganizerReviewPage({
   pending: boolean
   session: KapiSession
   onFallback: () => void
+  onJoinOrder: () => void
   onLock: () => void
   onRemoveItem: (itemId: string) => void
   onRefresh: () => void
@@ -148,6 +150,14 @@ export function OrganizerReviewPage({
                     className="h-8 rounded-lg text-xs"
                   >
                     Copy link
+                  </Button>
+                  <Button
+                    onClick={onJoinOrder}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg text-xs"
+                  >
+                    Add my items
                   </Button>
                   <Button
                     onClick={onRefresh}
