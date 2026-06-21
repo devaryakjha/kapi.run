@@ -1,6 +1,7 @@
 import { cors } from "@elysiajs/cors";
 import { Elysia, t } from "elysia";
 import { unlink } from "node:fs/promises";
+import { join } from "node:path";
 import type {
   Address,
   MenuItem,
@@ -19,8 +20,13 @@ const redirectUri =
   process.env.SWIGGY_REDIRECT_URI ?? `http://localhost:${port}/auth/callback`;
 const swiggyBase = "https://mcp.swiggy.com";
 const swiggyFoodUrl = `${swiggyBase}/food`;
-const tokenFile = ".kapi-swiggy-token.json";
-const relayFile = ".kapi-session-relay.json";
+const dataDir = process.env.KAPI_DATA_DIR;
+const tokenFile = dataDir
+  ? join(dataDir, ".kapi-swiggy-token.json")
+  : ".kapi-swiggy-token.json";
+const relayFile = dataDir
+  ? join(dataDir, ".kapi-session-relay.json")
+  : ".kapi-session-relay.json";
 type BunRuntime = {
   file(path: string): { json(): Promise<unknown> };
   write(path: string, value: string): Promise<unknown>;

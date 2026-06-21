@@ -14,6 +14,7 @@ bun run --cwd apps/api start
 - `PORT`: API port.
 - `KAPI_WEB_URL`: allowed web origin for local flows.
 - `SWIGGY_REDIRECT_URI`: OAuth redirect URL.
+- `KAPI_DATA_DIR`: optional directory for persisted token and relay files.
 - `SWIGGY_MCP_ACCESS_TOKEN`: optional local override only; do not commit or share a value.
 
 ## Local Files

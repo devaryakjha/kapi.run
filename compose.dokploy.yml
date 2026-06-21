@@ -1,0 +1,24 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        VITE_KAPI_API_URL: ${VITE_KAPI_API_URL:-https://api.kapi.run}
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      PORT: 3001
+      KAPI_WEB_URL: ${KAPI_WEB_URL:-https://app.kapi.run}
+      SWIGGY_REDIRECT_URI: ${SWIGGY_REDIRECT_URI:-https://api.kapi.run/auth/callback}
+      KAPI_DATA_DIR: /data
+    volumes:
+      - kapi_api_data:/data
+    restart: unless-stopped
+
+volumes:
+  kapi_api_data:

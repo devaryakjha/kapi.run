@@ -196,7 +196,11 @@ export function OrganizerReviewPage({
                   value={String(groups.length)}
                   strong
                 />
-                <SummaryRow label="Total items" value={String(totalQty)} strong />
+                <SummaryRow
+                  label="Total items"
+                  value={String(totalQty)}
+                  strong
+                />
                 <SummaryRow label="Subtotal" value={`₹${subtotal}`} strong />
                 <SummaryRow
                   label="Taxes & delivery"
@@ -223,7 +227,10 @@ export function OrganizerReviewPage({
                         data-icon="inline-start"
                       />
                     ) : (
-                      <ShoppingCart className="size-4" data-icon="inline-start" />
+                      <ShoppingCart
+                        className="size-4"
+                        data-icon="inline-start"
+                      />
                     )}
                     {session.status === 'synced'
                       ? 'Cart synced'
@@ -242,7 +249,10 @@ export function OrganizerReviewPage({
                     variant="outline"
                     className="h-9 w-full rounded-xl text-sm"
                   >
-                    <ClipboardList className="size-3.5" data-icon="inline-start" />
+                    <ClipboardList
+                      className="size-3.5"
+                      data-icon="inline-start"
+                    />
                     Manual checklist
                   </Button>
                 ) : null}
@@ -289,9 +299,7 @@ export function OrganizerReviewPage({
 
             {isOrganizer && fallback ? (
               <div className="mt-4 rounded-xl border border-border p-4">
-                <p className="mb-1 text-xs font-semibold">
-                  Manual checklist
-                </p>
+                <p className="mb-1 text-xs font-semibold">Manual checklist</p>
                 <p className="mb-3 text-[11px] text-muted-foreground">
                   {fallback.restaurantName} · {fallback.addressLabel} · ₹
                   {fallback.total}
@@ -378,9 +386,7 @@ function ReviewItem({
     <div
       className={cn(
         'flex items-center justify-between gap-4 px-4 py-3 transition-colors',
-        !item.available
-          ? 'bg-destructive/5'
-          : 'hover:bg-(--kapi-subtle)',
+        !item.available ? 'bg-destructive/5' : 'hover:bg-(--kapi-subtle)',
       )}
     >
       <div className="min-w-0 flex-1">
