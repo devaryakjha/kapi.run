@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { KapiSession, MenuItem } from '@kapi/spec'
 import {
+  CheckCircle2,
   Loader2,
   Minus,
   Plus,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react'
 
 import { Avatar, AvatarFallback } from '#/components/ui/avatar'
+import { Alert, AlertDescription } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
 import {
   Empty,
@@ -36,6 +38,7 @@ export function ParticipantMenuPage({
   draft,
   error,
   menu,
+  notice,
   participantName,
   pending,
   session,
@@ -46,6 +49,7 @@ export function ParticipantMenuPage({
   draft: DraftCart
   error: string | null
   menu: MenuItem[]
+  notice: string | null
   participantName: string
   pending: boolean
   session: KapiSession
@@ -195,6 +199,7 @@ export function ParticipantMenuPage({
           error={error}
           locked={locked}
           menu={menu}
+          notice={notice}
           participantName={participantName}
           pending={pending}
           onNameChange={onNameChange}
@@ -208,6 +213,7 @@ export function ParticipantMenuPage({
         error={error}
         locked={locked}
         menu={menu}
+        notice={notice}
         pending={pending}
         onSubmit={onSubmit}
       />
@@ -336,6 +342,7 @@ function CartSidebar({
   error,
   locked,
   menu,
+  notice,
   participantName,
   pending,
   onNameChange,
@@ -346,6 +353,7 @@ function CartSidebar({
   error: string | null
   locked: boolean
   menu: MenuItem[]
+  notice: string | null
   participantName: string
   pending: boolean
   onNameChange: (name: string) => void
@@ -441,6 +449,7 @@ function CartSidebar({
 
       <div className="border-t border-border px-5 py-4">
         <ErrorAlert message={error} className="mb-3" />
+        <NoticeAlert message={notice} className="mb-3" />
         <div className="mb-4 flex flex-col gap-1.5">
           <SummaryRow label="Items" value={`₹${total}`} />
           <SummaryRow label="Surcharge" value={`₹${surcharge}`} />
@@ -471,6 +480,7 @@ function MobileCartBar({
   error,
   locked,
   menu,
+  notice,
   pending,
   onSubmit,
 }: {
@@ -478,6 +488,7 @@ function MobileCartBar({
   error: string | null
   locked: boolean
   menu: MenuItem[]
+  notice: string | null
   pending: boolean
   onSubmit: () => void
 }) {
@@ -488,11 +499,12 @@ function MobileCartBar({
   const total = lines.reduce((sum, l) => sum + l.item.price * l.quantity, 0)
   const itemCount = lines.reduce((sum, l) => sum + l.quantity, 0)
 
-  if (itemCount === 0 && !error) return null
+  if (itemCount === 0 && !error && !notice) return null
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm lg:hidden">
       <ErrorAlert message={error} className="mb-2" />
+      <NoticeAlert message={notice} className="mb-2" />
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold leading-4">
@@ -515,5 +527,21 @@ function MobileCartBar({
         </Button>
       </div>
     </div>
+  )
+}
+
+function NoticeAlert({
+  message,
+  className,
+}: {
+  message: string | null
+  className?: string
+}) {
+  if (!message) return null
+  return (
+    <Alert className={className}>
+      <CheckCircle2 />
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
   )
 }

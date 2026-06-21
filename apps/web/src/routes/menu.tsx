@@ -31,6 +31,7 @@ type MenuState = {
   participantName: string
   pending: boolean
   error: string | null
+  notice: string | null
 }
 
 function initialMenuState(): MenuState {
@@ -46,6 +47,7 @@ function initialMenuState(): MenuState {
     participantName: name ?? '',
     pending: false,
     error: !sessionId || !key ? 'Session link is invalid.' : null,
+    notice: null,
   }
 }
 
@@ -102,7 +104,7 @@ function RouteComponent() {
     } else {
       draft[menuItemId] = nextQuantity
     }
-    setState({ draft })
+    setState({ draft, notice: null })
   }
 
   async function submitDraft() {
@@ -112,15 +114,18 @@ function RouteComponent() {
       quantity,
     }))
     if (!items.length) {
-      setState({ error: 'Add at least one item before submitting.' })
+      setState({
+        error: 'Add at least one item before submitting.',
+        notice: null,
+      })
       return
     }
     if (!state.participantName.trim()) {
-      setState({ error: 'Enter your name before submitting.' })
+      setState({ error: 'Enter your name before submitting.', notice: null })
       return
     }
 
-    setState({ pending: true, error: null })
+    setState({ pending: true, error: null, notice: null })
     try {
       const name = state.participantName.trim()
       const participantId =
@@ -143,6 +148,7 @@ function RouteComponent() {
         setState({
           session: latest.session,
           error: 'This group session is locked.',
+          notice: null,
         })
         return
       }
@@ -161,6 +167,7 @@ function RouteComponent() {
           setState({
             session: latest.session,
             error: 'This group session is locked.',
+            notice: null,
           })
           return
         }
@@ -179,12 +186,14 @@ function RouteComponent() {
       setState({
         session: updated,
         draft: {},
-        error: 'Items added to the group cart.',
+        error: null,
+        notice: 'Items added to the group cart.',
       })
     } catch (caught) {
       setState({
         error:
           caught instanceof Error ? caught.message : 'Could not submit items.',
+        notice: null,
       })
     } finally {
       setState({ pending: false })
@@ -204,10 +213,13 @@ function RouteComponent() {
       draft={state.draft}
       error={state.error}
       menu={state.menu}
+      notice={state.notice}
       participantName={state.participantName}
       pending={state.pending}
       session={state.session}
-      onNameChange={(participantName) => setState({ participantName })}
+      onNameChange={(participantName) =>
+        setState({ participantName, notice: null })
+      }
       onQuantityChange={changeDraft}
       onSubmit={submitDraft}
     />
