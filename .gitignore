@@ -10,3 +10,5 @@ build
 .kapi-*.json
 
 plans/
+
+.playwright-mcp

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Address, AuthStatus, Restaurant } from '@kapi/spec'
 import {
   ArrowRight,
+  Check,
   Loader2,
   MapPin,
   Search,
@@ -46,14 +47,11 @@ import {
 import { cn } from '#/lib/utils'
 
 import {
-  BrandLockup,
   ErrorAlert,
   IconTile,
-  SetupStep,
   formatAddressOption,
   formatRestaurantLocationMeta,
   formatRestaurantValueMeta,
-  setupImage,
 } from './shared'
 
 type AddressItem = {
@@ -98,47 +96,166 @@ export function OrganizerSetupPage({
 }) {
   const addressItems = makeAddressItems(authStatus, addresses)
   const selectedRestaurant = restaurants.find(
-    (restaurant) => restaurant.id === selectedRestaurantId,
+    (r) => r.id === selectedRestaurantId,
   )
 
   return (
-    <main className="flex min-h-svh bg-background text-foreground">
-      <SetupSidebar />
-      <section className="flex-1 p-6 md:p-10">
-        <div className="mx-auto max-w-5xl">
-          <MobileBrand />
-          <SetupHeader />
-          <div className="flex flex-col gap-10">
-            <AuthStep authStatus={authStatus} onConnect={onConnect} />
-            <LogisticsStep
-              addressItems={addressItems}
-              addresses={addresses}
-              authStatus={authStatus}
-              cutoffTime={cutoffTime}
-              selectedAddressId={selectedAddressId}
-              onAddressChange={onAddressChange}
-              onCutoffTimeChange={onCutoffTimeChange}
-            />
-            <VenueStep
-              pending={pending}
-              restaurantQuery={restaurantQuery}
-              restaurants={restaurants}
-              selectedAddressId={selectedAddressId}
-              selectedRestaurant={selectedRestaurant}
-              onRestaurantChange={onRestaurantChange}
-              onRestaurantQueryChange={onRestaurantQueryChange}
-            />
-            <SetupActions
-              authStatus={authStatus}
-              error={error}
-              pending={pending}
-              selectedAddressId={selectedAddressId}
-              selectedRestaurantId={selectedRestaurantId}
-              onCreate={onCreate}
-            />
+    <main className="flex min-h-svh flex-col bg-background text-foreground">
+      <nav className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
+        <span className="text-base font-bold tracking-tight text-primary">
+          kapi.run
+        </span>
+        <Badge
+          variant="secondary"
+          className="rounded-full text-[10px] font-semibold uppercase tracking-wider"
+        >
+          Ops
+        </Badge>
+      </nav>
+
+      <div className="flex flex-1 flex-col items-center px-4 py-10 md:py-16">
+        <div className="w-full max-w-[440px]">
+          <div className="mb-8">
+            <h1 className="text-[26px] font-semibold leading-8 tracking-tight">
+              Start a group order
+            </h1>
+            <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+              Connect Swiggy, pick a spot, share the link.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <StepCard
+              number={1}
+              title="Swiggy account"
+              done={authStatus.connected}
+              doneLabel="Connected"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
+                    <Utensils className="size-4 text-muted-foreground" />
+                  </div>
+                  <p className="text-[13px] leading-5 text-muted-foreground">
+                    {authStatus.connected
+                      ? 'Account linked. Ready to pull addresses.'
+                      : 'Sign in to access your saved addresses.'}
+                  </p>
+                </div>
+                <Button
+                  onClick={onConnect}
+                  variant={authStatus.connected ? 'ghost' : 'default'}
+                  size="sm"
+                  className="shrink-0"
+                >
+                  {authStatus.connected ? 'Reconnect' : 'Connect'}
+                </Button>
+              </div>
+            </StepCard>
+
+            <StepCard number={2} title="Address & cutoff">
+              <FieldGroup className="grid gap-3 sm:grid-cols-2">
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    Delivery address
+                  </FieldLabel>
+                  <Select
+                    items={addressItems}
+                    value={selectedAddressId}
+                    onValueChange={(value) => onAddressChange(String(value))}
+                    disabled={!authStatus.connected || !addresses.length}
+                  >
+                    <SelectTrigger className="w-full min-w-0">
+                      <MapPin
+                        className="text-muted-foreground"
+                        data-icon="inline-start"
+                      />
+                      <SelectValue className="min-w-0 truncate" />
+                    </SelectTrigger>
+                    <SelectContent
+                      alignItemWithTrigger={false}
+                      className="w-[min(36rem,calc(100vw-2rem))]"
+                    >
+                      <SelectGroup>
+                        {addressItems.map((address) => (
+                          <SelectItem
+                            key={address.value || 'empty'}
+                            value={address.value}
+                            className="items-start whitespace-normal"
+                          >
+                            <Item size="xs" className="min-w-0 p-0">
+                              <ItemContent className="min-w-0">
+                                <ItemTitle className="whitespace-normal">
+                                  {address.title}
+                                </ItemTitle>
+                                {address.detail ? (
+                                  <ItemDescription className="line-clamp-none whitespace-normal wrap-break-word">
+                                    {address.detail}
+                                  </ItemDescription>
+                                ) : null}
+                              </ItemContent>
+                            </Item>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field className="gap-1.5">
+                  <FieldLabel
+                    htmlFor="cutoff-time"
+                    className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+                  >
+                    Order cutoff
+                  </FieldLabel>
+                  <Input
+                    id="cutoff-time"
+                    type="time"
+                    step="60"
+                    value={cutoffTime}
+                    onChange={(e) => onCutoffTimeChange(e.target.value)}
+                  />
+                </Field>
+              </FieldGroup>
+            </StepCard>
+
+            <StepCard number={3} title="Restaurant">
+              <VenueStep
+                pending={pending}
+                restaurantQuery={restaurantQuery}
+                restaurants={restaurants}
+                selectedAddressId={selectedAddressId}
+                selectedRestaurant={selectedRestaurant}
+                onRestaurantChange={onRestaurantChange}
+                onRestaurantQueryChange={onRestaurantQueryChange}
+              />
+            </StepCard>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3">
+            <ErrorAlert message={error} />
+            <Button
+              onClick={onCreate}
+              disabled={
+                pending ||
+                !authStatus.connected ||
+                !selectedAddressId ||
+                !selectedRestaurantId
+              }
+              className="h-12 w-full rounded-xl text-base font-semibold"
+            >
+              {pending ? (
+                <Loader2 className="animate-spin" data-icon="inline-start" />
+              ) : null}
+              Create session
+              <ArrowRight data-icon="inline-end" />
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              The invite link is generated instantly.
+            </p>
           </div>
         </div>
-      </section>
+      </div>
     </main>
   )
 }
@@ -163,178 +280,48 @@ function makeAddressItems(
   ]
 }
 
-function SetupSidebar() {
-  return (
-    <aside className="hidden min-h-svh w-80 shrink-0 flex-col justify-between border-r border-border bg-(--kapi-subtle) p-6 md:flex">
-      <div>
-        <BrandLockup />
-        <h1 className="mb-2 text-xl font-semibold leading-7 tracking-normal">
-          Start a New <br />
-          Group Session.
-        </h1>
-        <p className="text-[13px] leading-4.5 text-muted-foreground">
-          Coordinate office lunches with precision. Set your constraints, pick
-          the spot, and let the team join.
-        </p>
-      </div>
-      <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-border/70 bg-background p-4">
-        <img
-          src={setupImage}
-          alt="Kapi setup illustration"
-          className="h-auto w-full object-contain"
-        />
-      </div>
-      <div aria-hidden="true" />
-    </aside>
-  )
-}
-
-function MobileBrand() {
-  return (
-    <div className="mb-6 flex items-center justify-between md:hidden">
-      <span className="font-heading text-xl font-bold text-primary">
-        Kapi.run
-      </span>
-      <Badge className="rounded-full bg-primary text-primary-foreground">
-        Ops
-      </Badge>
-    </div>
-  )
-}
-
-function SetupHeader() {
-  return (
-    <header className="mb-10">
-      <h2 className="text-xl font-semibold leading-7 tracking-normal">
-        Session Configuration
-      </h2>
-      <p className="text-[13px] leading-4.5 text-muted-foreground">
-        Provide context to generate the session invite link.
-      </p>
-    </header>
-  )
-}
-
-function AuthStep({
-  authStatus,
-  onConnect,
+function StepCard({
+  number,
+  title,
+  done,
+  doneLabel,
+  children,
 }: {
-  authStatus: AuthStatus
-  onConnect: () => void
+  number: number
+  title: string
+  done?: boolean
+  doneLabel?: string
+  children: React.ReactNode
 }) {
   return (
-    <SetupStep
-      active
-      title="Step 1: Auth Context"
-      status={authStatus.connected ? 'CONNECTED' : undefined}
+    <div
+      className={cn(
+        'rounded-xl border p-5 transition-colors',
+        done
+          ? 'border-primary/25 bg-primary/[0.025]'
+          : 'border-border bg-background',
+      )}
     >
-      <div className="grid items-center gap-4 sm:grid-cols-[auto_auto] sm:justify-start sm:gap-8">
-        <div className="flex items-center gap-4">
-          <IconTile icon={Utensils} />
-          <div>
-            <h4 className="text-sm font-medium">Swiggy Login</h4>
-            <p className="text-sm text-muted-foreground">
-              {authStatus.connected
-                ? 'Ready to choose saved addresses.'
-                : 'Connect your Swiggy account to start.'}
-            </p>
-          </div>
-        </div>
-        <Button
-          onClick={onConnect}
-          variant={authStatus.connected ? 'link' : 'default'}
-          size="sm"
+      <div className="mb-4 flex items-center gap-2.5">
+        <span
+          className={cn(
+            'flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
+            done
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted text-muted-foreground',
+          )}
         >
-          {authStatus.connected ? 'Reconnect' : 'Connect Swiggy'}
-        </Button>
+          {done ? <Check className="size-3" /> : number}
+        </span>
+        <span className="text-sm font-semibold leading-5">{title}</span>
+        {done && doneLabel ? (
+          <span className="ml-auto text-[11px] font-medium text-primary">
+            ✓ {doneLabel}
+          </span>
+        ) : null}
       </div>
-    </SetupStep>
-  )
-}
-
-function LogisticsStep({
-  addressItems,
-  addresses,
-  authStatus,
-  cutoffTime,
-  selectedAddressId,
-  onAddressChange,
-  onCutoffTimeChange,
-}: {
-  addressItems: AddressItem[]
-  addresses: Address[]
-  authStatus: AuthStatus
-  cutoffTime: string
-  selectedAddressId: string
-  onAddressChange: (addressId: string) => void
-  onCutoffTimeChange: (time: string) => void
-}) {
-  return (
-    <SetupStep title="Step 2: Logistics">
-      <FieldGroup className="grid min-w-0 gap-4 md:grid-cols-2">
-        <Field className="min-w-0 gap-1">
-          <FieldLabel className="text-[11px] font-medium tracking-[0.03em] text-muted-foreground">
-            Delivery Context
-          </FieldLabel>
-          <Select
-            items={addressItems}
-            value={selectedAddressId}
-            onValueChange={(value) => onAddressChange(String(value))}
-            disabled={!authStatus.connected || !addresses.length}
-          >
-            <SelectTrigger className="w-full min-w-0">
-              <MapPin
-                className="text-muted-foreground"
-                data-icon="inline-start"
-              />
-              <SelectValue className="min-w-0 truncate" />
-            </SelectTrigger>
-            <SelectContent
-              alignItemWithTrigger={false}
-              className="w-[min(36rem,calc(100vw-2rem))]"
-            >
-              <SelectGroup>
-                {addressItems.map((address) => (
-                  <SelectItem
-                    key={address.value || 'empty'}
-                    value={address.value}
-                    className="items-start whitespace-normal"
-                  >
-                    <Item size="xs" className="min-w-0 p-0">
-                      <ItemContent className="min-w-0">
-                        <ItemTitle className="whitespace-normal">
-                          {address.title}
-                        </ItemTitle>
-                        {address.detail ? (
-                          <ItemDescription className="line-clamp-none whitespace-normal wrap-break-word">
-                            {address.detail}
-                          </ItemDescription>
-                        ) : null}
-                      </ItemContent>
-                    </Item>
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field className="min-w-0 gap-1">
-          <FieldLabel
-            htmlFor="cutoff-time"
-            className="text-[11px] font-medium tracking-[0.03em] text-muted-foreground"
-          >
-            Cutoff Time
-          </FieldLabel>
-          <Input
-            id="cutoff-time"
-            type="time"
-            step="60"
-            value={cutoffTime}
-            onChange={(event) => onCutoffTimeChange(event.target.value)}
-          />
-        </Field>
-      </FieldGroup>
-    </SetupStep>
+      {children}
+    </div>
   )
 }
 
@@ -355,34 +342,27 @@ function VenueStep({
   onRestaurantChange: (restaurantId: string) => void
   onRestaurantQueryChange: (query: string) => void
 }) {
-  const [isRestaurantCommandOpen, setRestaurantCommandOpen] = useState(false)
+  const [isOpen, setOpen] = useState(false)
 
   return (
-    <SetupStep title="Step 3: Venue">
-      <div className="flex flex-col gap-4">
-        <Dialog
-          open={isRestaurantCommandOpen}
-          onOpenChange={setRestaurantCommandOpen}
-        >
-          <RestaurantTrigger
-            selectedAddressId={selectedAddressId}
-            selectedRestaurant={selectedRestaurant}
-            onOpen={() => setRestaurantCommandOpen(true)}
-          />
-          <RestaurantCommand
-            pending={pending}
-            restaurantQuery={restaurantQuery}
-            restaurants={restaurants}
-            selectedAddressId={selectedAddressId}
-            onRestaurantChange={(restaurantId) => {
-              onRestaurantChange(restaurantId)
-              setRestaurantCommandOpen(false)
-            }}
-            onRestaurantQueryChange={onRestaurantQueryChange}
-          />
-        </Dialog>
-      </div>
-    </SetupStep>
+    <Dialog open={isOpen} onOpenChange={setOpen}>
+      <RestaurantTrigger
+        selectedAddressId={selectedAddressId}
+        selectedRestaurant={selectedRestaurant}
+        onOpen={() => setOpen(true)}
+      />
+      <RestaurantCommand
+        pending={pending}
+        restaurantQuery={restaurantQuery}
+        restaurants={restaurants}
+        selectedAddressId={selectedAddressId}
+        onRestaurantChange={(id) => {
+          onRestaurantChange(id)
+          setOpen(false)
+        }}
+        onRestaurantQueryChange={onRestaurantQueryChange}
+      />
+    </Dialog>
   )
 }
 
@@ -412,8 +392,8 @@ function RestaurantTrigger({
       ) : (
         <>
           <Search data-icon="inline-start" />
-          <span className="min-w-0 flex-1 truncate text-sm">
-            Search restaurants or cuisine
+          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+            Search restaurants or cuisine…
           </span>
         </>
       )}
@@ -456,7 +436,7 @@ function RestaurantCommand({
           <CommandEmpty>
             {restaurantQuery.trim()
               ? pending
-                ? 'Searching restaurants...'
+                ? 'Searching…'
                 : 'No restaurants found.'
               : 'Type to search restaurants.'}
           </CommandEmpty>
@@ -491,7 +471,7 @@ function RestaurantTileContent({ restaurant }: { restaurant: Restaurant }) {
         <img
           src={restaurant.imageUrl}
           alt={restaurant.name}
-          className="size-10 shrink-0 border border-border object-cover grayscale-[0.45]"
+          className="size-10 shrink-0 rounded border border-border object-cover"
         />
       ) : (
         <IconTile icon={Utensils} className="size-10" />
@@ -522,46 +502,5 @@ function RestaurantTileContent({ restaurant }: { restaurant: Restaurant }) {
         <span className="w-12 shrink-0" />
       )}
     </>
-  )
-}
-
-function SetupActions({
-  authStatus,
-  error,
-  pending,
-  selectedAddressId,
-  selectedRestaurantId,
-  onCreate,
-}: {
-  authStatus: AuthStatus
-  error: string | null
-  pending: boolean
-  selectedAddressId: string
-  selectedRestaurantId: string
-  onCreate: () => void
-}) {
-  return (
-    <div className="border-t border-border pt-4">
-      <ErrorAlert message={error} className="mb-3" />
-      <Button
-        onClick={onCreate}
-        disabled={
-          pending ||
-          !authStatus.connected ||
-          !selectedAddressId ||
-          !selectedRestaurantId
-        }
-        className="h-12 w-full rounded-lg text-base font-semibold"
-      >
-        {pending ? (
-          <Loader2 className="animate-spin" data-icon="inline-start" />
-        ) : null}
-        Create Group Session
-        <ArrowRight data-icon="inline-end" />
-      </Button>
-      <p className="mt-4 text-center text-[13px] leading-4.5 text-muted-foreground">
-        Invite link will be generated instantly.
-      </p>
-    </div>
   )
 }

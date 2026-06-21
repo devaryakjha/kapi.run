@@ -1,19 +1,16 @@
 import { useMemo, useState } from 'react'
 import type { KapiSession, MenuItem } from '@kapi/spec'
 import {
-  Bell,
-  Clock,
-  Filter,
   Loader2,
   Minus,
   Plus,
   Search,
   Send,
   Trash2,
+  Utensils,
 } from 'lucide-react'
 
 import { Avatar, AvatarFallback } from '#/components/ui/avatar'
-import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import {
   Empty,
@@ -24,13 +21,8 @@ import {
 } from '#/components/ui/empty'
 import { Field, FieldLabel } from '#/components/ui/field'
 import { Input } from '#/components/ui/input'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '#/components/ui/input-group'
 import { Separator } from '#/components/ui/separator'
-import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group'
+import { cn } from '#/lib/utils'
 
 import type { DraftCart } from './shared'
 import {
@@ -62,15 +54,8 @@ export function ParticipantMenuPage({
   onSubmit: () => void
 }) {
   const [query, setQuery] = useState('')
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase()
-    return menu.filter(
-      (item) =>
-        !normalized ||
-        item.name.toLowerCase().includes(normalized) ||
-        item.category.toLowerCase().includes(normalized),
-    )
-  }, [menu, query])
+  const [activeCategory, setActiveCategory] = useState('All')
+
   const categories = useMemo(
     () => [
       'All',
@@ -78,165 +63,146 @@ export function ParticipantMenuPage({
         ...new Set(
           menu.flatMap((item) => (item.category ? [item.category] : [])),
         ),
-      ].slice(0, 3),
+      ].slice(0, 5),
     ],
     [menu],
   )
 
-  const tileItems = filtered.slice(1, 5)
-  const listItems = filtered.slice(5)
+  const filtered = useMemo(() => {
+    const normalized = query.trim().toLowerCase()
+    return menu.filter((item) => {
+      const matchesCategory =
+        activeCategory === 'All' || item.category === activeCategory
+      const matchesQuery =
+        !normalized ||
+        item.name.toLowerCase().includes(normalized) ||
+        item.category.toLowerCase().includes(normalized)
+      return matchesCategory && matchesQuery
+    })
+  }, [menu, query, activeCategory])
+
   const locked = isSessionLockedForParticipants(session)
   const remainingTime = formatRemainingTime(session)
 
   return (
     <main className="flex min-h-svh flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-(--kapi-subtle) px-4 md:px-8">
-        <div className="flex min-w-0 items-center gap-4">
-          <span className="font-heading text-2xl font-extrabold text-primary">
-            Kapi.run
+      <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur-sm md:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="text-base font-bold tracking-tight text-primary">
+            kapi.run
           </span>
-          <Separator orientation="vertical" className="hidden h-6 md:block" />
-          <div className="hidden flex-col md:flex">
-            <span className="text-base font-semibold leading-6 text-primary">
-              {session.restaurant.name}
-            </span>
-            <label className="text-[11px] font-medium tracking-[0.03em] text-muted-foreground">
-              Participant:{' '}
-              <input
-                className="bg-transparent outline-none"
-                value={participantName}
-                onChange={(event) => onNameChange(event.target.value)}
-              />
-            </label>
-          </div>
+          <span className="hidden h-4 w-px bg-border md:block" />
+          <span className="hidden truncate text-sm font-medium text-foreground md:block">
+            {session.restaurant.name}
+          </span>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="hidden flex-col items-end md:flex">
-            <span className="text-xs font-bold leading-4">
-              {session.cutoffTime} cutoff
-            </span>
-            <span className="text-[11px] font-medium leading-3.5 text-destructive">
-              {remainingTime}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted px-4 py-2">
-            <Clock className="text-[#ff9f1c]" />
-            <span className="font-mono text-[13px] font-bold leading-5">
-              {remainingTime}
-            </span>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="rounded-full text-muted-foreground"
-          >
-            <Bell />
-          </Button>
-          <Avatar>
-            <AvatarFallback>
-              {participantName.slice(0, 1) || 'A'}
+        <div className="flex items-center gap-3">
+          <TimerPill remainingTime={remainingTime} locked={locked} />
+          <Avatar className="size-8">
+            <AvatarFallback className="text-xs font-semibold">
+              {participantName.slice(0, 1).toUpperCase() || 'A'}
             </AvatarFallback>
           </Avatar>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <section className="flex-1 overflow-y-auto p-4 pb-28 md:p-8 lg:pb-8">
-          <div className="mx-auto flex max-w-4xl flex-col gap-6">
-            <div className="md:hidden">
-              <Field className="gap-1">
-                <FieldLabel className="text-[11px] font-medium tracking-[0.03em] text-muted-foreground">
-                  Participant
-                </FieldLabel>
-                <Input
-                  value={participantName}
-                  onChange={(event) => onNameChange(event.target.value)}
-                  className="h-10 rounded-lg border-border bg-background text-sm"
+        <section className="flex-1 overflow-y-auto">
+          <div className="sticky top-0 z-[5] border-b border-border bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm md:px-6">
+            <div className="mx-auto max-w-3xl">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value)
+                    if (e.target.value) setActiveCategory('All')
+                  }}
+                  placeholder={`Search ${session.restaurant.name} menu…`}
+                  className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-4 text-sm outline-none ring-primary/30 transition-shadow placeholder:text-muted-foreground focus:ring-2"
                 />
-              </Field>
-            </div>
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-4">
-                <InputGroup className="flex-1">
-                  <InputGroupInput
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder={`Search ${session.restaurant.name} menu...`}
-                  />
-                  <InputGroupAddon>
-                    <Search />
-                  </InputGroupAddon>
-                </InputGroup>
-                <Button variant="outline">
-                  <Filter data-icon="inline-start" /> Filters
-                </Button>
               </div>
-              <ToggleGroup
-                value={categories.includes(query) ? [query] : ['All']}
-                onValueChange={(value) => {
-                  const next = value[0]
-                  if (next) setQuery(next === 'All' ? '' : next)
-                }}
-                variant="outline"
-                size="sm"
-                className="max-w-full overflow-x-auto pb-1"
-              >
-                {categories.map((filter) => (
-                  <ToggleGroupItem key={filter} value={filter}>
-                    {filter}
-                  </ToggleGroupItem>
+              <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setActiveCategory(cat)
+                      setQuery('')
+                    }}
+                    className={cn(
+                      'shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                      activeCategory === cat && !query
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground',
+                    )}
+                  >
+                    {cat}
+                  </button>
                 ))}
-              </ToggleGroup>
+              </div>
             </div>
+          </div>
 
-            <section className="grid grid-cols-12 gap-4">
-              {filtered.slice(0, 1).map((item) => (
-                <FeaturedItem
-                  key={item.id}
-                  item={item}
-                  locked={locked}
-                  onAdd={() => onQuantityChange(item.id, 1)}
-                />
-              ))}
-              {tileItems.map((item) => (
-                <MenuTile
-                  key={item.id}
-                  item={item}
-                  locked={locked}
-                  onAdd={() => onQuantityChange(item.id, 1)}
-                />
-              ))}
-              <MenuList
-                items={listItems}
-                locked={locked}
-                onAdd={(item) => onQuantityChange(item.id, 1)}
-              />
+          <div className="px-4 py-4 pb-28 md:px-6 lg:pb-6">
+            <div className="mx-auto max-w-3xl">
+              <div className="mb-4 md:hidden">
+                <Field className="gap-1.5">
+                  <FieldLabel className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    Your name
+                  </FieldLabel>
+                  <Input
+                    value={participantName}
+                    onChange={(e) => onNameChange(e.target.value)}
+                    placeholder="Enter your name"
+                    className="h-9 text-sm"
+                  />
+                </Field>
+              </div>
+
               {!filtered.length ? (
-                <Empty className="col-span-12 border">
+                <Empty className="border border-border">
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
                       <Search />
                     </EmptyMedia>
-                    <EmptyTitle>No menu items found</EmptyTitle>
+                    <EmptyTitle>No items found</EmptyTitle>
                     <EmptyDescription>
-                      Try another restaurant item or category.
+                      Try a different search or category.
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
-              ) : null}
-            </section>
+              ) : (
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {filtered.map((item) => (
+                    <MenuCard
+                      key={item.id}
+                      item={item}
+                      quantity={draft[item.id] ?? 0}
+                      locked={locked}
+                      onAdd={() => onQuantityChange(item.id, 1)}
+                      onRemove={() => onQuantityChange(item.id, -1)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </section>
+
         <CartSidebar
           draft={draft}
           error={error}
           locked={locked}
           menu={menu}
+          participantName={participantName}
           pending={pending}
+          onNameChange={onNameChange}
           onQuantityChange={onQuantityChange}
           onSubmit={onSubmit}
         />
       </div>
+
       <MobileCartBar
         draft={draft}
         error={error}
@@ -249,188 +215,119 @@ export function ParticipantMenuPage({
   )
 }
 
-function FeaturedItem({
-  item,
+function TimerPill({
+  remainingTime,
   locked,
-  onAdd,
 }: {
-  item: MenuItem
+  remainingTime: string
   locked: boolean
-  onAdd: () => void
 }) {
   return (
-    <article className="col-span-12 overflow-hidden border border-border">
-      <div className="flex flex-col md:flex-row">
-        <div className="relative h-48 w-full shrink-0 overflow-hidden bg-muted md:h-auto md:w-48">
-          {item.imageUrl ? (
-            <img
-              src={item.imageUrl}
-              alt={item.name}
-              className="h-full w-full object-cover"
-            />
-          ) : null}
-          {item.tags?.[0] ? (
-            <Badge className="absolute left-2 top-2 rounded bg-red-600 text-[10px] font-bold uppercase text-white">
-              {item.tags[0]}
-            </Badge>
-          ) : null}
-        </div>
-        <div className="flex flex-1 flex-col justify-between p-6">
-          <div>
-            <div className="mb-1 flex items-start justify-between gap-4">
-              <h2 className="text-xl font-semibold leading-7">{item.name}</h2>
-              <span className="font-mono text-[13px] font-bold text-primary">
-                ₹{item.price}
-              </span>
-            </div>
-            <p className="max-w-lg text-[13px] leading-4.5 text-muted-foreground">
-              {item.description}
-            </p>
-          </div>
-          <div className="mt-6 flex items-center justify-between gap-4">
-            <div className="flex gap-1">
-              {item.tags?.slice(1).map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="rounded bg-(--kapi-subtle) text-muted-foreground"
-                >
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-            <Button
-              onClick={onAdd}
-              disabled={locked || !item.available}
-              className="rounded px-10"
-            >
-              <Plus data-icon="inline-start" /> Add to Cart
-            </Button>
-          </div>
-        </div>
-      </div>
-    </article>
+    <div
+      className={cn(
+        'flex items-center gap-2 rounded-full border px-3 py-1.5',
+        locked
+          ? 'border-destructive/30 bg-destructive/10 text-destructive'
+          : 'border-border bg-(--kapi-subtle) text-foreground',
+      )}
+    >
+      {!locked && (
+        <span className="relative flex size-1.5 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+          <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
+        </span>
+      )}
+      <span className="font-mono text-xs font-semibold">{remainingTime}</span>
+    </div>
   )
 }
 
-function MenuTile({
+function MenuCard({
   item,
+  quantity,
   locked,
   onAdd,
+  onRemove,
 }: {
   item: MenuItem
+  quantity: number
   locked: boolean
   onAdd: () => void
+  onRemove: () => void
 }) {
   return (
-    <article className="col-span-12 border border-border md:col-span-6">
-      <div className="flex gap-4 p-4">
-        <div className="relative size-24 shrink-0 overflow-hidden rounded bg-muted">
-          {item.imageUrl ? (
-            <img
-              src={item.imageUrl}
-              alt={item.name}
-              className="h-full w-full object-cover"
-            />
-          ) : null}
-          {item.tags?.includes('Veg') ? (
-            <Badge className="absolute left-1 top-1 rounded bg-green-600 px-1.5 py-0 text-[8px] uppercase text-white">
-              Veg
-            </Badge>
-          ) : null}
-        </div>
-        <div className="flex flex-1 flex-col justify-between">
-          <div>
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="text-base font-semibold leading-6">{item.name}</h3>
-              <span className="font-mono text-[13px] text-muted-foreground">
-                ₹{item.price}
-              </span>
-            </div>
-            <p className="mt-1 text-[13px] leading-4.5 text-muted-foreground">
+    <article
+      className={cn(
+        'flex gap-3 rounded-xl border border-border bg-background p-3 transition-colors',
+        !item.available && 'opacity-50',
+        quantity > 0 && 'border-primary/30 bg-primary/[0.02]',
+      )}
+    >
+      <div className="relative size-[72px] shrink-0 overflow-hidden rounded-lg bg-muted">
+        {item.imageUrl ? (
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Utensils className="size-5 text-muted-foreground" />
+          </div>
+        )}
+        {item.tags?.includes('Veg') ? (
+          <span className="absolute bottom-1 left-1 flex size-3.5 items-center justify-center rounded border-[1.5px] border-green-600 bg-background">
+            <span className="size-1.5 rounded-full bg-green-600" />
+          </span>
+        ) : null}
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col justify-between">
+        <div>
+          <h3 className="text-sm font-semibold leading-5">{item.name}</h3>
+          {item.description ? (
+            <p className="mt-0.5 line-clamp-2 text-[12px] leading-[1.4] text-muted-foreground">
               {item.description}
             </p>
-          </div>
-          <div className="mt-2 flex justify-end">
+          ) : null}
+        </div>
+        <div className="mt-2 flex items-center justify-between">
+          <span className="font-mono text-sm font-bold">₹{item.price}</span>
+          {quantity > 0 ? (
+            <div className="flex h-7 items-center rounded-full border border-primary/40 bg-primary/5">
+              <button
+                onClick={onRemove}
+                disabled={locked}
+                className="flex size-7 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 disabled:pointer-events-none"
+              >
+                <Minus className="size-3" />
+              </button>
+              <span className="min-w-[1.25rem] text-center font-mono text-xs font-bold text-primary">
+                {quantity}
+              </span>
+              <button
+                onClick={onAdd}
+                disabled={locked || !item.available}
+                className="flex size-7 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 disabled:pointer-events-none"
+              >
+                <Plus className="size-3" />
+              </button>
+            </div>
+          ) : (
             <Button
               onClick={onAdd}
               disabled={locked || !item.available}
               variant="outline"
-              size="icon-sm"
-              className="rounded-full text-primary"
+              size="sm"
+              className="h-7 rounded-full px-3 text-xs"
             >
-              <Plus />
+              <Plus className="size-3" data-icon="inline-start" />
+              Add
             </Button>
-          </div>
+          )}
         </div>
       </div>
     </article>
-  )
-}
-
-function MenuList({
-  items,
-  locked,
-  onAdd,
-}: {
-  items: MenuItem[]
-  locked: boolean
-  onAdd: (item: MenuItem) => void
-}) {
-  if (!items.length) return null
-  return (
-    <section className="col-span-12 border border-border">
-      <header className="flex items-center justify-between border-b border-border px-4 py-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          More Items
-        </h2>
-        <span className="text-[11px] font-medium text-muted-foreground">
-          {items.length} items available
-        </span>
-      </header>
-      <div className="divide-y divide-border">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex cursor-pointer items-center justify-between gap-4 p-4 transition-colors hover:bg-(--kapi-subtle)"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-semibold">{item.name}</span>
-                {item.tags?.includes('Veg') ? (
-                  <Badge
-                    variant="outline"
-                    className="rounded border-green-200 bg-green-50 text-[10px] text-green-700"
-                  >
-                    Veg
-                  </Badge>
-                ) : null}
-                {!item.available ? (
-                  <Badge variant="destructive" className="rounded text-[10px]">
-                    Unavailable
-                  </Badge>
-                ) : null}
-              </div>
-              <p className="truncate text-[13px] leading-4.5 text-muted-foreground">
-                {item.description}
-              </p>
-            </div>
-            <div className="flex items-center gap-8">
-              <span className="font-mono text-[13px]">₹{item.price}</span>
-              <Button
-                onClick={() => onAdd(item)}
-                disabled={locked || !item.available}
-                variant="outline"
-                size="sm"
-                className="rounded"
-              >
-                Add
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
   )
 }
 
@@ -439,7 +336,9 @@ function CartSidebar({
   error,
   locked,
   menu,
+  participantName,
   pending,
+  onNameChange,
   onQuantityChange,
   onSubmit,
 }: {
@@ -447,104 +346,120 @@ function CartSidebar({
   error: string | null
   locked: boolean
   menu: MenuItem[]
+  participantName: string
   pending: boolean
+  onNameChange: (name: string) => void
   onQuantityChange: (menuItemId: string, delta: number) => void
   onSubmit: () => void
 }) {
   const lines = Object.entries(draft).flatMap(([id, quantity]) => {
-    const item = menu.find((candidate) => candidate.id === id)
-    return item ? [{ item, quantity }] : []
+    const item = menu.find((c) => c.id === id)
+    return item && quantity > 0 ? [{ item, quantity }] : []
   })
-  const total = lines.reduce(
-    (sum, line) => sum + line.item.price * line.quantity,
-    0,
-  )
+  const total = lines.reduce((sum, l) => sum + l.item.price * l.quantity, 0)
   const surcharge = lines.length ? 15 : 0
+  const itemCount = lines.reduce((sum, l) => sum + l.quantity, 0)
 
   return (
-    <aside className="hidden h-[calc(100vh-4rem)] w-80 shrink-0 flex-col border-l border-border bg-(--kapi-subtle) lg:flex">
-      <div className="border-b border-border bg-background/80 p-6 backdrop-blur-sm">
-        <h3 className="flex items-center justify-between text-base font-semibold leading-6">
-          Your Draft Cart
-          <Badge className="rounded bg-primary/10 font-mono text-xs text-primary">
-            {lines.length} Items
-          </Badge>
-        </h3>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="flex flex-col gap-4">
-          {lines.map(({ item, quantity }) => (
-            <div
-              key={item.id}
-              className="border-b border-border pb-4 last:border-b-0"
-            >
-              <div className="flex flex-col gap-3">
-                <div className="flex items-start justify-between gap-3">
-                  <h4 className="text-xs font-semibold leading-4">
-                    {item.name}
-                  </h4>
-                  <span className="font-mono text-[13px] text-muted-foreground">
-                    ₹{item.price}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex h-7 items-center overflow-hidden rounded border border-border">
-                    <Button
-                      onClick={() => onQuantityChange(item.id, -1)}
-                      variant="ghost"
-                      size="icon-xs"
-                      className="rounded-none text-muted-foreground"
-                    >
-                      <Minus />
-                    </Button>
-                    <span className="px-2 font-mono text-[13px]">
-                      {quantity}
-                    </span>
-                    <Button
-                      onClick={() => onQuantityChange(item.id, 1)}
-                      disabled={locked}
-                      variant="ghost"
-                      size="icon-xs"
-                      className="rounded-none text-muted-foreground"
-                    >
-                      <Plus />
-                    </Button>
-                  </div>
-                  <Button
-                    onClick={() => onQuantityChange(item.id, -quantity)}
-                    variant="ghost"
-                    size="icon-xs"
-                    className="rounded text-destructive"
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
+    <aside className="hidden h-[calc(100vh-3.5rem)] w-72 shrink-0 flex-col border-l border-border lg:flex">
+      <div className="border-b border-border px-5 py-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Your cart</h3>
+          {itemCount > 0 ? (
+            <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              {itemCount}
+            </span>
+          ) : null}
+        </div>
+        <div className="mt-3">
+          <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+            Your name
+          </label>
+          <input
+            value={participantName}
+            onChange={(e) => onNameChange(e.target.value)}
+            placeholder="Enter your name"
+            className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none ring-primary/30 transition-shadow placeholder:text-muted-foreground focus:ring-2"
+          />
         </div>
       </div>
-      <div className="border-t border-border bg-background p-6 shadow-[0_-4px_12px_rgba(0,0,0,0.02)]">
+
+      <div className="flex-1 overflow-y-auto px-5 py-4">
+        {lines.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
+              <Utensils className="size-4 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground">Nothing here yet.</p>
+            <p className="text-xs text-muted-foreground">
+              Add items from the menu.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {lines.map(({ item, quantity }) => (
+              <div key={item.id} className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium leading-5">
+                    {item.name}
+                  </p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    ₹{item.price} × {quantity}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="flex h-6 items-center rounded-full border border-border">
+                    <button
+                      onClick={() => onQuantityChange(item.id, -1)}
+                      className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
+                    >
+                      <Minus className="size-2.5" />
+                    </button>
+                    <span className="min-w-[1.1rem] text-center font-mono text-xs font-medium">
+                      {quantity}
+                    </span>
+                    <button
+                      onClick={() => onQuantityChange(item.id, 1)}
+                      disabled={locked}
+                      className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:pointer-events-none"
+                    >
+                      <Plus className="size-2.5" />
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => onQuantityChange(item.id, -quantity)}
+                    className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="size-2.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-border px-5 py-4">
         <ErrorAlert message={error} className="mb-3" />
-        <div className="mb-4 flex flex-col gap-2">
-          <SummaryRow label="Items Total" value={`₹${total}.00`} />
-          <SummaryRow label="Group Surcharge" value={`₹${surcharge}.00`} />
-          <Separator className="mt-1" />
-          <div className="flex justify-between pt-1 text-base font-semibold leading-6">
-            <span>Your Total</span>
-            <span className="font-mono">₹{total + surcharge}.00</span>
+        <div className="mb-4 flex flex-col gap-1.5">
+          <SummaryRow label="Items" value={`₹${total}`} />
+          <SummaryRow label="Surcharge" value={`₹${surcharge}`} />
+          <Separator className="my-1" />
+          <div className="flex justify-between text-sm font-semibold">
+            <span>Total</span>
+            <span className="font-mono">₹{total + surcharge}</span>
           </div>
         </div>
         <Button
           onClick={onSubmit}
-          disabled={locked || pending}
-          className="h-12 w-full rounded-lg text-base font-semibold"
+          disabled={locked || pending || lines.length === 0}
+          className="h-10 w-full rounded-xl text-sm font-semibold"
         >
           {pending ? (
             <Loader2 className="animate-spin" data-icon="inline-start" />
           ) : null}
-          Submit to Group Cart
-          <Send data-icon="inline-end" />
+          Submit to group
+          <Send className="size-3.5" data-icon="inline-end" />
         </Button>
       </div>
     </aside>
@@ -567,35 +482,36 @@ function MobileCartBar({
   onSubmit: () => void
 }) {
   const lines = Object.entries(draft).flatMap(([id, quantity]) => {
-    const item = menu.find((candidate) => candidate.id === id)
-    return item ? [{ item, quantity }] : []
+    const item = menu.find((c) => c.id === id)
+    return item && quantity > 0 ? [{ item, quantity }] : []
   })
-  const total = lines.reduce(
-    (sum, line) => sum + line.item.price * line.quantity,
-    0,
-  )
-  const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0)
+  const total = lines.reduce((sum, l) => sum + l.item.price * l.quantity, 0)
+  const itemCount = lines.reduce((sum, l) => sum + l.quantity, 0)
+
+  if (itemCount === 0 && !error) return null
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 p-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur lg:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm lg:hidden">
       <ErrorAlert message={error} className="mb-2" />
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold leading-4">{itemCount} items</p>
+          <p className="text-xs font-semibold leading-4">
+            {itemCount} {itemCount === 1 ? 'item' : 'items'}
+          </p>
           <p className="font-mono text-sm font-bold leading-5">
-            ₹{total + (lines.length ? 15 : 0)}.00
+            ₹{total + (lines.length ? 15 : 0)}
           </p>
         </div>
         <Button
           onClick={onSubmit}
-          disabled={locked || pending}
-          className="h-11 rounded-lg px-4 text-sm font-semibold"
+          disabled={locked || pending || lines.length === 0}
+          className="h-10 rounded-xl px-5 text-sm font-semibold"
         >
           {pending ? (
             <Loader2 className="animate-spin" data-icon="inline-start" />
           ) : null}
           Submit
-          <Send data-icon="inline-end" />
+          <Send className="size-3.5" data-icon="inline-end" />
         </Button>
       </div>
     </div>

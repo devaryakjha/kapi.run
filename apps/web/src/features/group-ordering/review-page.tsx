@@ -2,18 +2,14 @@ import { useMemo } from 'react'
 import type { CartLine, KapiSession, ManualFallbackSummary } from '@kapi/spec'
 import {
   AlertTriangle,
-  Ban,
-  Bell,
-  CircleUserRound,
+  Check,
   ClipboardList,
   Loader2,
   LockKeyhole,
   Minus,
   Plus,
   ShoppingCart,
-  Soup,
   Trash2,
-  Utensils,
 } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
@@ -31,7 +27,7 @@ import { Input } from '#/components/ui/input'
 import { Separator } from '#/components/ui/separator'
 import { cn } from '#/lib/utils'
 
-import { ErrorAlert, IconTile, SummaryRow } from './shared'
+import { ErrorAlert, SummaryRow } from './shared'
 
 export function OrganizerReviewPage({
   error,
@@ -78,6 +74,7 @@ export function OrganizerReviewPage({
       }
     })
   }, [session.items])
+
   const subtotal = session.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
@@ -85,118 +82,99 @@ export function OrganizerReviewPage({
   const unavailable = session.items.filter((item) => !item.available)
   const taxes = Math.round(subtotal * 0.12)
   const finalTotal = subtotal + taxes
+  const totalQty = session.items.reduce((sum, item) => sum + item.quantity, 0)
 
   return (
     <main className="min-h-svh bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-background px-4 shadow-sm md:px-8">
-        <div className="flex items-center gap-10">
-          <span className="font-heading text-2xl font-extrabold text-primary">
-            Kapi.run
+      <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur-sm md:px-6">
+        <div className="flex items-center gap-3">
+          <span className="text-base font-bold tracking-tight text-primary">
+            kapi.run
           </span>
-          <nav className="hidden h-14 items-center gap-6 lg:flex">
-            <span className="flex h-14 items-center border-b-2 border-primary text-xs font-semibold tracking-[0.02em] text-primary">
-              Review Order
-            </span>
-            <span className="flex h-14 items-center px-2 text-xs font-semibold tracking-[0.02em] text-muted-foreground">
-              Order History
-            </span>
-          </nav>
+          <span className="h-4 w-px bg-border" />
+          <span className="text-sm font-medium">{session.restaurant.name}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="rounded text-muted-foreground"
+          <Badge
+            variant={session.status === 'open' ? 'secondary' : 'default'}
+            className="rounded-full text-[11px]"
           >
-            <Bell />
-          </Button>
-          <Avatar>
-            <AvatarFallback>
-              <CircleUserRound />
-            </AvatarFallback>
-          </Avatar>
+            {session.status}
+          </Badge>
+          {isOrganizer ? (
+            <Button
+              onClick={onLock}
+              disabled={pending || session.status !== 'open'}
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 rounded-lg text-xs"
+            >
+              <LockKeyhole className="size-3" />
+              Lock session
+            </Button>
+          ) : null}
         </div>
       </header>
 
-      <section className="mx-auto w-full max-w-6xl p-4 md:p-8">
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold leading-8 tracking-normal">
-              Consolidated Review
-            </h1>
-            <p className="text-sm leading-5 text-muted-foreground">
-              Order cutoff reached. Please review the items before finalizing
-              with Swiggy.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge
-              variant="outline"
-              className="w-fit rounded bg-(--kapi-subtle) font-mono text-[11px] text-muted-foreground"
-            >
-              SESSION: {session.id.slice(0, 8)}
-            </Badge>
-            <Badge
-              variant={session.status === 'open' ? 'secondary' : 'default'}
-              className="rounded"
-            >
-              {session.status}
-            </Badge>
-            {isOrganizer ? (
-              <Button
-                onClick={onLock}
-                disabled={pending || session.status !== 'open'}
-                variant="outline"
-                size="sm"
-                className="rounded"
-              >
-                <LockKeyhole data-icon="inline-start" />
-                Lock
-              </Button>
-            ) : null}
-          </div>
+      <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold tracking-tight">
+            Group Order Review
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {session.address.label} ·{' '}
+            <span className="font-mono text-[11px]">
+              {session.id.slice(0, 8)}
+            </span>
+          </p>
         </div>
 
-        <div className="grid grid-cols-12 items-start gap-4">
-          <div className="col-span-12 flex flex-col gap-4 lg:col-span-8">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_280px]">
+          <div className="flex flex-col gap-4">
             {isOrganizer ? (
-              <section className="border-b border-border pb-4">
-                <h2 className="mb-2 text-base font-semibold leading-6">
-                  Invite Link
-                </h2>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input
-                    readOnly
-                    value={session.shareUrl}
-                    className="font-mono text-xs"
-                  />
+              <div className="flex flex-col gap-2 rounded-xl border border-border p-4 sm:flex-row sm:items-center">
+                <Input
+                  readOnly
+                  value={session.shareUrl}
+                  className="min-w-0 flex-1 font-mono text-xs"
+                />
+                <div className="flex gap-2">
                   <Button
                     onClick={() =>
                       navigator.clipboard.writeText(session.shareUrl)
                     }
                     variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg text-xs"
                   >
-                    Copy
+                    Copy link
                   </Button>
-                  <Button onClick={onRefresh} variant="outline">
+                  <Button
+                    onClick={onRefresh}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg text-xs"
+                  >
                     Refresh
                   </Button>
                 </div>
-              </section>
+              </div>
             ) : null}
+
             {!groups.length ? (
-              <Empty className="border">
+              <Empty className="rounded-xl border border-border">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
                     <ShoppingCart />
                   </EmptyMedia>
-                  <EmptyTitle>Waiting for items</EmptyTitle>
+                  <EmptyTitle>Waiting for orders</EmptyTitle>
                   <EmptyDescription>
-                    Participants will appear here after they submit their cart.
+                    Participants will appear here after they submit.
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>
             ) : null}
+
             {groups.map((group) => (
               <ParticipantGroup
                 key={group.key}
@@ -209,42 +187,35 @@ export function OrganizerReviewPage({
             ))}
           </div>
 
-          <aside className="col-span-12 flex flex-col gap-4 lg:col-span-4">
-            <section className="sticky top-20 border-l border-border pl-4">
-              <h2 className="mb-4 text-base font-semibold leading-6">
-                Order Summary
-              </h2>
-              <div className="mb-6 flex flex-col gap-2">
+          <div className="lg:sticky lg:top-20">
+            <div className="rounded-xl border border-border bg-(--kapi-subtle) p-5">
+              <h2 className="mb-4 text-sm font-semibold">Order summary</h2>
+              <div className="flex flex-col gap-2">
                 <SummaryRow
-                  label="Total Participants"
+                  label="Participants"
                   value={String(groups.length)}
                   strong
                 />
-                <SummaryRow
-                  label="Items Ordered"
-                  value={String(
-                    session.items.reduce((sum, item) => sum + item.quantity, 0),
-                  )}
-                  strong
-                />
+                <SummaryRow label="Total items" value={String(totalQty)} strong />
                 <SummaryRow label="Subtotal" value={`₹${subtotal}`} strong />
                 <SummaryRow
-                  label="Taxes & Delivery"
+                  label="Taxes & delivery"
                   value={`₹${taxes}`}
                   strong
                 />
-                <Separator className="mt-1" />
-                <div className="flex justify-between pt-1 text-base font-semibold leading-6">
-                  <span>Final Total</span>
-                  <span className="text-primary">₹{finalTotal}</span>
+                <Separator className="my-1" />
+                <div className="flex justify-between text-base font-semibold">
+                  <span>Total</span>
+                  <span className="font-mono text-primary">₹{finalTotal}</span>
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
+
+              <div className="mt-5 flex flex-col gap-2">
                 {isOrganizer ? (
                   <Button
                     onClick={onSync}
                     disabled={pending || !session.items.length}
-                    className="h-12 text-base font-semibold"
+                    className="h-10 w-full rounded-xl text-sm font-semibold"
                   >
                     {pending ? (
                       <Loader2
@@ -252,82 +223,95 @@ export function OrganizerReviewPage({
                         data-icon="inline-start"
                       />
                     ) : (
-                      <ShoppingCart data-icon="inline-start" />
+                      <ShoppingCart className="size-4" data-icon="inline-start" />
                     )}
                     {session.status === 'synced'
-                      ? 'Cart Ready'
-                      : 'Add to Swiggy Cart'}
+                      ? 'Cart synced'
+                      : 'Sync to Swiggy cart'}
                   </Button>
                 ) : null}
-                <Button variant="outline">Download Receipt</Button>
+                <Button
+                  variant="outline"
+                  className="h-9 w-full rounded-xl text-sm"
+                >
+                  Download receipt
+                </Button>
                 {isOrganizer ? (
-                  <Button onClick={onFallback} variant="outline">
-                    <ClipboardList data-icon="inline-start" />
-                    Manual Checklist
+                  <Button
+                    onClick={onFallback}
+                    variant="outline"
+                    className="h-9 w-full rounded-xl text-sm"
+                  >
+                    <ClipboardList className="size-3.5" data-icon="inline-start" />
+                    Manual checklist
                   </Button>
                 ) : null}
               </div>
-              <ErrorAlert message={error} className="mt-3" />
-              {session.sync ? (
-                <p className="mt-3 text-[13px] leading-4.5 text-muted-foreground">
-                  {session.sync.message}
-                </p>
-              ) : null}
+
+              <ErrorAlert message={error} className="mt-4" />
+
               {unavailable.length ? (
-                <Alert variant="destructive" className="mt-6">
+                <Alert variant="destructive" className="mt-4">
                   <AlertTriangle />
-                  <AlertTitle>
-                    {unavailable.length} item is unavailable.
-                  </AlertTitle>
+                  <AlertTitle>{unavailable.length} item unavailable</AlertTitle>
                   <AlertDescription>
                     Remove or replace before syncing.
                   </AlertDescription>
                 </Alert>
               ) : null}
-            </section>
+
+              {session.sync ? (
+                <p className="mt-3 text-[12px] leading-5 text-muted-foreground">
+                  {session.sync.message}
+                </p>
+              ) : null}
+            </div>
 
             {isOrganizer ? (
-              <section className="border-l border-border pl-4">
-                <p className="mb-1 text-[11px] font-bold uppercase leading-3.5 tracking-[0.03em] text-primary">
-                  Next Step
+              <div className="mt-4 rounded-xl border border-primary/20 bg-primary/[0.025] p-4">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-primary">
+                  Next step
                 </p>
-                <h3 className="mb-2 text-base font-semibold leading-6">
-                  Open Swiggy Cart
-                </h3>
-                <p className="mb-4 text-[13px] leading-4.5 text-muted-foreground">
-                  Review the synced cart in Swiggy, apply coupons or payment
-                  details there, then complete checkout.
+                <p className="text-sm font-semibold">Open Swiggy cart</p>
+                <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
+                  Apply coupons or payment details in Swiggy, then place the
+                  order.
                 </p>
-                <Button variant="link" className="h-auto gap-1 px-0 text-xs">
-                  <ShoppingCart data-icon="inline-start" /> Continue in Swiggy
+                <Button
+                  variant="link"
+                  className="mt-2 h-auto gap-1 px-0 text-xs text-primary"
+                >
+                  <ShoppingCart className="size-3" data-icon="inline-start" />
+                  Continue in Swiggy
                 </Button>
-              </section>
+              </div>
             ) : null}
 
             {isOrganizer && fallback ? (
-              <section className="border-l border-border pl-4">
-                <h3 className="mb-2 text-base font-semibold leading-6">
-                  Manual Swiggy Checklist
-                </h3>
-                <p className="mb-3 text-[13px] leading-4.5 text-muted-foreground">
-                  {fallback.restaurantName} • {fallback.addressLabel} • ₹
+              <div className="mt-4 rounded-xl border border-border p-4">
+                <p className="mb-1 text-xs font-semibold">
+                  Manual checklist
+                </p>
+                <p className="mb-3 text-[11px] text-muted-foreground">
+                  {fallback.restaurantName} · {fallback.addressLabel} · ₹
                   {fallback.total}
                 </p>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1.5">
                   {fallback.checklist.map((line) => (
                     <div
                       key={line}
-                      className="border-b border-border pb-2 font-mono text-xs last:border-b-0"
+                      className="flex items-start gap-2 text-[11px] leading-5"
                     >
-                      {line}
+                      <Check className="mt-0.5 size-3 shrink-0 text-primary" />
+                      <span className="font-mono">{line}</span>
                     </div>
                   ))}
                 </div>
-              </section>
+              </div>
             ) : null}
-          </aside>
+          </div>
         </div>
-      </section>
+      </div>
     </main>
   )
 }
@@ -346,22 +330,24 @@ function ParticipantGroup({
   onUpdateItem: (itemId: string, quantity: number) => void
 }) {
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const initial = name.slice(0, 1).toUpperCase()
+
   return (
-    <section className="border border-border">
-      <header className="flex items-center justify-between border-b border-border px-4 py-2">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold leading-6">{name}</h2>
-          <Badge
-            variant="outline"
-            className="rounded bg-background text-[11px] text-muted-foreground"
-          >
-            {items.length} items
-          </Badge>
+    <div className="overflow-hidden rounded-xl border border-border bg-background">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-center gap-3">
+          <Avatar className="size-7">
+            <AvatarFallback className="text-[11px] font-bold">
+              {initial}
+            </AvatarFallback>
+          </Avatar>
+          <span className="text-sm font-semibold">{name}</span>
+          <span className="text-[11px] text-muted-foreground">
+            {items.length} {items.length === 1 ? 'item' : 'items'}
+          </span>
         </div>
-        <span className="font-mono text-[13px] text-muted-foreground">
-          ₹{total}.00
-        </span>
-      </header>
+        <span className="font-mono text-sm font-semibold">₹{total}</span>
+      </div>
       <div className="divide-y divide-border">
         {items.map((item) => (
           <ReviewItem
@@ -369,11 +355,11 @@ function ParticipantGroup({
             isOrganizer={isOrganizer}
             item={item}
             onRemove={() => onRemoveItem(item.id)}
-            onUpdate={(quantity) => onUpdateItem(item.id, quantity)}
+            onUpdate={(qty) => onUpdateItem(item.id, qty)}
           />
         ))}
       </div>
-    </section>
+    </div>
   )
 }
 
@@ -388,79 +374,68 @@ function ReviewItem({
   onRemove: () => void
   onUpdate: (quantity: number) => void
 }) {
-  const Icon = item.available
-    ? item.name.includes('Dal')
-      ? Soup
-      : Utensils
-    : Ban
   return (
     <div
       className={cn(
-        'flex items-start justify-between gap-4 p-4 transition-colors hover:bg-(--kapi-subtle)',
-        !item.available && 'bg-destructive/5 hover:bg-destructive/10',
+        'flex items-center justify-between gap-4 px-4 py-3 transition-colors',
+        !item.available
+          ? 'bg-destructive/5'
+          : 'hover:bg-(--kapi-subtle)',
       )}
     >
-      <div className="flex gap-4">
-        <IconTile
-          icon={Icon}
-          className={
-            !item.available
-              ? 'border-destructive bg-destructive/10 text-destructive'
-              : undefined
-          }
-        />
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-xs font-semibold leading-4">{item.name}</h3>
-            {!item.available ? (
-              <Badge className="rounded bg-destructive text-[10px] font-bold uppercase tracking-wider text-white">
-                Out of Stock
-              </Badge>
-            ) : null}
-          </div>
-          <p className="text-[13px] leading-4.5 text-muted-foreground">
-            {item.note || 'Standard Portion'}
-          </p>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={cn(
+              'text-sm font-medium leading-5',
+              !item.available && 'text-destructive',
+            )}
+          >
+            {item.name}
+          </span>
+          {!item.available ? (
+            <Badge className="rounded-full bg-destructive/10 text-[10px] font-semibold text-destructive">
+              Out of stock
+            </Badge>
+          ) : null}
         </div>
+        {item.note ? (
+          <p className="text-[12px] text-muted-foreground">{item.note}</p>
+        ) : null}
       </div>
-      <div className="text-right">
-        <p
-          className={cn(
-            'text-xs font-semibold leading-4',
-            !item.available && 'text-destructive',
-          )}
-        >
+
+      <div className="flex items-center gap-3">
+        <span className="font-mono text-sm font-semibold">
           ₹{item.price}
-        </p>
-        <p className="text-[11px] font-medium leading-3.5 text-muted-foreground">
-          Qty: {item.quantity}
-        </p>
+          <span className="ml-1 text-[11px] font-normal text-muted-foreground">
+            ×{item.quantity}
+          </span>
+        </span>
         {isOrganizer ? (
-          <div className="mt-2 flex items-center justify-end gap-1">
-            <Button
-              onClick={() => onUpdate(item.quantity - 1)}
-              variant="outline"
-              size="icon-xs"
-              className="rounded"
-            >
-              <Minus />
-            </Button>
-            <Button
-              onClick={() => onUpdate(item.quantity + 1)}
-              variant="outline"
-              size="icon-xs"
-              className="rounded"
-            >
-              <Plus />
-            </Button>
-            <Button
+          <div className="flex items-center gap-1">
+            <div className="flex h-6 items-center rounded-full border border-border">
+              <button
+                onClick={() => onUpdate(item.quantity - 1)}
+                className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
+              >
+                <Minus className="size-2.5" />
+              </button>
+              <span className="min-w-[1.1rem] text-center font-mono text-xs font-medium">
+                {item.quantity}
+              </span>
+              <button
+                onClick={() => onUpdate(item.quantity + 1)}
+                className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
+              >
+                <Plus className="size-2.5" />
+              </button>
+            </div>
+            <button
               onClick={onRemove}
-              variant="ghost"
-              size="icon-xs"
-              className="rounded text-destructive"
+              className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
             >
-              <Trash2 />
-            </Button>
+              <Trash2 className="size-2.5" />
+            </button>
           </div>
         ) : null}
       </div>
