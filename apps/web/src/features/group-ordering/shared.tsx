@@ -43,9 +43,10 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const { headers, ...rest } = init ?? {}
   const response = await fetch(`${API_URL}${path}`, {
-    headers: { 'content-type': 'application/json', ...init?.headers },
-    ...init,
+    ...rest,
+    headers: { 'content-type': 'application/json', ...headers },
   })
 
   if (!response.ok) {
