@@ -220,7 +220,7 @@ export function OrganizerReviewPage({
                 <Separator className="my-1" />
                 <div className="flex justify-between text-base font-semibold">
                   <span>Total</span>
-                  <span className="font-mono text-primary">₹{finalTotal}</span>
+                  <span className="font-mono tabular-nums text-primary">₹{finalTotal}</span>
                 </div>
               </div>
 
@@ -421,34 +421,34 @@ function ReviewItem({
       </div>
 
       <div className="flex items-center gap-3">
-        <span className="font-mono text-sm font-semibold">
+        <span className="font-mono text-sm font-semibold tabular-nums">
           ₹{item.price}
-          <span className="ml-1 text-[11px] font-normal text-muted-foreground">
+          <span className="ml-1 text-[11px] font-normal tabular-nums text-muted-foreground">
             ×{item.quantity}
           </span>
         </span>
         {isOrganizer ? (
           <div className="flex items-center gap-1">
-            <div className="flex h-6 items-center rounded-full border border-border">
+            <div className="flex h-7 items-center rounded-full border border-border">
               <button
                 onClick={() => onUpdate(item.quantity - 1)}
-                className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
+                className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96]"
               >
                 <Minus className="size-2.5" />
               </button>
-              <span className="min-w-[1.1rem] text-center font-mono text-xs font-medium">
+              <span className="min-w-[1.1rem] text-center font-mono text-xs font-medium tabular-nums">
                 {item.quantity}
               </span>
               <button
                 onClick={() => onUpdate(item.quantity + 1)}
-                className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
+                className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96]"
               >
                 <Plus className="size-2.5" />
               </button>
             </div>
             <button
               onClick={onRemove}
-              className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-destructive/10 hover:text-destructive active:scale-[0.96]"
             >
               <Trash2 className="size-2.5" />
             </button>

@@ -89,8 +89,8 @@ export function ParticipantMenuPage({
   const remainingTime = formatRemainingTime(session)
 
   return (
-    <main className="flex min-h-svh flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur-sm md:px-6">
+    <main className="flex h-svh flex-col bg-background text-foreground">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur-sm md:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <span className="text-base font-bold tracking-tight text-primary">
             kapi.run
@@ -110,7 +110,7 @@ export function ParticipantMenuPage({
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <section className="flex-1 overflow-y-auto">
           <div className="sticky top-0 z-[5] border-b border-border bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm md:px-6">
             <div className="mx-auto max-w-3xl">
@@ -135,7 +135,7 @@ export function ParticipantMenuPage({
                       setQuery('')
                     }}
                     className={cn(
-                      'shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                      'shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-[colors,scale] duration-150 active:scale-[0.96]',
                       activeCategory === cat && !query
                         ? 'border-primary bg-primary text-primary-foreground'
                         : 'border-border bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground',
@@ -243,7 +243,7 @@ function TimerPill({
           <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
         </span>
       )}
-      <span className="font-mono text-xs font-semibold">{remainingTime}</span>
+      <span className="font-mono text-xs font-semibold tabular-nums">{remainingTime}</span>
     </div>
   )
 }
@@ -264,7 +264,7 @@ function MenuCard({
   return (
     <article
       className={cn(
-        'flex gap-3 rounded-xl border border-border bg-background p-3 transition-colors',
+        'flex gap-3 rounded-4xl border border-border bg-background p-3 transition-colors',
         !item.available && 'opacity-50',
         quantity > 0 && 'border-primary/30 bg-primary/[0.02]',
       )}
@@ -274,7 +274,7 @@ function MenuCard({
           <img
             src={item.imageUrl}
             alt={item.name}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
@@ -288,9 +288,9 @@ function MenuCard({
         ) : null}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col justify-between">
+      <div className="mt-0 flex min-w-0 flex-1 flex-col justify-between">
         <div>
-          <h3 className="text-sm font-semibold leading-5">{item.name}</h3>
+          <h3 className="text-sm font-semibold leading-tight">{item.name}</h3>
           {item.description ? (
             <p className="mt-0.5 line-clamp-2 text-[12px] leading-[1.4] text-muted-foreground">
               {item.description}
@@ -298,23 +298,23 @@ function MenuCard({
           ) : null}
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <span className="font-mono text-sm font-bold">₹{item.price}</span>
+          <span className="font-mono text-sm font-bold tabular-nums">₹{item.price}</span>
           {quantity > 0 ? (
-            <div className="flex h-7 items-center rounded-full border border-primary/40 bg-primary/5">
+            <div className="flex h-8 items-center rounded-full border border-primary/40 bg-primary/5">
               <button
                 onClick={onRemove}
                 disabled={locked}
-                className="flex size-7 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 disabled:pointer-events-none"
+                className="flex size-8 items-center justify-center rounded-full text-primary transition-[colors,scale] duration-150 hover:bg-primary/10 active:scale-[0.96] disabled:pointer-events-none"
               >
                 <Minus className="size-3" />
               </button>
-              <span className="min-w-[1.25rem] text-center font-mono text-xs font-bold text-primary">
+              <span className="min-w-[1.25rem] text-center font-mono text-xs font-bold tabular-nums text-primary">
                 {quantity}
               </span>
               <button
                 onClick={onAdd}
                 disabled={locked || !item.available}
-                className="flex size-7 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 disabled:pointer-events-none"
+                className="flex size-8 items-center justify-center rounded-full text-primary transition-[colors,scale] duration-150 hover:bg-primary/10 active:scale-[0.96] disabled:pointer-events-none"
               >
                 <Plus className="size-3" />
               </button>
@@ -325,7 +325,7 @@ function MenuCard({
               disabled={locked || !item.available}
               variant="outline"
               size="sm"
-              className="h-7 rounded-full px-3 text-xs"
+              className="h-8 rounded-full px-3 text-xs"
             >
               <Plus className="size-3" data-icon="inline-start" />
               Add
@@ -369,12 +369,12 @@ function CartSidebar({
   const itemCount = lines.reduce((sum, l) => sum + l.quantity, 0)
 
   return (
-    <aside className="hidden h-[calc(100vh-3.5rem)] w-72 shrink-0 flex-col border-l border-border lg:flex">
+    <aside className="hidden w-72 shrink-0 flex-col border-l border-border lg:flex">
       <div className="border-b border-border px-5 py-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Your cart</h3>
           {itemCount > 0 ? (
-            <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+            <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold tabular-nums text-primary-foreground">
               {itemCount}
             </span>
           ) : null}
@@ -411,32 +411,32 @@ function CartSidebar({
                   <p className="text-[13px] font-medium leading-5">
                     {item.name}
                   </p>
-                  <p className="font-mono text-xs text-muted-foreground">
+                  <p className="font-mono text-xs tabular-nums text-muted-foreground">
                     ₹{item.price} × {quantity}
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="flex h-6 items-center rounded-full border border-border">
+                  <div className="flex h-7 items-center rounded-full border border-border">
                     <button
                       onClick={() => onQuantityChange(item.id, -1)}
-                      className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
+                      className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96]"
                     >
                       <Minus className="size-2.5" />
                     </button>
-                    <span className="min-w-[1.1rem] text-center font-mono text-xs font-medium">
+                    <span className="min-w-[1.1rem] text-center font-mono text-xs font-medium tabular-nums">
                       {quantity}
                     </span>
                     <button
                       onClick={() => onQuantityChange(item.id, 1)}
                       disabled={locked}
-                      className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:pointer-events-none"
+                      className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96] disabled:pointer-events-none"
                     >
                       <Plus className="size-2.5" />
                     </button>
                   </div>
                   <button
                     onClick={() => onQuantityChange(item.id, -quantity)}
-                    className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-destructive/10 hover:text-destructive active:scale-[0.96]"
                   >
                     <Trash2 className="size-2.5" />
                   </button>
@@ -456,7 +456,7 @@ function CartSidebar({
           <Separator className="my-1" />
           <div className="flex justify-between text-sm font-semibold">
             <span>Total</span>
-            <span className="font-mono">₹{total + surcharge}</span>
+            <span className="font-mono tabular-nums">₹{total + surcharge}</span>
           </div>
         </div>
         <Button
@@ -507,10 +507,10 @@ function MobileCartBar({
       <NoticeAlert message={notice} className="mb-2" />
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold leading-4">
+          <p className="text-xs font-semibold leading-4 tabular-nums">
             {itemCount} {itemCount === 1 ? 'item' : 'items'}
           </p>
-          <p className="font-mono text-sm font-bold leading-5">
+          <p className="font-mono text-sm font-bold tabular-nums leading-5">
             ₹{total + (lines.length ? 15 : 0)}
           </p>
         </div>

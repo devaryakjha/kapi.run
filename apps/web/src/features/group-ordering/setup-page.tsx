@@ -471,7 +471,7 @@ function RestaurantTileContent({ restaurant }: { restaurant: Restaurant }) {
         <img
           src={restaurant.imageUrl}
           alt={restaurant.name}
-          className="size-10 shrink-0 rounded border border-border object-cover"
+          className="size-10 shrink-0 rounded object-cover outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
         />
       ) : (
         <IconTile icon={Utensils} className="size-10" />

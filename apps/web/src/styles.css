@@ -186,6 +186,7 @@ body {
 
   p {
     @apply leading-7;
+    text-wrap: pretty;
   }
 
   small {
