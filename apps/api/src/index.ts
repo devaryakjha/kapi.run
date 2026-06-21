@@ -9,6 +9,7 @@ import type {
   RelayWritePayload,
   RelayWriteRole,
   Restaurant,
+  SessionInvite,
   SwiggyCartPayload,
   SwiggyCartSummary,
   SwiggyCartToolPayload,
@@ -27,6 +28,9 @@ const tokenFile = dataDir
 const relayFile = dataDir
   ? join(dataDir, ".kapi-session-relay.json")
   : ".kapi-session-relay.json";
+const inviteFile = dataDir
+  ? join(dataDir, ".kapi-session-invites.json")
+  : ".kapi-session-invites.json";
 type BunRuntime = {
   file(path: string): { json(): Promise<unknown> };
   write(path: string, value: string): Promise<unknown>;
@@ -52,6 +56,7 @@ export type RelayRecord = {
   metadata?: RelaySessionMetadata;
 };
 type RelayStore = Record<string, RelayRecord>;
+type InviteStore = Record<string, SessionInvite>;
 type RelayWrite = RelayWritePayload;
 type StatusSetter = { status?: number | string };
 type RequestContext = { request: Request };
@@ -75,9 +80,17 @@ type RelayWriteContext = RequestContext & {
   body: RelayWrite;
   set: StatusSetter;
 };
+type InviteCreateContext = RequestContext & {
+  body: { sessionId: string; key: string };
+};
+type InviteReadContext = RequestContext & {
+  params: { inviteId: string };
+  set: StatusSetter;
+};
 
 const authStates = new Map<string, { codeVerifier: string; next: string }>();
 const relay: RelayStore = await readJson<RelayStore>(relayFile, {});
+const invites: InviteStore = await readJson<InviteStore>(inviteFile, {});
 let oauthClient: OAuthClient | null = null;
 let token: Token | null = process.env.SWIGGY_MCP_ACCESS_TOKEN
   ? {
@@ -742,6 +755,40 @@ export const app = new Elysia()
       return record;
     },
     { params: t.Object({ sessionId: t.String() }) },
+  )
+  .post(
+    "/relay/invites",
+    async ({ body, request }: InviteCreateContext) => {
+      assertAllowedOrigin(request);
+      const id = randomBase64Url(16);
+      invites[id] = {
+        id,
+        sessionId: body.sessionId,
+        key: body.key,
+        createdAt: new Date().toISOString(),
+      };
+      await writeJson(inviteFile, invites);
+      return invites[id];
+    },
+    {
+      body: t.Object({
+        sessionId: t.String(),
+        key: t.String(),
+      }),
+    },
+  )
+  .get(
+    "/relay/invites/:inviteId",
+    ({ params, request, set }: InviteReadContext) => {
+      assertAllowedOrigin(request);
+      const invite = invites[params.inviteId];
+      if (!invite) {
+        set.status = 404;
+        return { error: "Invite not found." };
+      }
+      return invite;
+    },
+    { params: t.Object({ inviteId: t.String() }) },
   )
   .put(
     "/relay/sessions/:sessionId",

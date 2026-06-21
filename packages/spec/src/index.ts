@@ -21,6 +21,13 @@ export type RelayWritePayload = {
   role?: RelayWriteRole;
 };
 
+export type SessionInvite = {
+  id: string;
+  sessionId: string;
+  key: string;
+  createdAt: string;
+};
+
 export type Address = {
   id: string;
   label: string;

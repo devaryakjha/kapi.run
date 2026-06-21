@@ -7,6 +7,7 @@ import type {
   RelaySessionMetadata,
   RelayWriteRole,
   Restaurant,
+  SessionInvite,
 } from '@kapi/spec'
 import type { LucideIcon } from 'lucide-react'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
@@ -24,6 +25,13 @@ export type RelaySessionRecord = {
 export type LoadedSessionRecord = {
   session: KapiSession
   relayUpdatedAt: string | null
+}
+export type SessionLinkParts = {
+  inviteId: string | null
+  key: string | null
+  organizerSecret: string | null
+  owner: boolean
+  sessionId: string | null
 }
 
 export const API_URL =
@@ -171,6 +179,7 @@ export function localOrganizerKeyKey(sessionId: string) {
 
 export function getSessionLinkParts() {
   const search = new URLSearchParams(window.location.search)
+  const inviteId = search.get('i') ?? search.get('invite')
   const sessionId = search.get('session')
   const owner = search.get('owner') === '1'
   const hash = new URLSearchParams(window.location.hash.slice(1))
@@ -180,7 +189,28 @@ export function getSessionLinkParts() {
   const organizerSecret =
     hash.get('ownerKey') ??
     (sessionId ? localStorage.getItem(localOrganizerKeyKey(sessionId)) : null)
-  return { key, organizerSecret, owner, sessionId }
+  return { inviteId, key, organizerSecret, owner, sessionId }
+}
+
+export async function createSessionInvite(sessionId: string, key: string) {
+  return api<SessionInvite>('/relay/invites', {
+    method: 'POST',
+    body: JSON.stringify({ sessionId, key }),
+  })
+}
+
+export async function resolveSessionInvite(inviteId: string) {
+  return api<SessionInvite>(`/relay/invites/${inviteId}`)
+}
+
+export async function resolveSessionLinkParts(
+  parts: SessionLinkParts,
+): Promise<SessionLinkParts> {
+  if (parts.sessionId && parts.key) return parts
+  if (!parts.inviteId) return parts
+  const invite = await resolveSessionInvite(parts.inviteId)
+  localStorage.setItem(localKeyKey(invite.sessionId), invite.key)
+  return { ...parts, sessionId: invite.sessionId, key: invite.key }
 }
 
 export async function loadEncryptedSessionRecord(

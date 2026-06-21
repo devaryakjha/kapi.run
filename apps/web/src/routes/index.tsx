@@ -30,10 +30,14 @@ function Home() {
     }
 
     const url = new URL('/menu', window.location.origin)
-    url.searchParams.set('session', target.sessionId)
+    if (target.inviteId) {
+      url.searchParams.set('i', target.inviteId)
+    } else if (target.sessionId && target.key) {
+      url.searchParams.set('session', target.sessionId)
+      url.hash = new URLSearchParams({ key: target.key }).toString()
+    }
     const name = participantName.trim()
     if (name) url.searchParams.set('name', name)
-    url.hash = new URLSearchParams({ key: target.key }).toString()
     window.location.href = `${url.pathname}${url.search}${url.hash}`
   }
 
@@ -93,7 +97,7 @@ function Home() {
                 <div>
                   <h2 className="text-sm font-semibold">Participant</h2>
                   <p className="text-[13px] leading-5 text-muted-foreground">
-                    Join with an invite link, or paste session details.
+                    Join with an invite link, code, or session details.
                   </p>
                 </div>
               </div>
@@ -120,7 +124,7 @@ function Home() {
                       setSessionOrLink(e.target.value)
                       setError(null)
                     }}
-                    placeholder="Paste invite link or session id and key"
+                    placeholder="Paste invite link, code, or session id and key"
                     className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none ring-primary/30 transition-shadow placeholder:text-muted-foreground focus:ring-2"
                   />
                 </div>

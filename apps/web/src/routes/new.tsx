@@ -13,6 +13,7 @@ import {
   API_URL,
   api,
   audit,
+  createSessionInvite,
   formatTimeLabel,
   getSessionLinkParts,
   hashOrganizerSecret,
@@ -165,7 +166,8 @@ function RouteComponent() {
       const id = crypto.randomUUID()
       const key = await makeSessionKey()
       const organizerSecret = makeOrganizerSecret()
-      const shareUrl = `${window.location.origin}/menu?session=${id}#key=${key}`
+      const invite = await createSessionInvite(id, key)
+      const shareUrl = `${window.location.origin}/join?i=${invite.id}`
       const organiserName = inferOrganiserName(address)
       const nextSession: KapiSession = {
         id,

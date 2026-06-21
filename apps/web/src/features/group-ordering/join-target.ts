@@ -1,6 +1,7 @@
 export type ParticipantTarget = {
-  sessionId: string
-  key: string
+  inviteId?: string
+  sessionId?: string
+  key?: string
 }
 
 export function parseParticipantTarget(
@@ -13,6 +14,8 @@ export function parseParticipantTarget(
 
   try {
     const url = new URL(raw, 'http://kapi.local')
+    const inviteId = url.searchParams.get('i') ?? url.searchParams.get('invite')
+    if (inviteId) return { inviteId }
     const sessionId = url.searchParams.get('session')?.trim() ?? ''
     const key =
       new URLSearchParams(url.hash.slice(1)).get('key')?.trim() ?? keyFallback
@@ -22,6 +25,7 @@ export function parseParticipantTarget(
   }
 
   const [sessionId, inlineKey] = raw.split(/\s+/)
+  if (sessionId && !inlineKey && !keyFallback) return { inviteId: sessionId }
   const key = keyFallback || inlineKey || ''
   return sessionId && key ? { sessionId, key } : null
 }

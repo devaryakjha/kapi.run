@@ -18,6 +18,7 @@ import {
   loadEncryptedSessionRecord,
   localParticipantNameKey,
   publishSession,
+  resolveSessionLinkParts,
 } from '#/features/group-ordering/shared'
 
 export const Route = createFileRoute('/menu')({
@@ -35,7 +36,7 @@ type MenuState = {
 }
 
 function initialMenuState(): MenuState {
-  const { key, sessionId } = getSessionLinkParts()
+  const { inviteId, key, sessionId } = getSessionLinkParts()
   const search = new URLSearchParams(window.location.search)
   const name =
     search.get('name') ??
@@ -46,7 +47,8 @@ function initialMenuState(): MenuState {
     draft: {},
     participantName: name ?? '',
     pending: false,
-    error: !sessionId || !key ? 'Session link is invalid.' : null,
+    error:
+      !inviteId && (!sessionId || !key) ? 'Session link is invalid.' : null,
     notice: null,
   }
 }
@@ -77,23 +79,26 @@ function RouteComponent() {
   }
 
   useEffect(() => {
-    const { key, sessionId } = getSessionLinkParts()
-    if (!sessionId || !key) {
-      return
+    const initialParts = getSessionLinkParts()
+    const loadSession = async () => {
+      const { key, sessionId } = await resolveSessionLinkParts(initialParts)
+      if (!sessionId || !key) {
+        setState({ error: 'Session link is invalid.' })
+        return
+      }
+
+      sessionKeyRef.current = key
+      participantIdRef.current = getOrCreateLocalParticipantId(sessionId)
+      const loadedRecord = await loadEncryptedSessionRecord(sessionId, key)
+      relayUpdatedAtRef.current = loadedRecord.relayUpdatedAt
+      const loaded = loadedRecord.session
+      const loadedMenu = await api<MenuItem[]>(
+        `/food/restaurants/${loaded.restaurant.id}/menu?addressId=${loaded.address.id}`,
+      )
+      setState({ session: loaded, menu: loadedMenu, error: null })
     }
 
-    sessionKeyRef.current = key
-    participantIdRef.current = getOrCreateLocalParticipantId(sessionId)
-    loadEncryptedSessionRecord(sessionId, key)
-      .then(async (loadedRecord) => {
-        relayUpdatedAtRef.current = loadedRecord.relayUpdatedAt
-        const loaded = loadedRecord.session
-        const loadedMenu = await api<MenuItem[]>(
-          `/food/restaurants/${loaded.restaurant.id}/menu?addressId=${loaded.address.id}`,
-        )
-        setState({ session: loaded, menu: loadedMenu })
-      })
-      .catch((caught: Error) => setState({ error: caught.message }))
+    loadSession().catch((caught: Error) => setState({ error: caught.message }))
   }, [])
 
   function changeDraft(menuItemId: string, delta: number) {

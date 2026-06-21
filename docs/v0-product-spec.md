@@ -75,7 +75,9 @@ For v0, a normal short-lived backend may be acceptable if it stores only active 
 The root route (`/`) lets a user choose how to continue.
 
 - Organisers start a new session and continue to `/new`.
-- Participants join an existing session by entering an invite link, or by pasting the session id and session key together.
+- Participants join an existing session by entering a short invite link/code, or by pasting the legacy session id and session key together.
+
+Short invite links use `/join?i=...` and are server-side aliases for the encrypted session id/key. The invite id must be high entropy and unguessable. Anyone with the invite can join, so this is link-sharing security, not membership approval.
 
 ### 1. Organiser Starts A Session
 
