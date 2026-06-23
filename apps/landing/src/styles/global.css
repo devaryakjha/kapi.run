@@ -58,6 +58,7 @@ p {
 .page {
   display: flex;
   flex-direction: column;
+  min-height: 100svh;
   width: min(1120px, calc(100% - 80px));
   margin: 0 auto;
   padding-bottom: 48px;
@@ -125,7 +126,8 @@ p {
   display: flex;
   align-items: center;
   gap: clamp(48px, 7vw, 112px);
-  padding: 80px 0 88px;
+  flex: 1;
+  padding: 48px 0;
 }
 
 .hero-copy {
