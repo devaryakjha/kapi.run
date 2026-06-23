@@ -1,0 +1,8 @@
+name = "kapi-run-edge-proxy"
+main = "worker.js"
+compatibility_date = "2026-06-23"
+
+routes = [
+  { pattern = "app.kapi.run/*", zone_name = "kapi.run" },
+  { pattern = "api.kapi.run/*", zone_name = "kapi.run" },
+]

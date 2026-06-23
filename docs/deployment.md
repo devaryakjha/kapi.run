@@ -7,12 +7,14 @@ Use `kapi.run` for the landing page, `app.kapi.run` for the user app, and
 
 Deploy `compose.dokploy.yml` as one compose app.
 
-Domains:
+Domains in Dokploy:
 
 | Host | Service | Port |
 | --- | --- | --- |
 | `app.kapi.run` | `web` | `80` |
 | `api.kapi.run` | `api` | `3001` |
+| `app-kapi.jha.sh` | `web` | `80` |
+| `api-kapi.jha.sh` | `api` | `3001` |
 
 Environment:
 
@@ -27,10 +29,10 @@ The API persists Swiggy OAuth and encrypted relay files in the
 
 ## Cloudflare
 
-Create DNS records for `app.kapi.run` and `api.kapi.run` pointing at the
-Dokploy ingress target, then keep them proxied. The configured Dokploy profile
-currently points at `dokploy.jha.sh`, so use that as the CNAME target unless the
-Dokploy UI shows a newer ingress hostname.
-
 `kapi.run` already maps to the existing `kapi-run` Cloudflare Pages landing
 project.
+
+`app.kapi.run` and `api.kapi.run` are proxied by
+`infra/cloudflare/kapi-edge-proxy`. The worker forwards them to
+`app-kapi.jha.sh` and `api-kapi.jha.sh`, which are covered by the existing OVH
+Cloudflare Tunnel wildcard for `*.jha.sh`.
