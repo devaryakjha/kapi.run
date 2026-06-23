@@ -61,7 +61,6 @@ p {
   min-height: 100svh;
   width: min(1120px, calc(100% - 80px));
   margin: 0 auto;
-  padding-bottom: 48px;
 }
 
 /* ── Nav ─────────────────────────────────────────────────── */
@@ -127,7 +126,6 @@ p {
   align-items: center;
   gap: clamp(48px, 7vw, 112px);
   flex: 1;
-  padding: 48px 0;
 }
 
 .hero-copy {
@@ -438,7 +436,7 @@ p {
   justify-content: space-between;
   gap: 16px;
   border-top: 1px solid var(--border);
-  padding-top: 20px;
+  padding: 20px 0 32px;
 }
 
 .flow-step {
