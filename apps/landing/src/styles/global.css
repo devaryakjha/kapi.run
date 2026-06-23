@@ -56,8 +56,8 @@ p {
 /* ── Page shell ─────────────────────────────────────────── */
 
 .page {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
   min-height: 100svh;
   width: min(1120px, calc(100% - 80px));
   margin: 0 auto;
@@ -124,8 +124,9 @@ p {
 .hero {
   display: flex;
   align-items: center;
+  align-self: center;
   gap: clamp(48px, 7vw, 112px);
-  flex: 1;
+  padding: 40px 0;
 }
 
 .hero-copy {
