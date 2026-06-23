@@ -114,7 +114,7 @@ export function OrganizerSetupPage({
       </nav>
 
       <div className="flex flex-1 flex-col items-center px-4 py-10 md:py-16">
-        <div className="w-full max-w-[440px]">
+        <div className="w-full max-w-110">
           <div className="mb-8">
             <h1 className="text-[26px] font-semibold leading-8 tracking-tight">
               Start a group order
@@ -177,9 +177,9 @@ export function OrganizerSetupPage({
                       className="w-[min(36rem,calc(100vw-2rem))]"
                     >
                       <SelectGroup>
-                        {addressItems.map((address) => (
+                        {addressItems.map((address, index) => (
                           <SelectItem
-                            key={address.value || 'empty'}
+                            key={`${address.value || 'empty'}:${index}`}
                             value={address.value}
                             className="items-start whitespace-normal"
                           >
@@ -298,7 +298,7 @@ function StepCard({
       className={cn(
         'rounded-xl border p-5 transition-colors',
         done
-          ? 'border-primary/25 bg-primary/[0.025]'
+          ? 'border-primary/25 bg-primary/2.5'
           : 'border-border bg-background',
       )}
     >
@@ -442,9 +442,9 @@ function RestaurantCommand({
           </CommandEmpty>
           {restaurants.length ? (
             <CommandGroup heading="Restaurants">
-              {restaurants.map((restaurant) => (
+              {restaurants.map((restaurant, index) => (
                 <CommandItem
-                  key={restaurant.id}
+                  key={`${restaurant.id}:${index}`}
                   value={`${restaurant.name} ${restaurant.area} ${restaurant.availabilityStatus}`}
                   disabled={restaurant.availabilityStatus !== 'OPEN'}
                   onSelect={() => onRestaurantChange(restaurant.id)}
@@ -471,7 +471,7 @@ function RestaurantTileContent({ restaurant }: { restaurant: Restaurant }) {
         <img
           src={restaurant.imageUrl}
           alt={restaurant.name}
-          className="size-10 shrink-0 rounded object-cover outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
+          className="size-10 shrink-0 rounded object-cover outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
         />
       ) : (
         <IconTile icon={Utensils} className="size-10" />

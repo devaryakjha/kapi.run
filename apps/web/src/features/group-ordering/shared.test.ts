@@ -280,7 +280,7 @@ describe('decideRelayWrite', () => {
 })
 
 describe('makeCartPayload', () => {
-  it('groups duplicate available Swiggy item ids by quantity', () => {
+  it('keeps available Swiggy cart lines separate', () => {
     expect(
       makeCartPayload({
         ...session('open'),
@@ -289,7 +289,10 @@ describe('makeCartPayload', () => {
     ).toEqual({
       restaurantId: 'restaurant-1',
       addressId: 'address-1',
-      cartItems: [{ itemId: 'swiggy-1', quantity: 5 }],
+      cartItems: [
+        { menu_item_id: 'swiggy-1', quantity: 2 },
+        { menu_item_id: 'swiggy-1', quantity: 3 },
+      ],
     })
   })
 
@@ -299,7 +302,46 @@ describe('makeCartPayload', () => {
         ...session('open'),
         items: [cartItem('swiggy-1', 2), cartItem('swiggy-2', 3, false)],
       }).cartItems,
-    ).toEqual([{ itemId: 'swiggy-1', quantity: 2 }])
+    ).toEqual([{ menu_item_id: 'swiggy-1', quantity: 2 }])
+  })
+
+  it('includes variant and addon selections for customized lines', () => {
+    expect(
+      makeCartPayload({
+        ...session('open'),
+        items: [
+          {
+            ...cartItem('swiggy-1', 1),
+            customization: {
+              variantsV2: [
+                {
+                  group_id: 'size',
+                  variation_id: 'large',
+                  groupName: 'Size',
+                  name: 'Large',
+                },
+              ],
+              addons: [
+                {
+                  group_id: 'bun',
+                  choice_id: 'brioche',
+                  groupName: 'Bun',
+                  name: 'Brioche',
+                  price: 19,
+                },
+              ],
+            },
+          },
+        ],
+      }).cartItems,
+    ).toEqual([
+      {
+        menu_item_id: 'swiggy-1',
+        quantity: 1,
+        variantsV2: [{ group_id: 'size', variation_id: 'large' }],
+        addons: [{ group_id: 'bun', choice_id: 'brioche' }],
+      },
+    ])
   })
 })
 
@@ -310,14 +352,14 @@ describe('applyParticipantSubmission', () => {
       menu,
       participantId: 'participant-1',
       participantName: 'Alex',
-      draftItems: [{ menuItemId: 'menu-swiggy-1', quantity: 1 }],
+      draftItems: [{ id: 'line-1', menuItemId: 'menu-swiggy-1', quantity: 1 }],
     })
     const second = applyParticipantSubmission({
       latest: first,
       menu,
       participantId: 'participant-2',
       participantName: 'Alex',
-      draftItems: [{ menuItemId: 'menu-swiggy-2', quantity: 2 }],
+      draftItems: [{ id: 'line-2', menuItemId: 'menu-swiggy-2', quantity: 2 }],
     })
 
     expect(second.participants).toMatchObject([
@@ -346,7 +388,7 @@ describe('applyParticipantSubmission', () => {
       menu,
       participantId: 'participant-1',
       participantName: 'Alex',
-      draftItems: [{ menuItemId: 'menu-swiggy-2', quantity: 3 }],
+      draftItems: [{ id: 'line-3', menuItemId: 'menu-swiggy-2', quantity: 3 }],
     })
 
     expect(
@@ -375,7 +417,7 @@ describe('applyParticipantSubmission', () => {
       menu,
       participantId: 'participant-1',
       participantName: 'Alec',
-      draftItems: [{ menuItemId: 'menu-swiggy-1', quantity: 1 }],
+      draftItems: [{ id: 'line-4', menuItemId: 'menu-swiggy-1', quantity: 1 }],
     })
 
     expect(next.participants[0]).toMatchObject({
@@ -386,6 +428,37 @@ describe('applyParticipantSubmission', () => {
     expect(next.items[0]).toMatchObject({
       participantId: 'participant-1',
       participantName: 'Alec',
+    })
+  })
+
+  it('stores customization details on submitted cart lines', () => {
+    const next = applyParticipantSubmission({
+      latest: session('open'),
+      menu,
+      participantId: 'participant-1',
+      participantName: 'Alex',
+      draftItems: [
+        {
+          id: 'line-5',
+          menuItemId: 'menu-swiggy-1',
+          quantity: 1,
+          customization: {
+            variantsV2: [{ group_id: 'size', variation_id: 'large' }],
+            addons: [{ group_id: 'bun', choice_id: 'brioche', price: 19 }],
+          },
+          customizationSummary: 'Size: Large, Bun: Brioche',
+          unitPrice: 139,
+        },
+      ],
+    })
+
+    expect(next.items[0]).toMatchObject({
+      customization: {
+        variantsV2: [{ group_id: 'size', variation_id: 'large' }],
+        addons: [{ group_id: 'bun', choice_id: 'brioche', price: 19 }],
+      },
+      customizationSummary: 'Size: Large, Bun: Brioche',
+      price: 139,
     })
   })
 })

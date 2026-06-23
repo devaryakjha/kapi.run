@@ -220,7 +220,9 @@ export function OrganizerReviewPage({
                 <Separator className="my-1" />
                 <div className="flex justify-between text-base font-semibold">
                   <span>Total</span>
-                  <span className="font-mono tabular-nums text-primary">₹{finalTotal}</span>
+                  <span className="font-mono tabular-nums text-primary">
+                    ₹{finalTotal}
+                  </span>
                 </div>
               </div>
 
@@ -288,7 +290,7 @@ export function OrganizerReviewPage({
             </div>
 
             {isOrganizer ? (
-              <div className="mt-4 rounded-xl border border-primary/20 bg-primary/[0.025] p-4">
+              <div className="mt-4 rounded-xl border border-primary/20 bg-primary/2.5 p-4">
                 <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-primary">
                   Next step
                 </p>
@@ -315,9 +317,9 @@ export function OrganizerReviewPage({
                   {fallback.total}
                 </p>
                 <div className="flex flex-col gap-1.5">
-                  {fallback.checklist.map((line) => (
+                  {fallback.checklist.map((line, index) => (
                     <div
-                      key={line}
+                      key={`${line}:${index}`}
                       className="flex items-start gap-2 text-[11px] leading-5"
                     >
                       <Check className="mt-0.5 size-3 shrink-0 text-primary" />
@@ -415,8 +417,10 @@ function ReviewItem({
             </Badge>
           ) : null}
         </div>
-        {item.note ? (
-          <p className="text-[12px] text-muted-foreground">{item.note}</p>
+        {item.customizationSummary ? (
+          <p className="text-[12px] text-muted-foreground">
+            {item.customizationSummary}
+          </p>
         ) : null}
       </div>
 

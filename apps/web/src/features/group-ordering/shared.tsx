@@ -1,8 +1,10 @@
 import type {
   Address,
+  CartCustomization,
   CartLine,
   KapiSession,
   ManualFallbackSummary,
+  MenuCustomization,
   MenuItem,
   RelaySessionMetadata,
   RelayWriteRole,
@@ -16,7 +18,15 @@ import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import { Badge } from '#/components/ui/badge'
 import { cn } from '#/lib/utils'
 
-export type DraftCart = Record<string, number>
+export type DraftCartLine = {
+  id: string
+  menuItemId: string
+  quantity: number
+  customization?: CartCustomization
+  customizationSummary?: string
+  unitPrice?: number
+}
+export type DraftCart = Record<string, DraftCartLine>
 export type RelaySessionRecord = {
   ciphertext: string
   updatedAt: string
@@ -213,6 +223,18 @@ export async function resolveSessionLinkParts(
   return { ...parts, sessionId: invite.sessionId, key: invite.key }
 }
 
+export async function loadMenuCustomization({
+  addressId,
+  item,
+}: {
+  addressId: string
+  item: MenuItem
+}) {
+  return api<MenuCustomization>(
+    `/food/restaurants/${item.restaurantId}/menu/${item.swiggyItemId}/customization?addressId=${encodeURIComponent(addressId)}&q=${encodeURIComponent(item.name)}`,
+  )
+}
+
 export async function loadEncryptedSessionRecord(
   sessionId: string,
   key: string,
@@ -296,7 +318,7 @@ export function applyParticipantSubmission({
   menu: MenuItem[]
   participantId: string
   participantName: string
-  draftItems: Array<{ menuItemId: string; quantity: number; note?: string }>
+  draftItems: DraftCartLine[]
 }) {
   const submittedAt = new Date().toISOString()
   const submitted: CartLine[] = draftItems.flatMap((line) => {
@@ -313,10 +335,11 @@ export function applyParticipantSubmission({
       menuItemId: item.id,
       name: item.name,
       quantity: line.quantity,
-      price: item.price,
-      note: line.note,
+      price: line.unitPrice ?? item.price,
       available: item.available,
       swiggyItemId: item.swiggyItemId,
+      customization: line.customization,
+      customizationSummary: line.customizationSummary,
     }
   })
   const existingParticipant = latest.participants.find(
@@ -373,7 +396,7 @@ export function makeManualFallback(
     ),
     checklist: session.items.map(
       (item) =>
-        `${item.quantity}x ${item.name}${item.note ? ` (${item.note})` : ''} - ${item.participantName}`,
+        `${item.quantity}x ${item.name}${item.customizationSummary ? ` (${item.customizationSummary})` : ''} - ${item.participantName}`,
     ),
     byParticipant: groups.map((key) => {
       const items = session.items.filter(
@@ -384,7 +407,7 @@ export function makeManualFallback(
         total: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
         items: items.map(
           (item) =>
-            `${item.quantity}x ${item.name}${item.note ? ` (${item.note})` : ''}`,
+            `${item.quantity}x ${item.name}${item.customizationSummary ? ` (${item.customizationSummary})` : ''}`,
         ),
       }
     }),
@@ -392,21 +415,28 @@ export function makeManualFallback(
 }
 
 export function makeCartPayload(session: KapiSession) {
-  const quantities = new Map<string, number>()
-  for (const item of session.items) {
-    if (item.available)
-      quantities.set(
-        item.swiggyItemId,
-        (quantities.get(item.swiggyItemId) ?? 0) + item.quantity,
-      )
-  }
   return {
     restaurantId: session.restaurant.id,
     addressId: session.address.id,
-    cartItems: [...quantities.entries()].map(([itemId, quantity]) => ({
-      itemId,
-      quantity,
-    })),
+    cartItems: session.items.flatMap((item) => {
+      if (!item.available) return []
+      const variantsV2 = item.customization?.variantsV2?.map((variant) => ({
+        group_id: variant.group_id,
+        variation_id: variant.variation_id,
+      }))
+      const addons = item.customization?.addons?.map((addon) => ({
+        group_id: addon.group_id,
+        choice_id: addon.choice_id,
+      }))
+      return [
+        {
+          menu_item_id: item.swiggyItemId,
+          quantity: item.quantity,
+          ...(variantsV2?.length ? { variantsV2 } : {}),
+          ...(addons?.length ? { addons } : {}),
+        },
+      ]
+    }),
   }
 }
 

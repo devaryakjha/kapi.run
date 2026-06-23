@@ -5,6 +5,7 @@ import type { KapiSession, MenuItem } from '@kapi/spec'
 import { ParticipantMenuPage } from '#/features/group-ordering/participant-page'
 import type {
   DraftCart,
+  DraftCartLine,
   LoadedSessionRecord,
 } from '#/features/group-ordering/shared'
 import {
@@ -16,6 +17,7 @@ import {
   getSessionLinkParts,
   isSessionLockedForParticipants,
   loadEncryptedSessionRecord,
+  loadMenuCustomization,
   localParticipantNameKey,
   publishSession,
   resolveSessionLinkParts,
@@ -101,23 +103,43 @@ function RouteComponent() {
     loadSession().catch((caught: Error) => setState({ error: caught.message }))
   }, [])
 
-  function changeDraft(menuItemId: string, delta: number) {
-    const nextQuantity = Math.max((state.draft[menuItemId] ?? 0) + delta, 0)
+  function changeDraftLine(lineId: string, delta: number) {
+    const current = state.draft[lineId]
+    const nextQuantity = Math.max(current.quantity + delta, 0)
     const draft = { ...state.draft }
     if (nextQuantity === 0) {
-      delete draft[menuItemId]
+      delete draft[lineId]
     } else {
-      draft[menuItemId] = nextQuantity
+      draft[lineId] = { ...current, quantity: nextQuantity }
     }
     setState({ draft, notice: null })
   }
 
+  function addPlainItem(menuItemId: string) {
+    const current = state.draft[menuItemId]
+    setState({
+      draft: {
+        ...state.draft,
+        [menuItemId]: { ...current, quantity: current.quantity + 1 },
+      },
+      notice: null,
+    })
+  }
+
+  function addCustomItem(line: Omit<DraftCartLine, 'id'>) {
+    const id = crypto.randomUUID()
+    setState({
+      draft: {
+        ...state.draft,
+        [id]: { ...line, id },
+      },
+      notice: null,
+    })
+  }
+
   async function submitDraft() {
     if (!state.session || !sessionKeyRef.current) return
-    const items = Object.entries(state.draft).map(([menuItemId, quantity]) => ({
-      menuItemId,
-      quantity,
-    }))
+    const items = Object.values(state.draft)
     if (!items.length) {
       setState({
         error: 'Add at least one item before submitting.',
@@ -222,10 +244,15 @@ function RouteComponent() {
       participantName={state.participantName}
       pending={state.pending}
       session={state.session}
+      onAddCustomItem={addCustomItem}
+      onAddPlainItem={addPlainItem}
+      onLoadCustomization={(item) =>
+        loadMenuCustomization({ addressId: state.session!.address.id, item })
+      }
       onNameChange={(participantName) =>
         setState({ participantName, notice: null })
       }
-      onQuantityChange={changeDraft}
+      onQuantityChange={changeDraftLine}
       onSubmit={submitDraft}
     />
   )

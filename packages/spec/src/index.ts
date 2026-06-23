@@ -57,8 +57,71 @@ export type MenuItem = {
   price: number;
   imageUrl?: string;
   tags?: string[];
+  rating?: string;
+  totalRatings?: string;
+  hasVariants?: boolean;
+  hasAddons?: boolean;
   available: boolean;
   swiggyItemId: string;
+};
+
+export type MenuVariantChoice = {
+  id: string;
+  name: string;
+  price?: number;
+  inStock?: boolean;
+  default?: boolean;
+};
+
+export type MenuVariantGroup = {
+  groupId: string;
+  name: string;
+  variations: MenuVariantChoice[];
+};
+
+export type MenuAddonChoice = {
+  id: string;
+  name: string;
+  price: number;
+};
+
+export type MenuAddonGroup = {
+  groupId: string;
+  groupName: string;
+  choices: MenuAddonChoice[];
+  minAddons?: number;
+  maxAddons?: number;
+};
+
+export type MenuCustomization = {
+  menuItemId: string;
+  description?: string;
+  imageUrl?: string;
+  rating?: string;
+  totalRatings?: string;
+  variantsV2?: MenuVariantGroup[];
+  addons?: MenuAddonGroup[];
+};
+
+export type CartVariantSelection = {
+  group_id: string;
+  variation_id: string;
+  groupName?: string;
+  name?: string;
+  price?: number;
+};
+
+export type CartAddonSelection = {
+  group_id: string;
+  choice_id: string;
+  groupName?: string;
+  name?: string;
+  price?: number;
+};
+
+export type CartCustomization = {
+  variantsV2?: CartVariantSelection[];
+  addons?: CartAddonSelection[];
 };
 
 export type CartLine = {
@@ -72,6 +135,8 @@ export type CartLine = {
   note?: string;
   available: boolean;
   swiggyItemId: string;
+  customization?: CartCustomization;
+  customizationSummary?: string;
   synced?: boolean;
 };
 
@@ -118,8 +183,16 @@ export type SwiggyCartToolPayload = {
   restaurantId: string;
   addressId: string;
   cartItems: Array<{
-    itemId: string;
+    menu_item_id: string;
     quantity: number;
+    variantsV2?: Array<{
+      group_id: string;
+      variation_id: string;
+    }>;
+    addons?: Array<{
+      group_id: string;
+      choice_id: string;
+    }>;
   }>;
 };
 

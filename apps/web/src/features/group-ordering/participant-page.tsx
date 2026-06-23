@@ -1,5 +1,12 @@
-import { useMemo, useState } from 'react'
-import type { KapiSession, MenuItem } from '@kapi/spec'
+import { useEffect, useMemo, useState } from 'react'
+import type {
+  CartCustomization,
+  KapiSession,
+  MenuAddonGroup,
+  MenuCustomization,
+  MenuItem,
+  MenuVariantGroup,
+} from '@kapi/spec'
 import {
   CheckCircle2,
   Loader2,
@@ -15,6 +22,13 @@ import { Avatar, AvatarFallback } from '#/components/ui/avatar'
 import { Alert, AlertDescription } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '#/components/ui/dialog'
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -26,7 +40,7 @@ import { Input } from '#/components/ui/input'
 import { Separator } from '#/components/ui/separator'
 import { cn } from '#/lib/utils'
 
-import type { DraftCart } from './shared'
+import type { DraftCart, DraftCartLine } from './shared'
 import {
   ErrorAlert,
   SummaryRow,
@@ -42,6 +56,9 @@ export function ParticipantMenuPage({
   participantName,
   pending,
   session,
+  onAddCustomItem,
+  onAddPlainItem,
+  onLoadCustomization,
   onNameChange,
   onQuantityChange,
   onSubmit,
@@ -53,12 +70,16 @@ export function ParticipantMenuPage({
   participantName: string
   pending: boolean
   session: KapiSession
+  onAddCustomItem: (line: Omit<DraftCartLine, 'id'>) => void
+  onAddPlainItem: (menuItemId: string) => void
+  onLoadCustomization: (item: MenuItem) => Promise<MenuCustomization>
   onNameChange: (name: string) => void
-  onQuantityChange: (menuItemId: string, delta: number) => void
+  onQuantityChange: (lineId: string, delta: number) => void
   onSubmit: () => void
 }) {
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
+  const [customizing, setCustomizing] = useState<MenuItem | null>(null)
 
   const categories = useMemo(
     () => [
@@ -112,7 +133,7 @@ export function ParticipantMenuPage({
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <section className="flex-1 overflow-y-auto">
-          <div className="sticky top-0 z-[5] border-b border-border bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm md:px-6">
+          <div className="sticky top-0 z-5 border-b border-border bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm md:px-6">
             <div className="mx-auto max-w-3xl">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -178,14 +199,22 @@ export function ParticipantMenuPage({
                 </Empty>
               ) : (
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                  {filtered.map((item) => (
+                  {filtered.map((item, index) => (
                     <MenuCard
-                      key={item.id}
+                      key={`${item.id}:${index}`}
                       item={item}
-                      quantity={draft[item.id] ?? 0}
+                      quantity={itemQuantity(draft, item.id)}
                       locked={locked}
-                      onAdd={() => onQuantityChange(item.id, 1)}
-                      onRemove={() => onQuantityChange(item.id, -1)}
+                      onAdd={() =>
+                        item.hasVariants || item.hasAddons
+                          ? setCustomizing(item)
+                          : onAddPlainItem(item.id)
+                      }
+                      onRemove={() => {
+                        const lineId = firstLineId(draft, item.id)
+                        if (lineId) onQuantityChange(lineId, -1)
+                      }}
+                      onView={() => setCustomizing(item)}
                     />
                   ))}
                 </div>
@@ -217,8 +246,30 @@ export function ParticipantMenuPage({
         pending={pending}
         onSubmit={onSubmit}
       />
+
+      {customizing ? (
+        <ItemDetailDialog
+          item={customizing}
+          locked={locked}
+          onAddCustomItem={onAddCustomItem}
+          onAddPlainItem={onAddPlainItem}
+          onClose={() => setCustomizing(null)}
+          onLoadCustomization={onLoadCustomization}
+        />
+      ) : null}
     </main>
   )
+}
+
+function itemQuantity(draft: DraftCart, menuItemId: string) {
+  return Object.values(draft).reduce(
+    (sum, line) => sum + (line.menuItemId === menuItemId ? line.quantity : 0),
+    0,
+  )
+}
+
+function firstLineId(draft: DraftCart, menuItemId: string) {
+  return Object.values(draft).find((line) => line.menuItemId === menuItemId)?.id
 }
 
 function TimerPill({
@@ -243,7 +294,9 @@ function TimerPill({
           <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
         </span>
       )}
-      <span className="font-mono text-xs font-semibold tabular-nums">{remainingTime}</span>
+      <span className="font-mono text-xs font-semibold tabular-nums">
+        {remainingTime}
+      </span>
     </div>
   )
 }
@@ -254,27 +307,33 @@ function MenuCard({
   locked,
   onAdd,
   onRemove,
+  onView,
 }: {
   item: MenuItem
   quantity: number
   locked: boolean
   onAdd: () => void
   onRemove: () => void
+  onView: () => void
 }) {
   return (
     <article
       className={cn(
         'flex gap-3 rounded-4xl border border-border bg-background p-3 transition-colors',
         !item.available && 'opacity-50',
-        quantity > 0 && 'border-primary/30 bg-primary/[0.02]',
+        quantity > 0 && 'border-primary/30 bg-primary/2',
       )}
     >
-      <div className="relative size-[72px] shrink-0 overflow-hidden rounded-lg bg-muted">
+      <button
+        type="button"
+        onClick={onView}
+        className="relative size-18 shrink-0 overflow-hidden rounded-lg bg-muted text-left transition-opacity duration-150 active:opacity-75"
+      >
         {item.imageUrl ? (
           <img
             src={item.imageUrl}
             alt={item.name}
-            className="h-full w-full object-cover outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
+            className="h-full w-full object-cover outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
@@ -286,11 +345,17 @@ function MenuCard({
             <span className="size-1.5 rounded-full bg-green-600" />
           </span>
         ) : null}
-      </div>
+      </button>
 
       <div className="mt-0 flex min-w-0 flex-1 flex-col justify-between">
         <div>
-          <h3 className="text-sm font-semibold leading-tight">{item.name}</h3>
+          <button
+            type="button"
+            onClick={onView}
+            className="block text-left text-sm font-semibold leading-tight transition-colors duration-150 hover:text-primary"
+          >
+            {item.name}
+          </button>
           {item.description ? (
             <p className="mt-0.5 line-clamp-2 text-[12px] leading-[1.4] text-muted-foreground">
               {item.description}
@@ -298,7 +363,9 @@ function MenuCard({
           ) : null}
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <span className="font-mono text-sm font-bold tabular-nums">₹{item.price}</span>
+          <span className="font-mono text-sm font-bold tabular-nums">
+            ₹{item.price}
+          </span>
           {quantity > 0 ? (
             <div className="flex h-8 items-center rounded-full border border-primary/40 bg-primary/5">
               <button
@@ -308,7 +375,7 @@ function MenuCard({
               >
                 <Minus className="size-3" />
               </button>
-              <span className="min-w-[1.25rem] text-center font-mono text-xs font-bold tabular-nums text-primary">
+              <span className="min-w-5 text-center font-mono text-xs font-bold tabular-nums text-primary">
                 {quantity}
               </span>
               <button
@@ -328,13 +395,438 @@ function MenuCard({
               className="h-8 rounded-full px-3 text-xs"
             >
               <Plus className="size-3" data-icon="inline-start" />
-              Add
+              {item.hasVariants || item.hasAddons ? 'Customize' : 'Add'}
             </Button>
           )}
         </div>
+        {item.hasVariants || item.hasAddons ? (
+          <button
+            type="button"
+            onClick={onView}
+            className="mt-1 w-fit text-[11px] font-medium text-primary transition-[scale,opacity] duration-150 hover:opacity-70 active:scale-[0.96]"
+          >
+            Customizable
+          </button>
+        ) : null}
       </div>
     </article>
   )
+}
+
+function ItemDetailDialog({
+  item,
+  locked,
+  onAddCustomItem,
+  onAddPlainItem,
+  onClose,
+  onLoadCustomization,
+}: {
+  item: MenuItem
+  locked: boolean
+  onAddCustomItem: (line: Omit<DraftCartLine, 'id'>) => void
+  onAddPlainItem: (menuItemId: string) => void
+  onClose: () => void
+  onLoadCustomization: (item: MenuItem) => Promise<MenuCustomization>
+}) {
+  const customizable = Boolean(item.hasVariants || item.hasAddons)
+  const [detail, setDetail] = useState<MenuCustomization | null>(null)
+  const [selectedVariants, setSelectedVariants] = useState<
+    Record<string, string>
+  >({})
+  const [selectedAddons, setSelectedAddons] = useState<
+    Record<string, string[]>
+  >({})
+  const [pending, setPending] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setDetail(null)
+    setError(null)
+    setSelectedVariants({})
+    setSelectedAddons({})
+
+    setPending(true)
+    onLoadCustomization(item)
+      .then((next) => {
+        if (cancelled) return
+        setDetail(next)
+        setSelectedVariants(defaultVariantSelections(next.variantsV2 ?? []))
+        setSelectedAddons(defaultAddonSelections(next.addons ?? []))
+      })
+      .catch((caught: Error) => {
+        if (!cancelled) setError(caught.message)
+      })
+      .finally(() => {
+        if (!cancelled) setPending(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [item, onLoadCustomization])
+
+  const selected = detail
+    ? buildCartCustomization(detail, selectedVariants, selectedAddons)
+    : { customization: undefined, summary: '', addonTotal: 0 }
+  const total = item.price + selected.addonTotal
+  const description = detail?.description || item.description
+  const imageUrl = detail?.imageUrl || item.imageUrl
+  const rating = detail?.rating || item.rating
+  const totalRatings = detail?.totalRatings || item.totalRatings
+
+  function addItem() {
+    if (locked || !item.available) return
+    if (!customizable) {
+      onAddPlainItem(item.id)
+      onClose()
+      return
+    }
+    if (!detail) return
+
+    const validationError = validateAddonSelections(
+      detail.addons ?? [],
+      selectedAddons,
+    )
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
+    onAddCustomItem({
+      menuItemId: item.id,
+      quantity: 1,
+      customization: selected.customization,
+      customizationSummary: selected.summary,
+      unitPrice: total,
+    })
+    onClose()
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[min(820px,calc(100svh-2rem))] overflow-hidden p-0 sm:max-w-2xl">
+        <div className="max-h-[min(820px,calc(100svh-2rem))] overflow-y-auto">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={item.name}
+              className="h-64 w-full object-cover outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
+            />
+          ) : (
+            <div className="flex h-40 w-full items-center justify-center bg-muted">
+              <Utensils className="size-8 text-muted-foreground" />
+            </div>
+          )}
+
+          <div className="space-y-5 p-5">
+            <DialogHeader>
+              <DialogTitle className="text-2xl leading-tight">
+                {item.name}
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Menu item details
+              </DialogDescription>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span className="font-mono font-semibold tabular-nums text-foreground">
+                  ₹{item.price}
+                </span>
+                {rating ? (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium tabular-nums text-primary">
+                    ★ {formatRating(rating)}
+                    {totalRatings ? ` (${totalRatings})` : ''}
+                  </span>
+                ) : null}
+                {item.category ? <span>{item.category}</span> : null}
+                {!item.available ? <span>Unavailable</span> : null}
+              </div>
+            </DialogHeader>
+
+            {description ? (
+              <p className="text-sm leading-6 text-muted-foreground">
+                {description}
+              </p>
+            ) : null}
+
+            {customizable ? (
+              <div className="space-y-4">
+                {pending ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    Loading options
+                  </div>
+                ) : null}
+
+                {error ? <ErrorAlert message={error} /> : null}
+
+                {detail?.variantsV2?.map((group) => (
+                  <VariantGroupControl
+                    key={group.groupId}
+                    group={group}
+                    value={selectedVariants[group.groupId]}
+                    onChange={(variationId) =>
+                      setSelectedVariants((current) => ({
+                        ...current,
+                        [group.groupId]: variationId,
+                      }))
+                    }
+                  />
+                ))}
+
+                {detail?.addons?.map((group) => (
+                  <AddonGroupControl
+                    key={group.groupId}
+                    group={group}
+                    value={selectedAddons[group.groupId]}
+                    onChange={(choiceIds) =>
+                      setSelectedAddons((current) => ({
+                        ...current,
+                        [group.groupId]: choiceIds,
+                      }))
+                    }
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            <div className="sticky bottom-0 -mx-5 -mb-5 border-t border-border bg-background p-5">
+              <Button
+                onClick={addItem}
+                disabled={locked || !item.available || pending}
+                className="h-11 w-full rounded-xl text-sm font-semibold tabular-nums"
+              >
+                {pending ? (
+                  <Loader2 className="animate-spin" data-icon="inline-start" />
+                ) : (
+                  <Plus className="size-4" data-icon="inline-start" />
+                )}
+                Add item · ₹{total}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function VariantGroupControl({
+  group,
+  value,
+  onChange,
+}: {
+  group: MenuVariantGroup
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        {group.name}
+      </p>
+      <div className="grid gap-2">
+        {group.variations.map((choice) => (
+          <label
+            key={`${group.groupId}:${choice.id}`}
+            className={cn(
+              'flex min-h-10 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-[colors,scale] duration-150 active:scale-[0.96]',
+              value === choice.id
+                ? 'border-primary/40 bg-primary/5'
+                : 'border-border hover:border-primary/30 hover:bg-primary/[0.02]',
+              choice.inStock === false && 'pointer-events-none opacity-40',
+            )}
+          >
+            <input
+              type="radio"
+              name={`variant-${group.groupId}`}
+              value={choice.id}
+              checked={value === choice.id}
+              onChange={() => onChange(choice.id)}
+              disabled={choice.inStock === false}
+              className="size-4 accent-primary"
+            />
+            <span className="min-w-0 flex-1">{choice.name}</span>
+            {choice.price ? (
+              <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                +₹{choice.price}
+              </span>
+            ) : null}
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function AddonGroupControl({
+  group,
+  value,
+  onChange,
+}: {
+  group: MenuAddonGroup
+  value: string[]
+  onChange: (value: string[]) => void
+}) {
+  const max =
+    group.maxAddons && group.maxAddons > 0 ? group.maxAddons : Infinity
+
+  function toggle(choiceId: string) {
+    if (value.includes(choiceId)) {
+      onChange(value.filter((id) => id !== choiceId))
+      return
+    }
+    if (value.length >= max) return
+    onChange([...value, choiceId])
+  }
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+          {group.groupName}
+        </p>
+        {group.minAddons || group.maxAddons ? (
+          <p className="text-xs text-muted-foreground">
+            {addonRuleText(group)}
+          </p>
+        ) : null}
+      </div>
+      <div className="grid gap-2">
+        {group.choices.map((choice) => (
+          <label
+            key={`${group.groupId}:${choice.id}`}
+            className={cn(
+              'flex min-h-10 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-[colors,scale] duration-150 active:scale-[0.96]',
+              value.includes(choice.id)
+                ? 'border-primary/40 bg-primary/5'
+                : 'border-border hover:border-primary/30 hover:bg-primary/[0.02]',
+            )}
+          >
+            <input
+              type="checkbox"
+              checked={value.includes(choice.id)}
+              onChange={() => toggle(choice.id)}
+              className="size-4 accent-primary"
+            />
+            <span className="min-w-0 flex-1">{choice.name}</span>
+            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+              {choice.price ? `₹${choice.price}` : 'Free'}
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function defaultVariantSelections(groups: MenuVariantGroup[]) {
+  return Object.fromEntries(
+    groups.map((group) => {
+      const selected =
+        group.variations.find(
+          (choice) => choice.default && choice.inStock !== false,
+        ) ??
+        group.variations.find((choice) => choice.inStock !== false) ??
+        group.variations[0]
+      return [group.groupId, selected?.id ?? '']
+    }),
+  )
+}
+
+function defaultAddonSelections(groups: MenuAddonGroup[]) {
+  return Object.fromEntries(
+    groups.map((group) => [
+      group.groupId,
+      group.choices
+        .slice(0, Math.max(group.minAddons ?? 0, 0))
+        .map((c) => c.id),
+    ]),
+  )
+}
+
+function buildCartCustomization(
+  detail: MenuCustomization,
+  selectedVariants: Record<string, string>,
+  selectedAddons: Record<string, string[]>,
+) {
+  const variants =
+    detail.variantsV2?.flatMap((group) => {
+      const selected = group.variations.find(
+        (choice) => choice.id === selectedVariants[group.groupId],
+      )
+      return selected
+        ? [
+            {
+              group_id: group.groupId,
+              variation_id: selected.id,
+              groupName: group.name,
+              name: selected.name,
+              price: selected.price,
+            },
+          ]
+        : []
+    }) ?? []
+
+  const addons =
+    detail.addons?.flatMap((group) =>
+      selectedAddons[group.groupId].flatMap((choiceId) => {
+        const selected = group.choices.find((choice) => choice.id === choiceId)
+        return selected
+          ? [
+              {
+                group_id: group.groupId,
+                choice_id: selected.id,
+                groupName: group.groupName,
+                name: selected.name,
+                price: selected.price,
+              },
+            ]
+          : []
+      }),
+    ) ?? []
+
+  const summary = [...variants, ...addons]
+    .map((selection) => `${selection.groupName}: ${selection.name}`)
+    .join(', ')
+
+  return {
+    customization: {
+      ...(variants.length ? { variantsV2: variants } : {}),
+      ...(addons.length ? { addons } : {}),
+    } satisfies CartCustomization,
+    summary,
+    addonTotal: addons.reduce((sum, addon) => sum + addon.price, 0),
+  }
+}
+
+function validateAddonSelections(
+  groups: MenuAddonGroup[],
+  selectedAddons: Record<string, string[]>,
+) {
+  for (const group of groups) {
+    const count = selectedAddons[group.groupId].length
+    if (count < (group.minAddons ?? 0)) {
+      return `Choose at least ${group.minAddons} from ${group.groupName}.`
+    }
+    if (group.maxAddons && group.maxAddons > 0 && count > group.maxAddons) {
+      return `Choose at most ${group.maxAddons} from ${group.groupName}.`
+    }
+  }
+  return null
+}
+
+function addonRuleText(group: MenuAddonGroup) {
+  if (group.minAddons && group.maxAddons) {
+    return `Choose ${group.minAddons}-${group.maxAddons}`
+  }
+  if (group.minAddons) return `Choose at least ${group.minAddons}`
+  if (group.maxAddons) return `Choose up to ${group.maxAddons}`
+  return ''
+}
+
+function formatRating(value: string) {
+  const rating = Number(value)
+  return Number.isFinite(rating) ? rating.toFixed(1) : value
 }
 
 function CartSidebar({
@@ -360,13 +852,16 @@ function CartSidebar({
   onQuantityChange: (menuItemId: string, delta: number) => void
   onSubmit: () => void
 }) {
-  const lines = Object.entries(draft).flatMap(([id, quantity]) => {
-    const item = menu.find((c) => c.id === id)
-    return item && quantity > 0 ? [{ item, quantity }] : []
+  const lines = Object.values(draft).flatMap((line) => {
+    const item = menu.find((c) => c.id === line.menuItemId)
+    return item && line.quantity > 0 ? [{ item, line }] : []
   })
-  const total = lines.reduce((sum, l) => sum + l.item.price * l.quantity, 0)
+  const total = lines.reduce(
+    (sum, l) => sum + (l.line.unitPrice ?? l.item.price) * l.line.quantity,
+    0,
+  )
   const surcharge = lines.length ? 15 : 0
-  const itemCount = lines.reduce((sum, l) => sum + l.quantity, 0)
+  const itemCount = lines.reduce((sum, l) => sum + l.line.quantity, 0)
 
   return (
     <aside className="hidden w-72 shrink-0 flex-col border-l border-border lg:flex">
@@ -405,29 +900,34 @@ function CartSidebar({
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {lines.map(({ item, quantity }) => (
-              <div key={item.id} className="flex items-start gap-3">
+            {lines.map(({ item, line }) => (
+              <div key={line.id} className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-medium leading-5">
                     {item.name}
                   </p>
                   <p className="font-mono text-xs tabular-nums text-muted-foreground">
-                    ₹{item.price} × {quantity}
+                    ₹{line.unitPrice ?? item.price} × {line.quantity}
                   </p>
+                  {line.customizationSummary ? (
+                    <p className="text-[11px] leading-4 text-muted-foreground">
+                      {line.customizationSummary}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="flex h-7 items-center rounded-full border border-border">
                     <button
-                      onClick={() => onQuantityChange(item.id, -1)}
+                      onClick={() => onQuantityChange(line.id, -1)}
                       className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96]"
                     >
                       <Minus className="size-2.5" />
                     </button>
                     <span className="min-w-[1.1rem] text-center font-mono text-xs font-medium tabular-nums">
-                      {quantity}
+                      {line.quantity}
                     </span>
                     <button
-                      onClick={() => onQuantityChange(item.id, 1)}
+                      onClick={() => onQuantityChange(line.id, 1)}
                       disabled={locked}
                       className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96] disabled:pointer-events-none"
                     >
@@ -435,7 +935,7 @@ function CartSidebar({
                     </button>
                   </div>
                   <button
-                    onClick={() => onQuantityChange(item.id, -quantity)}
+                    onClick={() => onQuantityChange(line.id, -line.quantity)}
                     className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-destructive/10 hover:text-destructive active:scale-[0.96]"
                   >
                     <Trash2 className="size-2.5" />
@@ -492,12 +992,15 @@ function MobileCartBar({
   pending: boolean
   onSubmit: () => void
 }) {
-  const lines = Object.entries(draft).flatMap(([id, quantity]) => {
-    const item = menu.find((c) => c.id === id)
-    return item && quantity > 0 ? [{ item, quantity }] : []
+  const lines = Object.values(draft).flatMap((line) => {
+    const item = menu.find((c) => c.id === line.menuItemId)
+    return item && line.quantity > 0 ? [{ item, line }] : []
   })
-  const total = lines.reduce((sum, l) => sum + l.item.price * l.quantity, 0)
-  const itemCount = lines.reduce((sum, l) => sum + l.quantity, 0)
+  const total = lines.reduce(
+    (sum, l) => sum + (l.line.unitPrice ?? l.item.price) * l.line.quantity,
+    0,
+  )
+  const itemCount = lines.reduce((sum, l) => sum + l.line.quantity, 0)
 
   if (itemCount === 0 && !error && !notice) return null
 

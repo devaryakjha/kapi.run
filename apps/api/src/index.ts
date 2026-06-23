@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type {
   Address,
   MenuItem,
+  MenuCustomization,
   RelaySessionMetadata,
   RelayWritePayload,
   RelayWriteRole,
@@ -69,6 +70,11 @@ type RestaurantQueryContext = { query: { addressId: string; q: string } };
 type MenuQueryContext = {
   params: { restaurantId: string };
   query: { addressId: string; q?: string };
+};
+type MenuItemDetailQueryContext = {
+  params: { restaurantId: string; itemId: string };
+  query: { addressId: string; q?: string };
+  set: StatusSetter;
 };
 type CartSyncContext = RequestContext & {
   body: SwiggyCartPayload;
@@ -406,7 +412,12 @@ function toSwiggyCartToolPayload(
   return {
     restaurantId: payload.restaurantId,
     addressId: payload.addressId,
-    cartItems: payload.cartItems,
+    cartItems: payload.cartItems.map((item) => ({
+      menu_item_id: item.menu_item_id,
+      quantity: item.quantity,
+      ...(item.variantsV2?.length ? { variantsV2: item.variantsV2 } : {}),
+      ...(item.addons?.length ? { addons: item.addons } : {}),
+    })),
   };
 }
 
@@ -527,7 +538,7 @@ function flattenMenu(raw: unknown): unknown[] {
   ]) {
     if (Array.isArray(item[key])) return flattenMenu(item[key]);
   }
-  if ((item.id || item.itemId) && item.name) return [raw];
+  if ((item.id || item.itemId || item.menu_item_id) && item.name) return [raw];
   return Object.values(item).flatMap(flattenMenu);
 }
 
@@ -541,18 +552,102 @@ function normalizeMenuItem(raw: unknown, restaurantId: string): MenuItem {
         )
       : number(item.price, number(item.defaultPrice));
   return {
-    id: text(item.id, text(item.itemId)),
+    id: text(item.id, text(item.itemId, text(item.menu_item_id))),
     restaurantId,
     name: text(item.name, "Menu item"),
     category: text(item.category, text(item.categoryName, "Menu")),
     description: text(item.description),
     price,
     imageUrl: text(item.imageUrl, text(item.cloudinaryImageId)) || undefined,
+    rating: text(item.rating) || undefined,
+    totalRatings: text(item.totalRatings) || undefined,
+    hasVariants: item.hasVariants === true,
+    hasAddons: item.hasAddons === true,
     tags: Array.isArray(item.tags)
       ? item.tags.filter((tag): tag is string => typeof tag === "string")
       : undefined,
-    available: item.available !== false && item.inStock !== false,
-    swiggyItemId: text(item.id, text(item.itemId)),
+    available:
+      item.available !== false && item.inStock !== false && item.inStock !== 0,
+    swiggyItemId: text(item.id, text(item.itemId, text(item.menu_item_id))),
+  };
+}
+
+function normalizeCustomization(raw: unknown): MenuCustomization {
+  const item = raw as Record<string, unknown>;
+  return {
+    menuItemId: text(item.menu_item_id, text(item.id, text(item.itemId))),
+    description: text(item.description) || undefined,
+    imageUrl: text(item.imageUrl, text(item.cloudinaryImageId)) || undefined,
+    rating: text(item.rating) || undefined,
+    totalRatings: text(item.totalRatings) || undefined,
+    variantsV2: Array.isArray(item.variantsV2)
+      ? item.variantsV2.flatMap((rawGroup) => {
+          const group = rawGroup as Record<string, unknown>;
+          const variations = Array.isArray(group.variations)
+            ? group.variations.flatMap((rawVariation) => {
+                const variation = rawVariation as Record<string, unknown>;
+                const id = text(variation.id, text(variation.variation_id));
+                if (!id) return [];
+                return {
+                  id,
+                  name: text(variation.name, "Option"),
+                  price: firstPositiveNumber(variation, ["price"]),
+                  inStock:
+                    variation.inStock === undefined
+                      ? undefined
+                      : variation.inStock !== 0 && variation.inStock !== false,
+                  default:
+                    variation.default === 1 || variation.default === true,
+                };
+              })
+            : [];
+          const groupId = text(group.groupId, text(group.group_id));
+          return groupId && variations.length
+            ? [
+                {
+                  groupId,
+                  name: text(group.name, "Choose one"),
+                  variations,
+                },
+              ]
+            : [];
+        })
+      : undefined,
+    addons: Array.isArray(item.addons)
+      ? item.addons.flatMap((rawGroup) => {
+          const group = rawGroup as Record<string, unknown>;
+          const choices = Array.isArray(group.choices)
+            ? group.choices.flatMap((rawChoice) => {
+                const choice = rawChoice as Record<string, unknown>;
+                const id = text(choice.id, text(choice.choice_id));
+                if (!id) return [];
+                return {
+                  id,
+                  name: text(choice.name, "Addon"),
+                  price: number(choice.price),
+                };
+              })
+            : [];
+          const groupId = text(group.groupId, text(group.group_id));
+          return groupId && choices.length
+            ? [
+                {
+                  groupId,
+                  groupName: text(group.groupName, text(group.name, "Addons")),
+                  choices,
+                  minAddons:
+                    typeof group.minAddons === "number"
+                      ? group.minAddons
+                      : undefined,
+                  maxAddons:
+                    typeof group.maxAddons === "number"
+                      ? group.maxAddons
+                      : undefined,
+                },
+              ]
+            : [];
+        })
+      : undefined,
   };
 }
 
@@ -696,6 +791,34 @@ export const app = new Elysia()
       query: t.Object({ addressId: t.String(), q: t.Optional(t.String()) }),
     },
   )
+  .get(
+    "/food/restaurants/:restaurantId/menu/:itemId/customization",
+    async ({ params, query, set }: MenuItemDetailQueryContext) => {
+      const data = await callSwiggyTool("search_menu", {
+        addressId: query.addressId,
+        query: query.q || params.itemId,
+        restaurantIdOfAddedItem: params.restaurantId,
+      });
+      const items = findArray(data);
+      const match =
+        items.find((raw) => {
+          const item = raw as Record<string, unknown>;
+          return (
+            text(item.menu_item_id, text(item.id, text(item.itemId))) ===
+            params.itemId
+          );
+        }) ?? items[0];
+      if (!match) {
+        set.status = 404;
+        return { error: "Menu item customization not found." };
+      }
+      return normalizeCustomization(match);
+    },
+    {
+      params: t.Object({ restaurantId: t.String(), itemId: t.String() }),
+      query: t.Object({ addressId: t.String(), q: t.Optional(t.String()) }),
+    },
+  )
   .get("/food/cart", async ({ request }: RequestContext) => {
     assertAllowedOrigin(request);
     const cart = await callSwiggyTool("get_food_cart");
@@ -739,7 +862,26 @@ export const app = new Elysia()
         addressId: t.String(),
         replaceExistingCart: t.Optional(t.Boolean()),
         cartItems: t.Array(
-          t.Object({ itemId: t.String(), quantity: t.Number() }),
+          t.Object({
+            menu_item_id: t.String(),
+            quantity: t.Number(),
+            variantsV2: t.Optional(
+              t.Array(
+                t.Object({
+                  group_id: t.String(),
+                  variation_id: t.String(),
+                }),
+              ),
+            ),
+            addons: t.Optional(
+              t.Array(
+                t.Object({
+                  group_id: t.String(),
+                  choice_id: t.String(),
+                }),
+              ),
+            ),
+          }),
         ),
       }),
     },
