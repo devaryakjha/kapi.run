@@ -4,6 +4,17 @@ export type ParticipantTarget = {
   key?: string
 }
 
+export function buildParticipantJoinPath(target: ParticipantTarget) {
+  const url = new URL('/join', 'http://kapi.local')
+  if (target.inviteId) {
+    url.searchParams.set('i', target.inviteId)
+  } else if (target.sessionId && target.key) {
+    url.searchParams.set('session', target.sessionId)
+    url.hash = new URLSearchParams({ key: target.key }).toString()
+  }
+  return `${url.pathname}${url.search}${url.hash}`
+}
+
 export function parseParticipantTarget(
   sessionOrLink: string,
   sessionKey: string,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseParticipantTarget } from './join-target'
+import { buildParticipantJoinPath, parseParticipantTarget } from './join-target'
 
 describe('parseParticipantTarget', () => {
   it('reads a short invite link', () => {
@@ -33,5 +33,19 @@ describe('parseParticipantTarget', () => {
 
   it('rejects empty session info', () => {
     expect(parseParticipantTarget('', '')).toBeNull()
+  })
+})
+
+describe('buildParticipantJoinPath', () => {
+  it('builds an invite join path', () => {
+    expect(buildParticipantJoinPath({ inviteId: 'invite1' })).toBe(
+      '/join?i=invite1',
+    )
+  })
+
+  it('builds a session join path with the key in the hash', () => {
+    expect(buildParticipantJoinPath({ sessionId: 'abc', key: 'secret' })).toBe(
+      '/join?session=abc#key=secret',
+    )
   })
 })

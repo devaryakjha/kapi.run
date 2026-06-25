@@ -6,7 +6,10 @@ import { ArrowRight, LinkIcon, Plus } from 'lucide-react'
 import { Alert, AlertDescription } from '#/components/ui/alert'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
-import { parseParticipantTarget } from '#/features/group-ordering/join-target'
+import {
+  buildParticipantJoinPath,
+  parseParticipantTarget,
+} from '#/features/group-ordering/join-target'
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -14,7 +17,6 @@ export const Route = createFileRoute('/')({
 
 function Home() {
   const [sessionOrLink, setSessionOrLink] = useState('')
-  const [participantName, setParticipantName] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   function startSession() {
@@ -29,16 +31,7 @@ function Home() {
       return
     }
 
-    const url = new URL('/menu', window.location.origin)
-    if (target.inviteId) {
-      url.searchParams.set('i', target.inviteId)
-    } else if (target.sessionId && target.key) {
-      url.searchParams.set('session', target.sessionId)
-      url.hash = new URLSearchParams({ key: target.key }).toString()
-    }
-    const name = participantName.trim()
-    if (name) url.searchParams.set('name', name)
-    window.location.href = `${url.pathname}${url.search}${url.hash}`
+    window.location.href = buildParticipantJoinPath(target)
   }
 
   return (
@@ -103,17 +96,6 @@ function Home() {
               </div>
 
               <form onSubmit={joinSession} className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                    Your name
-                  </label>
-                  <input
-                    value={participantName}
-                    onChange={(e) => setParticipantName(e.target.value)}
-                    placeholder="Shown in the group cart"
-                    className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none ring-primary/30 transition-shadow placeholder:text-muted-foreground focus:ring-2"
-                  />
-                </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                     Session info

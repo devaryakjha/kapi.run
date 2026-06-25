@@ -6,6 +6,7 @@ import type {
   SwiggyCartSummary,
 } from '@kapi/spec'
 
+import { buildParticipantJoinPath } from '#/features/group-ordering/join-target'
 import { OrganizerReviewPage } from '#/features/group-ordering/review-page'
 import {
   ApiError,
@@ -249,11 +250,10 @@ function RouteComponent() {
 
   function joinAsParticipant() {
     if (!state.session || !sessionKeyRef.current) return
-    const url = new URL('/menu', window.location.origin)
-    url.searchParams.set('session', state.session.id)
-    url.searchParams.set('name', state.session.organiserName)
-    url.hash = new URLSearchParams({ key: sessionKeyRef.current }).toString()
-    window.location.href = `${url.pathname}${url.search}${url.hash}`
+    window.location.href = buildParticipantJoinPath({
+      sessionId: state.session.id,
+      key: sessionKeyRef.current,
+    })
   }
 
   if (!state.session) {
