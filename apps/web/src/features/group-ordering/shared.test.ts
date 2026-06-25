@@ -30,6 +30,9 @@ import {
   makeManualFallback,
   mergeRelayParticipantSubmissions,
   resolveSetupCutoffAt,
+  safeLocalStorageGet,
+  safeLocalStorageRemove,
+  safeLocalStorageSet,
 } from './shared'
 
 const encoder = new TextEncoder()
@@ -132,6 +135,83 @@ const menu = [
     swiggyItemId: 'swiggy-2',
   },
 ]
+
+describe('safe localStorage helpers', () => {
+  it('uses browser storage when it is available', () => {
+    const original = globalThis.localStorage
+    const store = new Map<string, string>()
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => store.get(key) ?? null,
+        removeItem: (key: string) => {
+          store.delete(key)
+        },
+        setItem: (key: string, value: string) => {
+          store.set(key, value)
+        },
+      },
+    })
+
+    try {
+      safeLocalStorageSet('kapi:test', 'value')
+      expect(safeLocalStorageGet('kapi:test')).toBe('value')
+      safeLocalStorageRemove('kapi:test')
+      expect(safeLocalStorageGet('kapi:test')).toBeNull()
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', {
+        configurable: true,
+        value: original,
+      })
+    }
+  })
+
+  it('return null when browser storage reads throw', () => {
+    const original = globalThis.localStorage
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: () => {
+          throw new Error('storage disabled')
+        },
+      },
+    })
+
+    try {
+      expect(safeLocalStorageGet('kapi:test')).toBeNull()
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', {
+        configurable: true,
+        value: original,
+      })
+    }
+  })
+
+  it('ignores quota-blocked writes and removes', () => {
+    const original = globalThis.localStorage
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        setItem: () => {
+          throw new Error('quota exceeded')
+        },
+        removeItem: () => {
+          throw new Error('storage disabled')
+        },
+      },
+    })
+
+    try {
+      expect(() => safeLocalStorageSet('kapi:test', 'value')).not.toThrow()
+      expect(() => safeLocalStorageRemove('kapi:test')).not.toThrow()
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', {
+        configurable: true,
+        value: original,
+      })
+    }
+  })
+})
 
 describe('isSessionLockedForParticipants', () => {
   const now = new Date('2026-06-19T12:00:00.000Z')

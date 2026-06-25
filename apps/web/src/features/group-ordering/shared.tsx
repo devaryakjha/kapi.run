@@ -230,21 +230,48 @@ export function localParticipantNameKey(sessionId: string) {
   return `kapi:participant-name:${sessionId}`
 }
 
+export function safeLocalStorageGet(key: string) {
+  try {
+    const storage = (globalThis as { localStorage?: Storage }).localStorage
+    return storage?.getItem(key) ?? null
+  } catch {
+    return null
+  }
+}
+
+export function safeLocalStorageSet(key: string, value: string) {
+  try {
+    const storage = (globalThis as { localStorage?: Storage }).localStorage
+    storage?.setItem(key, value)
+  } catch {
+    // Keep browser-local identity best-effort when storage is disabled.
+  }
+}
+
+export function safeLocalStorageRemove(key: string) {
+  try {
+    const storage = (globalThis as { localStorage?: Storage }).localStorage
+    storage?.removeItem(key)
+  } catch {
+    // Storage may be unavailable or quota-blocked.
+  }
+}
+
 export function getOrCreateLocalParticipantId(sessionId: string) {
   const key = localParticipantIdKey(sessionId)
-  const existing = localStorage.getItem(key)
+  const existing = safeLocalStorageGet(key)
   if (existing) return existing
   const id = crypto.randomUUID()
-  localStorage.setItem(key, id)
+  safeLocalStorageSet(key, id)
   return id
 }
 
 export function getOrCreateLocalParticipantSecret(sessionId: string) {
   const key = localParticipantSecretKey(sessionId)
-  const existing = localStorage.getItem(key)
+  const existing = safeLocalStorageGet(key)
   if (existing) return existing
   const secret = makeOrganizerSecret()
-  localStorage.setItem(key, secret)
+  safeLocalStorageSet(key, secret)
   return secret
 }
 
@@ -260,10 +287,10 @@ export function getSessionLinkParts() {
   const hash = new URLSearchParams(window.location.hash.slice(1))
   const key =
     hash.get('key') ??
-    (sessionId ? localStorage.getItem(localKeyKey(sessionId)) : null)
+    (sessionId ? safeLocalStorageGet(localKeyKey(sessionId)) : null)
   const organizerSecret =
     hash.get('ownerKey') ??
-    (sessionId ? localStorage.getItem(localOrganizerKeyKey(sessionId)) : null)
+    (sessionId ? safeLocalStorageGet(localOrganizerKeyKey(sessionId)) : null)
   return { inviteId, key, organizerSecret, owner, sessionId }
 }
 
@@ -284,12 +311,12 @@ export async function resolveSessionLinkParts(
   if (parts.sessionId && parts.key) return parts
   if (!parts.inviteId) return parts
   const invite = await resolveSessionInvite(parts.inviteId)
-  localStorage.setItem(localKeyKey(invite.sessionId), invite.key)
+  safeLocalStorageSet(localKeyKey(invite.sessionId), invite.key)
   return {
     ...parts,
     organizerSecret:
       parts.organizerSecret ??
-      localStorage.getItem(localOrganizerKeyKey(invite.sessionId)),
+      safeLocalStorageGet(localOrganizerKeyKey(invite.sessionId)),
     sessionId: invite.sessionId,
     key: invite.key,
   }
@@ -499,11 +526,11 @@ export async function loadEncryptedSessionRecord(
       record,
       key,
     )
-    localStorage.setItem(localSessionKey(sessionId), JSON.stringify(loaded))
-    localStorage.setItem(localKeyKey(sessionId), key)
+    safeLocalStorageSet(localSessionKey(sessionId), JSON.stringify(loaded))
+    safeLocalStorageSet(localKeyKey(sessionId), key)
     return { session: loaded, relayUpdatedAt: record.updatedAt }
   } catch {
-    const local = localStorage.getItem(localSessionKey(sessionId))
+    const local = safeLocalStorageGet(localSessionKey(sessionId))
     if (local) {
       return {
         session: JSON.parse(local) as KapiSession,
@@ -577,11 +604,11 @@ export async function publishSession(
       }),
     },
   )
-  localStorage.setItem(
+  safeLocalStorageSet(
     localSessionKey(nextSession.id),
     JSON.stringify(nextSession),
   )
-  localStorage.setItem(localKeyKey(nextSession.id), key)
+  safeLocalStorageSet(localKeyKey(nextSession.id), key)
   return { session: nextSession, relayUpdatedAt: record.updatedAt }
 }
 

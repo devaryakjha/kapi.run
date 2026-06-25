@@ -21,6 +21,7 @@ import {
   makeManualFallback,
   publishSession,
   resolveSessionLinkParts,
+  safeLocalStorageSet,
 } from '#/features/group-ordering/shared'
 
 export const Route = createFileRoute('/review')({
@@ -131,7 +132,7 @@ function RouteComponent() {
       const isOrganizer =
         owner && (await hasOrganizerCapability(session, organizerSecret))
       if (isOrganizer && organizerSecret) {
-        localStorage.setItem(localOrganizerKeyKey(sessionId), organizerSecret)
+        safeLocalStorageSet(localOrganizerKeyKey(sessionId), organizerSecret)
       }
       setState({
         isOrganizer,
