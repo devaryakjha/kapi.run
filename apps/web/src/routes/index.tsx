@@ -15,13 +15,13 @@ export const Route = createFileRoute('/')({
   component: Home,
 })
 
+function startSession() {
+  window.location.href = '/new'
+}
+
 function Home() {
   const [sessionOrLink, setSessionOrLink] = useState('')
   const [error, setError] = useState<string | null>(null)
-
-  function startSession() {
-    window.location.href = '/new'
-  }
 
   function joinSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

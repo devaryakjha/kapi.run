@@ -55,6 +55,7 @@ import {
 } from './shared'
 
 type AddressItem = {
+  key: string
   label: string
   value: string
   title: string
@@ -186,9 +187,9 @@ export function OrganizerSetupPage({
                       className="w-[min(36rem,calc(100vw-2rem))]"
                     >
                       <SelectGroup>
-                        {addressItems.map((address, index) => (
+                        {addressItems.map((address) => (
                           <SelectItem
-                            key={`${address.value || 'empty'}:${index}`}
+                            key={address.key}
                             value={address.value}
                             className="items-start whitespace-normal"
                           >
@@ -281,12 +282,14 @@ function makeAddressItems(
 ): AddressItem[] {
   return [
     {
+      key: 'address:empty',
       label: authStatus.connected ? 'Choose address' : 'Connect first',
       value: '',
       title: authStatus.connected ? 'Choose address' : 'Connect first',
       detail: '',
     },
     ...addresses.map((address) => ({
+      key: `address:${address.id}`,
       label: formatAddressOption(address),
       value: address.id,
       title: address.label,
