@@ -44,10 +44,10 @@ import { cn } from '#/lib/utils'
 import type { DraftCart, DraftCartLine } from './shared'
 import {
   ErrorAlert,
-  SummaryRow,
   formatRemainingTime,
   isSessionLockedForParticipants,
 } from './shared'
+import { SummaryRow } from './summary-row'
 
 export function ParticipantMenuPage({
   draft,

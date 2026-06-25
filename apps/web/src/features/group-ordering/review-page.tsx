@@ -42,11 +42,11 @@ import { cn } from '#/lib/utils'
 
 import {
   ErrorAlert,
-  SummaryRow,
   groupCartLinesByParticipant,
   getOrderQuantity,
   getOrderSubtotal,
 } from './shared'
+import { SummaryRow } from './summary-row'
 
 type OrganizerReviewPageProps = {
   error: string | null

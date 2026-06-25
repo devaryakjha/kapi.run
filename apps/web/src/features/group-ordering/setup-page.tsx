@@ -48,11 +48,11 @@ import { cn } from '#/lib/utils'
 
 import {
   ErrorAlert,
-  IconTile,
   formatAddressOption,
   formatRestaurantLocationMeta,
   formatRestaurantValueMeta,
 } from './shared'
+import { IconTile } from './icon-tile'
 
 type AddressItem = {
   key: string
