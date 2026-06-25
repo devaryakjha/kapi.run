@@ -11,8 +11,10 @@ import type {
 import {
   ApiError,
   ErrorAlert,
+  addPlainDraftItem,
   applyParticipantSubmission,
   api,
+  changeDraftLineQuantity,
   getOrCreateLocalParticipantId,
   getSessionLinkParts,
   isSessionLockedForParticipants,
@@ -104,24 +106,15 @@ function RouteComponent() {
   }, [])
 
   function changeDraftLine(lineId: string, delta: number) {
-    const current = state.draft[lineId]
-    const nextQuantity = Math.max(current.quantity + delta, 0)
-    const draft = { ...state.draft }
-    if (nextQuantity === 0) {
-      delete draft[lineId]
-    } else {
-      draft[lineId] = { ...current, quantity: nextQuantity }
-    }
-    setState({ draft, notice: null })
+    setState({
+      draft: changeDraftLineQuantity(state.draft, lineId, delta),
+      notice: null,
+    })
   }
 
   function addPlainItem(menuItemId: string) {
-    const current = state.draft[menuItemId]
     setState({
-      draft: {
-        ...state.draft,
-        [menuItemId]: { ...current, quantity: current.quantity + 1 },
-      },
+      draft: addPlainDraftItem(state.draft, menuItemId),
       notice: null,
     })
   }

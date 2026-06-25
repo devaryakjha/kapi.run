@@ -27,6 +27,38 @@ export type DraftCartLine = {
   unitPrice?: number
 }
 export type DraftCart = Record<string, DraftCartLine>
+
+export function addPlainDraftItem(
+  draft: DraftCart,
+  menuItemId: string,
+): DraftCart {
+  const current = draft[menuItemId]
+  return {
+    ...draft,
+    [menuItemId]: {
+      id: menuItemId,
+      menuItemId,
+      quantity: (current?.quantity ?? 0) + 1,
+    },
+  }
+}
+
+export function changeDraftLineQuantity(
+  draft: DraftCart,
+  lineId: string,
+  delta: number,
+): DraftCart {
+  const current = draft[lineId]
+  if (!current) return draft
+  const nextQuantity = Math.max(current.quantity + delta, 0)
+  if (nextQuantity === 0) {
+    const next = { ...draft }
+    delete next[lineId]
+    return next
+  }
+  return { ...draft, [lineId]: { ...current, quantity: nextQuantity } }
+}
+
 export type RelaySessionRecord = {
   ciphertext: string
   updatedAt: string

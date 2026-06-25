@@ -4,7 +4,9 @@ import type { RelayRecord } from '../../../../api/src/index'
 import { decideRelayWrite } from '../../../../api/src/index'
 
 import {
+  addPlainDraftItem,
   applyParticipantSubmission,
+  changeDraftLineQuantity,
   hasOrganizerCapability,
   hashOrganizerSecret,
   isSessionLockedForParticipants,
@@ -460,6 +462,36 @@ describe('applyParticipantSubmission', () => {
       customizationSummary: 'Size: Large, Bun: Brioche',
       price: 139,
     })
+  })
+})
+
+describe('draft cart helpers', () => {
+  it('adds a plain item as a stable draft line', () => {
+    expect(addPlainDraftItem({}, 'menu-swiggy-1')).toEqual({
+      'menu-swiggy-1': {
+        id: 'menu-swiggy-1',
+        menuItemId: 'menu-swiggy-1',
+        quantity: 1,
+      },
+    })
+  })
+
+  it('increments an existing plain draft line', () => {
+    const draft = addPlainDraftItem({}, 'menu-swiggy-1')
+
+    expect(addPlainDraftItem(draft, 'menu-swiggy-1')).toEqual({
+      'menu-swiggy-1': {
+        id: 'menu-swiggy-1',
+        menuItemId: 'menu-swiggy-1',
+        quantity: 2,
+      },
+    })
+  })
+
+  it('removes a draft line when quantity reaches zero', () => {
+    const draft = addPlainDraftItem({}, 'menu-swiggy-1')
+
+    expect(changeDraftLineQuantity(draft, 'menu-swiggy-1', -1)).toEqual({})
   })
 })
 
