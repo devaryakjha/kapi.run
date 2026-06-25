@@ -59,9 +59,7 @@ export function parseParticipantJoinTarget(
 
   try {
     const url = new URL(raw, 'http://kapi.local')
-    const inviteId =
-      readTargetToken(url.searchParams.get('i')) ??
-      readTargetToken(url.searchParams.get('invite'))
+    const inviteId = readTargetToken(url.searchParams.get('i'))
     if (inviteId) return { inviteId }
     const sessionId = readTargetToken(url.searchParams.get('session'))
     const key =
