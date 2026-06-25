@@ -14,6 +14,15 @@ describe('parseParticipantJoinTarget', () => {
     ).toEqual({ inviteId: 'invite1' })
   })
 
+  it('ignores the legacy invite query alias', () => {
+    expect(
+      parseParticipantJoinTarget(
+        'https://app.kapi.run/join?invite=invite1',
+        '',
+      ),
+    ).toBeNull()
+  })
+
   it('reads a pasted invite code', () => {
     expect(parseParticipantJoinTarget('invite1', '')).toEqual({
       inviteId: 'invite1',
