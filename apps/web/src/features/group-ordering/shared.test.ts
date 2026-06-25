@@ -1,4 +1,9 @@
-import type { KapiSession, RelayWritePayload, SessionStatus } from '@kapi/spec'
+import type {
+  KapiSession,
+  RelaySessionRecord,
+  RelayWritePayload,
+  SessionStatus,
+} from '@kapi/spec'
 import { describe, expect, it } from 'vitest'
 import type { RelayRecord } from '../../../../api/src/index'
 import {
@@ -20,9 +25,47 @@ import {
   getOrderSubtotal,
   isSessionLockedForParticipants,
   makeCartPayload,
+  makeSessionKey,
   makeManualFallback,
+  mergeRelayParticipantSubmissions,
   resolveSetupCutoffAt,
 } from './shared'
+
+const encoder = new TextEncoder()
+
+function bytesToBase64Url(bytes: Uint8Array) {
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '')
+}
+
+function base64UrlToBytes(value: string) {
+  const base64 = value
+    .replaceAll('-', '+')
+    .replaceAll('_', '/')
+    .padEnd(Math.ceil(value.length / 4) * 4, '=')
+  return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
+}
+
+async function encryptSubmission(value: unknown, key: string) {
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    base64UrlToBytes(key),
+    'AES-GCM',
+    false,
+    ['encrypt'],
+  )
+  const ciphertext = new Uint8Array(
+    await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      cryptoKey,
+      encoder.encode(JSON.stringify(value)),
+    ),
+  )
+  return `${bytesToBase64Url(iv)}.${bytesToBase64Url(ciphertext)}`
+}
 
 function session(status: SessionStatus, cutoffAt?: string): KapiSession {
   return {
@@ -725,6 +768,59 @@ describe('applyRelayParticipantSubmission', () => {
       joinedAt: '2026-06-19T12:02:00.000Z',
       submittedAt: '2026-06-19T12:02:00.000Z',
     })
+  })
+})
+
+describe('mergeRelayParticipantSubmissions', () => {
+  it('applies sorted decrypted submissions and skips bad ciphertext', async () => {
+    const key = await makeSessionKey()
+    const record: RelaySessionRecord = {
+      ciphertext: 'organizer-session',
+      updatedAt: 'version-1',
+      participantSubmissions: {
+        'participant-b': {
+          ciphertext: await encryptSubmission(
+            {
+              participantName: 'Blair',
+              items: [cartItem('swiggy-2', 2, true, 'participant-b', 'Blair')],
+            },
+            key,
+          ),
+          updatedAt: '2026-06-19T12:02:00.000Z',
+        },
+        'participant-bad': {
+          ciphertext: 'not-valid',
+          updatedAt: '2026-06-19T12:03:00.000Z',
+        },
+        'participant-a': {
+          ciphertext: await encryptSubmission(
+            {
+              participantName: 'Asha',
+              items: [cartItem('swiggy-1', 1, true, 'participant-a', 'Asha')],
+            },
+            key,
+          ),
+          updatedAt: '2026-06-19T12:01:00.000Z',
+        },
+      },
+    }
+
+    const next = await mergeRelayParticipantSubmissions(
+      session('open'),
+      record,
+      key,
+    )
+
+    expect(next.participants.map((participant) => participant.id)).toEqual([
+      'participant-a',
+      'participant-b',
+    ])
+    expect(
+      next.items.map((item) => [item.participantId, item.quantity]),
+    ).toEqual([
+      ['participant-a', 1],
+      ['participant-b', 2],
+    ])
   })
 })
 

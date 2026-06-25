@@ -452,7 +452,7 @@ export function applyRelayParticipantSubmission(
   } satisfies KapiSession
 }
 
-async function mergeRelayParticipantSubmissions(
+export async function mergeRelayParticipantSubmissions(
   session: KapiSession,
   record: RelaySessionRecord,
   key: string,
@@ -461,13 +461,27 @@ async function mergeRelayParticipantSubmissions(
   const submissions = Object.entries(record.participantSubmissions ?? {}).sort(
     ([left], [right]) => left.localeCompare(right),
   )
-  for (const [participantId, submission] of submissions) {
+  const decrypted = await Promise.all(
+    submissions.map(async ([participantId, submission]) => {
+      try {
+        return {
+          participantId,
+          submittedAt: submission.updatedAt,
+          value: await decryptSession<unknown>(submission.ciphertext, key),
+        }
+      } catch {
+        return null
+      }
+    }),
+  )
+  for (const submission of decrypted) {
+    if (!submission) continue
     try {
       next = applyRelayParticipantSubmission(
         next,
-        participantId,
-        await decryptSession<unknown>(submission.ciphertext, key),
-        submission.updatedAt,
+        submission.participantId,
+        submission.value,
+        submission.submittedAt,
       )
     } catch {
       continue
