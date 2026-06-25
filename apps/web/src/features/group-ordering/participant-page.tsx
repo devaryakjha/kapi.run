@@ -536,7 +536,7 @@ function ItemDetailDialog({
             <img
               src={imageUrl}
               alt={item.name}
-              className="h-64 w-full object-cover outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
+              className="h-64 w-full object-cover outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
             />
           ) : (
             <div className="flex h-40 w-full items-center justify-center bg-muted">
@@ -657,7 +657,7 @@ function VariantGroupControl({
               'flex min-h-10 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-[colors,scale] duration-150 active:scale-[0.96]',
               value === choice.id
                 ? 'border-primary/40 bg-primary/5'
-                : 'border-border hover:border-primary/30 hover:bg-primary/[0.02]',
+                : 'border-border hover:border-primary/30 hover:bg-primary/2',
               choice.inStock === false && 'pointer-events-none opacity-40',
             )}
           >
@@ -724,7 +724,7 @@ function AddonGroupControl({
               'flex min-h-10 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-[colors,scale] duration-150 active:scale-[0.96]',
               value.includes(choice.id)
                 ? 'border-primary/40 bg-primary/5'
-                : 'border-border hover:border-primary/30 hover:bg-primary/[0.02]',
+                : 'border-border hover:border-primary/30 hover:bg-primary/2',
             )}
           >
             <input
