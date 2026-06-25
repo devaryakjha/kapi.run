@@ -11,11 +11,9 @@ import type {
   Restaurant,
   SessionInvite,
 } from '@kapi/spec'
-import type { LucideIcon } from 'lucide-react'
 import { AlertTriangle } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
-import { cn } from '#/lib/utils'
 
 export type DraftCartLine = {
   id: string
@@ -881,45 +879,5 @@ export function ErrorAlert({
       <AlertTitle>Something went wrong</AlertTitle>
       <AlertDescription>{message}</AlertDescription>
     </Alert>
-  )
-}
-
-export function SummaryRow({
-  label,
-  value,
-  strong,
-}: {
-  label: string
-  value: string
-  strong?: boolean
-}) {
-  return (
-    <div className="flex justify-between text-[13px] leading-4.5 text-muted-foreground">
-      <span>{label}</span>
-      <span
-        className={cn('font-mono', strong && 'font-medium text-foreground')}
-      >
-        {value}
-      </span>
-    </div>
-  )
-}
-
-export function IconTile({
-  icon: Icon,
-  className,
-}: {
-  icon: LucideIcon
-  className?: string
-}) {
-  return (
-    <div
-      className={cn(
-        'flex size-12 shrink-0 items-center justify-center rounded border border-border bg-muted text-muted-foreground',
-        className,
-      )}
-    >
-      <Icon />
-    </div>
   )
 }
