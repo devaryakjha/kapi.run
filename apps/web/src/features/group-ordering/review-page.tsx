@@ -181,6 +181,7 @@ export function OrganizerReviewPage({
             {isOrganizer ? (
               <div className="flex flex-col gap-2 rounded-xl border border-border p-4 sm:flex-row sm:items-center">
                 <Input
+                  aria-label="Share link"
                   readOnly
                   value={session.shareUrl}
                   className="min-w-0 flex-1 font-mono text-xs"
@@ -541,6 +542,8 @@ function ReviewItem({
           <div className="flex items-center gap-1">
             <div className="flex h-7 items-center rounded-full border border-border">
               <button
+                type="button"
+                aria-label={`Decrease ${item.name}`}
                 onClick={() => onUpdate(item.quantity - 1)}
                 className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96]"
               >
@@ -550,6 +553,8 @@ function ReviewItem({
                 {item.quantity}
               </span>
               <button
+                type="button"
+                aria-label={`Increase ${item.name}`}
                 onClick={() => onUpdate(item.quantity + 1)}
                 className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96]"
               >
@@ -557,6 +562,8 @@ function ReviewItem({
               </button>
             </div>
             <button
+              type="button"
+              aria-label={`Remove ${item.name}`}
               onClick={onRemove}
               className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-destructive/10 hover:text-destructive active:scale-[0.96]"
             >

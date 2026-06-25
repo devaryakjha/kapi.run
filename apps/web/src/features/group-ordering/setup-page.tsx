@@ -139,6 +139,7 @@ export function OrganizerSetupPage({
                     Your Swiggy addresses are ready to use.
                   </p>
                   <button
+                    type="button"
                     onClick={onConnect}
                     className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-foreground"
                   >

@@ -180,8 +180,12 @@ export function ParticipantMenuPage({
           <div className="sticky top-0 z-5 border-b border-border bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm md:px-6">
             <div className="mx-auto max-w-3xl">
               <div className="relative">
+                <label htmlFor="menu-search" className="sr-only">
+                  Search menu
+                </label>
                 <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <input
+                  id="menu-search"
                   value={query}
                   onChange={(e) => {
                     setQuery(e.target.value)
@@ -194,6 +198,7 @@ export function ParticipantMenuPage({
               <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5">
                 {categories.map((cat) => (
                   <button
+                    type="button"
                     key={cat}
                     onClick={() => {
                       setActiveCategory(cat)
@@ -226,10 +231,14 @@ export function ParticipantMenuPage({
 
               <div className="mb-4 md:hidden">
                 <Field className="gap-1.5">
-                  <FieldLabel className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  <FieldLabel
+                    htmlFor="participant-name"
+                    className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+                  >
                     Your name
                   </FieldLabel>
                   <Input
+                    id="participant-name"
                     value={participantName}
                     onChange={(e) => onNameChange(e.target.value)}
                     placeholder="Enter your name"
@@ -425,6 +434,8 @@ function MenuCard({
           {quantity > 0 ? (
             <div className="flex h-8 items-center rounded-full border border-primary/40 bg-primary/5">
               <button
+                type="button"
+                aria-label={`Remove ${item.name}`}
                 onClick={onRemove}
                 disabled={locked}
                 className="flex size-8 items-center justify-center rounded-full text-primary transition-[colors,scale] duration-150 hover:bg-primary/10 active:scale-[0.96] disabled:pointer-events-none"
@@ -435,6 +446,8 @@ function MenuCard({
                 {quantity}
               </span>
               <button
+                type="button"
+                aria-label={`Add ${item.name}`}
                 onClick={onAdd}
                 disabled={locked || !item.available}
                 className="flex size-8 items-center justify-center rounded-full text-primary transition-[colors,scale] duration-150 hover:bg-primary/10 active:scale-[0.96] disabled:pointer-events-none"
@@ -937,10 +950,14 @@ function CartSidebar({
           ) : null}
         </div>
         <div className="mt-3">
-          <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+          <label
+            htmlFor="cart-participant-name"
+            className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+          >
             Your name
           </label>
           <input
+            id="cart-participant-name"
             value={participantName}
             onChange={(e) => onNameChange(e.target.value)}
             placeholder="Enter your name"
@@ -1048,6 +1065,8 @@ function CartLineList({
           <div className="flex items-center gap-1">
             <div className="flex h-7 items-center rounded-full border border-border">
               <button
+                type="button"
+                aria-label={`Decrease ${item.name}`}
                 onClick={() => onQuantityChange(line.id, -1)}
                 disabled={locked}
                 className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96] disabled:pointer-events-none"
@@ -1058,6 +1077,8 @@ function CartLineList({
                 {line.quantity}
               </span>
               <button
+                type="button"
+                aria-label={`Increase ${item.name}`}
                 onClick={() => onQuantityChange(line.id, 1)}
                 disabled={locked}
                 className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96] disabled:pointer-events-none"
@@ -1066,6 +1087,8 @@ function CartLineList({
               </button>
             </div>
             <button
+              type="button"
+              aria-label={`Remove ${item.name}`}
               onClick={() => onQuantityChange(line.id, -line.quantity)}
               disabled={locked}
               className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-destructive/10 hover:text-destructive active:scale-[0.96] disabled:pointer-events-none"

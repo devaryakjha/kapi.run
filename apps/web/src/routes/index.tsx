@@ -97,10 +97,14 @@ function Home() {
 
               <form onSubmit={joinSession} className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  <label
+                    htmlFor="session-info"
+                    className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+                  >
                     Session info
                   </label>
                   <input
+                    id="session-info"
                     value={sessionOrLink}
                     onChange={(e) => {
                       setSessionOrLink(e.target.value)
