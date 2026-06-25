@@ -118,6 +118,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const { headers, ...rest } = init ?? {}
   const response = await fetch(`${API_URL}${path}`, {
     ...rest,
+    credentials: 'include',
     headers: { 'content-type': 'application/json', ...headers },
   })
 
@@ -287,12 +288,17 @@ export async function resolveSessionLinkParts(
 export async function loadMenuCustomization({
   addressId,
   item,
+  sessionId,
+  sessionKey,
 }: {
   addressId: string
   item: MenuItem
+  sessionId: string
+  sessionKey: string
 }) {
   return api<MenuCustomization>(
-    `/food/restaurants/${item.restaurantId}/menu/${item.swiggyItemId}/customization?addressId=${encodeURIComponent(addressId)}&q=${encodeURIComponent(item.name)}`,
+    `/food/restaurants/${item.restaurantId}/menu/${item.swiggyItemId}/customization?addressId=${encodeURIComponent(addressId)}&q=${encodeURIComponent(item.name)}&sessionId=${encodeURIComponent(sessionId)}`,
+    { headers: { 'x-kapi-session-key': sessionKey } },
   )
 }
 

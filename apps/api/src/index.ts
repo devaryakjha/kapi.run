@@ -19,10 +19,11 @@ import type {
 const port = Number(process.env.PORT ?? 3001);
 const publicWebUrl = process.env.KAPI_WEB_URL ?? "http://127.0.0.1:3000";
 const redirectUri =
-  process.env.SWIGGY_REDIRECT_URI ?? `http://localhost:${port}/auth/callback`;
+  process.env.SWIGGY_REDIRECT_URI ?? `http://127.0.0.1:${port}/auth/callback`;
 const swiggyBase = "https://mcp.swiggy.com";
 const swiggyFoodUrl = `${swiggyBase}/food`;
 const publicWebOrigin = new URL(publicWebUrl).origin;
+const swiggyOwnerCookieName = "kapi_swiggy_owner";
 const dataDir = process.env.KAPI_DATA_DIR;
 const tokenFile = dataDir
   ? join(dataDir, ".kapi-swiggy-token.json")
@@ -45,7 +46,11 @@ const allowedOrigins = new Set([
 ]);
 
 type OAuthClient = { client_id: string };
-type Token = { access_token: string; expires_at: number };
+type Token = {
+  access_token: string;
+  expires_at: number;
+  ownerSecretHash?: string;
+};
 type ToolEnvelope = {
   success?: boolean;
   successful?: boolean;
@@ -68,18 +73,20 @@ type AuthCallbackContext = {
   query: { code?: string; state?: string };
   set: StatusSetter;
 };
-type RestaurantQueryContext = { query: { addressId: string; q: string } };
-type MenuQueryContext = {
-  params: { restaurantId: string };
-  query: { addressId: string; q?: string };
+type RestaurantQueryContext = RequestContext & {
+  query: { addressId: string; q: string; sessionId?: string };
 };
-type MenuItemDetailQueryContext = {
+type MenuQueryContext = RequestContext & {
+  params: { restaurantId: string };
+  query: { addressId: string; q?: string; sessionId?: string };
+};
+type MenuItemDetailQueryContext = RequestContext & {
   params: { restaurantId: string; itemId: string };
-  query: { addressId: string; q?: string };
+  query: { addressId: string; q?: string; sessionId?: string };
   set: StatusSetter;
 };
 type CartQueryContext = {
-  query: { addressId: string; restaurantName?: string };
+  query: { addressId: string; restaurantName?: string; sessionId?: string };
   request: Request;
 };
 type CartSyncContext = RequestContext & {
@@ -108,6 +115,13 @@ let token: Token | null = process.env.SWIGGY_MCP_ACCESS_TOKEN
   ? {
       access_token: process.env.SWIGGY_MCP_ACCESS_TOKEN,
       expires_at: Date.now() + 4 * 24 * 60 * 60 * 1000,
+      ...(process.env.KAPI_SWIGGY_OWNER_SECRET
+        ? {
+            ownerSecretHash: await sha256Base64Url(
+              process.env.KAPI_SWIGGY_OWNER_SECRET,
+            ),
+          }
+        : {}),
     }
   : await readTokenFromFile(tokenFile);
 
@@ -176,6 +190,64 @@ function safeReturnUrl(next: string | undefined) {
   } catch {
     return publicWebUrl;
   }
+}
+
+function cookieValue(request: Request, name: string) {
+  return (
+    request.headers
+      .get("cookie")
+      ?.split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${name}=`))
+      ?.slice(name.length + 1) ?? null
+  );
+}
+
+function swiggyOwnerCookie(secret: string, maxAgeSeconds: number) {
+  const secure = publicWebUrl.startsWith("https:") ? "; Secure" : "";
+  return `${swiggyOwnerCookieName}=${encodeURIComponent(secret)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${maxAgeSeconds}${secure}`;
+}
+
+async function hasSwiggyOwner(request: Request) {
+  const secret = cookieValue(request, swiggyOwnerCookieName);
+  if (!secret || !token?.ownerSecretHash) return false;
+  return token.ownerSecretHash === (await sha256Base64Url(secret));
+}
+
+function hasSessionKeyProof(sessionId: string, sessionKey: string | null) {
+  return Boolean(
+    sessionKey &&
+    Object.values(invites).some(
+      (invite) => invite.sessionId === sessionId && invite.key === sessionKey,
+    ),
+  );
+}
+
+async function assertSwiggyReadAccess(
+  request: Request,
+  options: { sessionId?: string; allowSessionKey?: boolean } = {},
+) {
+  assertConnected();
+  if (await hasSwiggyOwner(request)) return;
+
+  const sessionId = options.sessionId;
+  if (sessionId) {
+    const record = relay[sessionId];
+    if (
+      await hasOrganizerProof(
+        record?.metadata,
+        request.headers.get("x-kapi-organizer-secret"),
+      )
+    )
+      return;
+    if (
+      options.allowSessionKey === true &&
+      hasSessionKeyProof(sessionId, request.headers.get("x-kapi-session-key"))
+    )
+      return;
+  }
+
+  throw Object.assign(new Error("Organizer access required."), { status: 403 });
 }
 
 function randomBase64Url(bytes = 32) {
@@ -699,7 +771,12 @@ function normalizeCustomization(raw: unknown): MenuCustomization {
 }
 
 export const app = new Elysia()
-  .use(cors({ origin: (request: Request) => isAllowedOrigin(request) }))
+  .use(
+    cors({
+      origin: (request: Request) => isAllowedOrigin(request),
+      credentials: true,
+    }),
+  )
   .onError(({ error }) => {
     const status =
       typeof (error as { status?: unknown }).status === "number"
@@ -717,8 +794,12 @@ export const app = new Elysia()
     providerMode: "swiggy",
   }))
   .get("/health", () => ({ status: "ok" }))
-  .get("/auth/status", () => ({
-    connected: Boolean(token && token.expires_at > Date.now() + 60_000),
+  .get("/auth/status", async ({ request }: RequestContext) => ({
+    connected: Boolean(
+      token &&
+      token.expires_at > Date.now() + 60_000 &&
+      (await hasSwiggyOwner(request)),
+    ),
     expiresAt: token?.expires_at ?? null,
   }))
   .get(
@@ -778,11 +859,19 @@ export const app = new Elysia()
         access_token: string;
         expires_in?: number;
       };
+      const expiresIn = body.expires_in ?? 432000;
+      const ownerSecret = randomBase64Url(32);
       await saveToken({
         access_token: body.access_token,
-        expires_at: Date.now() + (body.expires_in ?? 432000) * 1000,
+        expires_at: Date.now() + expiresIn * 1000,
+        ownerSecretHash: await sha256Base64Url(ownerSecret),
       });
-      return Response.redirect(state.next, 302);
+      const redirect = Response.redirect(state.next, 302);
+      redirect.headers.append(
+        "set-cookie",
+        swiggyOwnerCookie(ownerSecret, expiresIn),
+      );
+      return redirect;
     },
     {
       query: t.Object({
@@ -794,9 +883,12 @@ export const app = new Elysia()
   .post("/auth/logout", async ({ request }: RequestContext) => {
     assertAllowedOrigin(request);
     await saveToken(null);
-    return { connected: false };
+    const response = jsonResponse({ connected: false });
+    response.headers.append("set-cookie", swiggyOwnerCookie("", 0));
+    return response;
   })
-  .get("/food/addresses", async () => {
+  .get("/food/addresses", async ({ request }: RequestContext) => {
+    await assertSwiggyReadAccess(request);
     const data = await callSwiggyTool("get_addresses");
     return findArray(data)
       .map(normalizeAddress)
@@ -804,7 +896,8 @@ export const app = new Elysia()
   })
   .get(
     "/food/restaurants",
-    async ({ query }: RestaurantQueryContext) => {
+    async ({ query, request }: RestaurantQueryContext) => {
+      await assertSwiggyReadAccess(request, { sessionId: query.sessionId });
       const data = await callSwiggyTool("search_restaurants", {
         addressId: query.addressId,
         query: query.q,
@@ -813,11 +906,21 @@ export const app = new Elysia()
         .map(normalizeRestaurant)
         .filter((restaurant) => restaurant.id);
     },
-    { query: t.Object({ addressId: t.String(), q: t.String() }) },
+    {
+      query: t.Object({
+        addressId: t.String(),
+        q: t.String(),
+        sessionId: t.Optional(t.String()),
+      }),
+    },
   )
   .get(
     "/food/restaurants/:restaurantId/menu",
-    async ({ params, query }: MenuQueryContext) => {
+    async ({ params, query, request }: MenuQueryContext) => {
+      await assertSwiggyReadAccess(request, {
+        sessionId: query.sessionId,
+        allowSessionKey: true,
+      });
       const data = await callSwiggyTool("get_restaurant_menu", {
         addressId: query.addressId,
         restaurantId: params.restaurantId,
@@ -835,12 +938,20 @@ export const app = new Elysia()
     },
     {
       params: t.Object({ restaurantId: t.String() }),
-      query: t.Object({ addressId: t.String(), q: t.Optional(t.String()) }),
+      query: t.Object({
+        addressId: t.String(),
+        q: t.Optional(t.String()),
+        sessionId: t.Optional(t.String()),
+      }),
     },
   )
   .get(
     "/food/restaurants/:restaurantId/menu/:itemId/customization",
-    async ({ params, query, set }: MenuItemDetailQueryContext) => {
+    async ({ params, query, request, set }: MenuItemDetailQueryContext) => {
+      await assertSwiggyReadAccess(request, {
+        sessionId: query.sessionId,
+        allowSessionKey: true,
+      });
       const data = await callSwiggyTool("search_menu", {
         addressId: query.addressId,
         query: query.q || params.itemId,
@@ -863,13 +974,17 @@ export const app = new Elysia()
     },
     {
       params: t.Object({ restaurantId: t.String(), itemId: t.String() }),
-      query: t.Object({ addressId: t.String(), q: t.Optional(t.String()) }),
+      query: t.Object({
+        addressId: t.String(),
+        q: t.Optional(t.String()),
+        sessionId: t.Optional(t.String()),
+      }),
     },
   )
   .get(
     "/food/cart",
     async ({ query, request }: CartQueryContext) => {
-      assertAllowedOrigin(request);
+      await assertSwiggyReadAccess(request, { sessionId: query.sessionId });
       const cart = await callSwiggyTool("get_food_cart", {
         addressId: query.addressId,
         ...(query.restaurantName
@@ -882,6 +997,7 @@ export const app = new Elysia()
       query: t.Object({
         addressId: t.String(),
         restaurantName: t.Optional(t.String()),
+        sessionId: t.Optional(t.String()),
       }),
     },
   )

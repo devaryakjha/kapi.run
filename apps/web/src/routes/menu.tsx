@@ -118,7 +118,8 @@ function RouteComponent() {
       }
       const participantId = participantIdRef.current
       const loadedMenu = await api<MenuItem[]>(
-        `/food/restaurants/${loaded.restaurant.id}/menu?addressId=${loaded.address.id}`,
+        `/food/restaurants/${loaded.restaurant.id}/menu?addressId=${encodeURIComponent(loaded.address.id)}&sessionId=${encodeURIComponent(sessionId)}`,
+        { headers: { 'x-kapi-session-key': key } },
       )
       const search = new URLSearchParams(window.location.search)
       const participantName = isOrganizerMode
@@ -308,7 +309,12 @@ function RouteComponent() {
       onAddCustomItem={addCustomItem}
       onAddPlainItem={addPlainItem}
       onLoadCustomization={(item) =>
-        loadMenuCustomization({ addressId: state.session!.address.id, item })
+        loadMenuCustomization({
+          addressId: state.session!.address.id,
+          item,
+          sessionId: state.session!.id,
+          sessionKey: sessionKeyRef.current,
+        })
       }
       onNameChange={(participantName) =>
         setState({ participantName, notice: null })
