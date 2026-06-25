@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useReducer, useState } from 'react'
 import type {
   CartCustomization,
   KapiSession,
@@ -485,36 +485,33 @@ function ItemDetailDialog({
   onLoadCustomization: (item: MenuItem) => Promise<MenuCustomization>
 }) {
   const customizable = Boolean(item.hasVariants || item.hasAddons)
-  const [detail, setDetail] = useState<MenuCustomization | null>(null)
-  const [selectedVariants, setSelectedVariants] = useState<
-    Record<string, string>
-  >({})
-  const [selectedAddons, setSelectedAddons] = useState<
-    Record<string, string[]>
-  >({})
-  const [pending, setPending] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [storedDetailState, dispatchDetail] = useReducer(
+    itemDetailReducer,
+    item.id,
+    initialItemDetailState,
+  )
+  const detailState =
+    storedDetailState.itemId === item.id
+      ? storedDetailState
+      : initialItemDetailState(item.id)
+  const { detail, selectedVariants, selectedAddons, pending, error } =
+    detailState
 
   useEffect(() => {
     let cancelled = false
-    setDetail(null)
-    setError(null)
-    setSelectedVariants({})
-    setSelectedAddons({})
-
-    setPending(true)
     onLoadCustomization(item)
       .then((next) => {
         if (cancelled) return
-        setDetail(next)
-        setSelectedVariants(defaultVariantSelections(next.variantsV2 ?? []))
-        setSelectedAddons(defaultAddonSelections(next.addons ?? []))
+        dispatchDetail({ type: 'loaded', itemId: item.id, detail: next })
       })
       .catch((caught: Error) => {
-        if (!cancelled) setError(caught.message)
-      })
-      .finally(() => {
-        if (!cancelled) setPending(false)
+        if (!cancelled) {
+          dispatchDetail({
+            type: 'failed',
+            itemId: item.id,
+            error: caught.message,
+          })
+        }
       })
 
     return () => {
@@ -545,7 +542,7 @@ function ItemDetailDialog({
       selectedAddons,
     )
     if (validationError) {
-      setError(validationError)
+      dispatchDetail({ type: 'setError', error: validationError })
       return
     }
 
@@ -621,10 +618,11 @@ function ItemDetailDialog({
                     group={group}
                     value={selectedVariants[group.groupId]}
                     onChange={(variationId) =>
-                      setSelectedVariants((current) => ({
-                        ...current,
-                        [group.groupId]: variationId,
-                      }))
+                      dispatchDetail({
+                        type: 'selectVariant',
+                        groupId: group.groupId,
+                        variationId,
+                      })
                     }
                   />
                 ))}
@@ -633,12 +631,13 @@ function ItemDetailDialog({
                   <AddonGroupControl
                     key={group.groupId}
                     group={group}
-                    value={selectedAddons[group.groupId]}
+                    value={selectedAddons[group.groupId] ?? []}
                     onChange={(choiceIds) =>
-                      setSelectedAddons((current) => ({
-                        ...current,
-                        [group.groupId]: choiceIds,
-                      }))
+                      dispatchDetail({
+                        type: 'selectAddons',
+                        groupId: group.groupId,
+                        choiceIds,
+                      })
                     }
                   />
                 ))}
@@ -664,6 +663,76 @@ function ItemDetailDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+type ItemDetailState = {
+  itemId: string
+  detail: MenuCustomization | null
+  selectedVariants: Record<string, string>
+  selectedAddons: Record<string, string[]>
+  pending: boolean
+  error: string | null
+}
+
+type ItemDetailAction =
+  | { type: 'loaded'; itemId: string; detail: MenuCustomization }
+  | { type: 'failed'; itemId: string; error: string }
+  | { type: 'selectVariant'; groupId: string; variationId: string }
+  | { type: 'selectAddons'; groupId: string; choiceIds: string[] }
+  | { type: 'setError'; error: string | null }
+
+function initialItemDetailState(itemId: string): ItemDetailState {
+  return {
+    itemId,
+    detail: null,
+    selectedVariants: {},
+    selectedAddons: {},
+    pending: true,
+    error: null,
+  }
+}
+
+function itemDetailReducer(
+  state: ItemDetailState,
+  action: ItemDetailAction,
+): ItemDetailState {
+  switch (action.type) {
+    case 'loaded':
+      return {
+        itemId: action.itemId,
+        detail: action.detail,
+        selectedVariants: defaultVariantSelections(
+          action.detail.variantsV2 ?? [],
+        ),
+        selectedAddons: defaultAddonSelections(action.detail.addons ?? []),
+        pending: false,
+        error: null,
+      }
+    case 'failed':
+      return {
+        ...initialItemDetailState(action.itemId),
+        pending: false,
+        error: action.error,
+      }
+    case 'selectVariant':
+      return {
+        ...state,
+        selectedVariants: {
+          ...state.selectedVariants,
+          [action.groupId]: action.variationId,
+        },
+      }
+    case 'selectAddons':
+      return {
+        ...state,
+        selectedAddons: {
+          ...state.selectedAddons,
+          [action.groupId]: action.choiceIds,
+        },
+      }
+    case 'setError':
+      return { ...state, error: action.error }
+  }
 }
 
 function VariantGroupControl({
@@ -825,7 +894,7 @@ function buildCartCustomization(
 
   const addons =
     detail.addons?.flatMap((group) =>
-      selectedAddons[group.groupId].flatMap((choiceId) => {
+      (selectedAddons[group.groupId] ?? []).flatMap((choiceId) => {
         const selected = group.choices.find((choice) => choice.id === choiceId)
         return selected
           ? [
@@ -860,7 +929,7 @@ function validateAddonSelections(
   selectedAddons: Record<string, string[]>,
 ) {
   for (const group of groups) {
-    const count = selectedAddons[group.groupId].length
+    const count = (selectedAddons[group.groupId] ?? []).length
     if (count < (group.minAddons ?? 0)) {
       return `Choose at least ${group.minAddons} from ${group.groupName}.`
     }
