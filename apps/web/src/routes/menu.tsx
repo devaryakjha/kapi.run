@@ -28,6 +28,8 @@ import {
   localParticipantNameKey,
   publishSession,
   resolveSessionLinkParts,
+  safeLocalStorageGet,
+  safeLocalStorageSet,
 } from '#/features/group-ordering/shared'
 
 export const Route = createFileRoute('/menu')({
@@ -52,7 +54,7 @@ function initialMenuState(): MenuState {
   const search = new URLSearchParams(window.location.search)
   const name =
     search.get('name') ??
-    (sessionId ? localStorage.getItem(localParticipantNameKey(sessionId)) : '')
+    (sessionId ? safeLocalStorageGet(localParticipantNameKey(sessionId)) : '')
   return {
     menu: [],
     session: null,
@@ -118,7 +120,7 @@ function RouteComponent() {
         initialParts.owner &&
         (await hasOrganizerCapability(loaded, organizerSecret))
       if (isOrganizerMode && organizerSecret) {
-        localStorage.setItem(localOrganizerKeyKey(sessionId), organizerSecret)
+        safeLocalStorageSet(localOrganizerKeyKey(sessionId), organizerSecret)
       }
       const participantId = participantIdRef.current
       const loadedMenu = await api<MenuItem[]>(
@@ -129,7 +131,7 @@ function RouteComponent() {
       const participantName = isOrganizerMode
         ? loaded.organiserName
         : (search.get('name') ??
-          localStorage.getItem(localParticipantNameKey(sessionId)) ??
+          safeLocalStorageGet(localParticipantNameKey(sessionId)) ??
           '')
       setState({
         session: loaded,
@@ -215,7 +217,7 @@ function RouteComponent() {
       const participantId =
         participantIdRef.current ||
         getOrCreateLocalParticipantId(state.session.id)
-      localStorage.setItem(localParticipantNameKey(state.session.id), name)
+      safeLocalStorageSet(localParticipantNameKey(state.session.id), name)
 
       const buildUpdated = (latest: KapiSession) => {
         return applyParticipantSubmission({

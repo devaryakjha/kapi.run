@@ -23,6 +23,7 @@ import {
   makeSessionKey,
   publishSession,
   resolveSetupCutoffAt,
+  safeLocalStorageSet,
 } from '#/features/group-ordering/shared'
 
 export const Route = createFileRoute('/new')({
@@ -177,8 +178,8 @@ function RouteComponent() {
         items: [],
         audit: [audit(organiserName, 'created session')],
       }
-      localStorage.setItem(localKeyKey(id), key)
-      localStorage.setItem(localOrganizerKeyKey(id), organizerSecret)
+      safeLocalStorageSet(localKeyKey(id), key)
+      safeLocalStorageSet(localOrganizerKeyKey(id), organizerSecret)
       await publishSession(nextSession, key, {
         role: 'organizer',
         organizerSecret,

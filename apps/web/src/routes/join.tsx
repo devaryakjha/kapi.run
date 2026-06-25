@@ -18,6 +18,8 @@ import {
   loadEncryptedSessionRecord,
   localParticipantNameKey,
   resolveSessionLinkParts,
+  safeLocalStorageGet,
+  safeLocalStorageSet,
 } from '#/features/group-ordering/shared'
 import type { SessionLinkParts } from '#/features/group-ordering/shared'
 
@@ -90,7 +92,7 @@ function Join() {
       setState({
         key: parts.key,
         name:
-          localStorage.getItem(localParticipantNameKey(parts.sessionId)) ?? '',
+          safeLocalStorageGet(localParticipantNameKey(parts.sessionId)) ?? '',
         pending: false,
         session: loaded.session,
       })
@@ -109,7 +111,7 @@ function Join() {
       setState({ error: 'Enter your name to join this order.' })
       return
     }
-    localStorage.setItem(localParticipantNameKey(state.session.id), name)
+    safeLocalStorageSet(localParticipantNameKey(state.session.id), name)
     const url = new URL('/menu', window.location.origin)
     url.searchParams.set('session', state.session.id)
     url.hash = new URLSearchParams({ key: state.key }).toString()
