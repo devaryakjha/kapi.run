@@ -162,7 +162,7 @@ export function ParticipantMenuPage({
               }}
               variant="outline"
               size="sm"
-              className="h-8 rounded-lg px-2.5 text-xs sm:hidden"
+              className="h-9 rounded-lg px-2.5 text-xs transition-[colors,scale] active:scale-[0.96] sm:hidden"
             >
               Review
             </Button>

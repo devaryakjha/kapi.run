@@ -133,26 +133,33 @@ export function OrganizerSetupPage({
               done={authStatus.connected}
               doneLabel="Connected"
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
-                    <Utensils className="size-4 text-muted-foreground" />
-                  </div>
+              {authStatus.connected ? (
+                <div className="flex items-center justify-between gap-3">
                   <p className="text-[13px] leading-5 text-muted-foreground">
-                    {authStatus.connected
-                      ? 'Account linked. Ready to pull addresses.'
-                      : 'Sign in to access your saved addresses.'}
+                    Your Swiggy addresses are ready to use.
                   </p>
+                  <button
+                    onClick={onConnect}
+                    className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Reconnect
+                  </button>
                 </div>
-                <Button
-                  onClick={onConnect}
-                  variant={authStatus.connected ? 'ghost' : 'default'}
-                  size="sm"
-                  className="shrink-0"
-                >
-                  {authStatus.connected ? 'Reconnect' : 'Connect'}
-                </Button>
-              </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
+                      <Utensils className="size-4 text-muted-foreground" />
+                    </div>
+                    <p className="text-[13px] leading-5 text-muted-foreground">
+                      Sign in to access your saved addresses.
+                    </p>
+                  </div>
+                  <Button onClick={onConnect} size="sm" className="shrink-0">
+                    Connect
+                  </Button>
+                </div>
+              )}
             </StepCard>
 
             <StepCard number={2} title="Address & cutoff">
