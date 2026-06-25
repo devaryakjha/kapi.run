@@ -1,7 +1,11 @@
 import type { KapiSession, RelayWritePayload, SessionStatus } from '@kapi/spec'
 import { describe, expect, it } from 'vitest'
 import type { RelayRecord } from '../../../../api/src/index'
-import { decideRelayWrite } from '../../../../api/src/index'
+import {
+  app,
+  authorizeCartSync,
+  decideRelayWrite,
+} from '../../../../api/src/index'
 
 import {
   addPlainDraftItem,
@@ -313,6 +317,68 @@ describe('decideRelayWrite', () => {
   })
 })
 
+describe('authorizeCartSync', () => {
+  async function relayRecord(
+    secret = 'organizer-secret',
+  ): Promise<RelayRecord> {
+    return {
+      ciphertext: 'ciphertext',
+      updatedAt: 'version-1',
+      metadata: {
+        status: 'locked',
+        organizerSecretHash: await hashOrganizerSecret(secret),
+      },
+    }
+  }
+
+  it('accepts a matching organizer secret for the session', async () => {
+    await expect(
+      authorizeCartSync(
+        { 'session-1': await relayRecord() },
+        'session-1',
+        'organizer-secret',
+      ),
+    ).resolves.toBe(true)
+  })
+
+  it('rejects missing or wrong organizer proof', async () => {
+    const sessions = { 'session-1': await relayRecord() }
+
+    await expect(authorizeCartSync(sessions, 'session-1', null)).resolves.toBe(
+      false,
+    )
+    await expect(
+      authorizeCartSync(sessions, 'session-1', 'wrong-secret'),
+    ).resolves.toBe(false)
+    await expect(
+      authorizeCartSync(sessions, 'other-session', 'organizer-secret'),
+    ).resolves.toBe(false)
+  })
+})
+
+describe('/food/cart/sync', () => {
+  it('rejects missing organizer proof before using the Swiggy token', async () => {
+    const response = await app.handle(
+      new Request('http://localhost/food/cart/sync', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ...makeCartPayload({
+            ...session('locked'),
+            items: [cartItem('swiggy-1', 1)],
+          }),
+          replaceExistingCart: true,
+        }),
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toEqual({
+      error: 'Only the organiser can sync the Swiggy cart.',
+    })
+  })
+})
+
 describe('makeCartPayload', () => {
   it('keeps available Swiggy cart lines separate', () => {
     expect(
@@ -321,6 +387,7 @@ describe('makeCartPayload', () => {
         items: [cartItem('swiggy-1', 2), cartItem('swiggy-1', 3)],
       }),
     ).toEqual({
+      sessionId: 'session-1',
       restaurantId: 'restaurant-1',
       restaurantName: 'Cafe',
       addressId: 'address-1',

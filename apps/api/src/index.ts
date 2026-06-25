@@ -227,6 +227,14 @@ async function hasOrganizerProof(
   );
 }
 
+export async function authorizeCartSync(
+  sessions: RelayStore,
+  sessionId: string,
+  organizerSecret: string | null,
+) {
+  return hasOrganizerProof(sessions[sessionId]?.metadata, organizerSecret);
+}
+
 export async function decideRelayWrite(
   current: RelayRecord | undefined,
   body: RelayWrite,
@@ -882,6 +890,16 @@ export const app = new Elysia()
     async ({ body, request, set }: CartSyncContext) => {
       assertAllowedOrigin(request);
       const payload = body;
+      if (
+        !(await authorizeCartSync(
+          relay,
+          payload.sessionId,
+          request.headers.get("x-kapi-organizer-secret"),
+        ))
+      ) {
+        set.status = 403;
+        return { error: "Only the organiser can sync the Swiggy cart." };
+      }
       const existingCart = normalizeCartSummary(
         await callSwiggyTool("get_food_cart", {
           addressId: payload.addressId,
@@ -932,6 +950,7 @@ export const app = new Elysia()
     },
     {
       body: t.Object({
+        sessionId: t.String(),
         restaurantId: t.String(),
         restaurantName: t.Optional(t.String()),
         addressId: t.String(),

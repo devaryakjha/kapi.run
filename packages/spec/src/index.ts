@@ -198,6 +198,7 @@ export type SwiggyCartToolPayload = {
 };
 
 export type SwiggyCartPayload = SwiggyCartToolPayload & {
+  sessionId: string;
   replaceExistingCart?: boolean;
 };
 

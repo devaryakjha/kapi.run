@@ -485,6 +485,7 @@ export function makeManualFallback(
 
 export function makeCartPayload(session: KapiSession) {
   return {
+    sessionId: session.id,
     restaurantId: session.restaurant.id,
     restaurantName: session.restaurant.name,
     addressId: session.address.id,

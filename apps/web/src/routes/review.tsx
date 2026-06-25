@@ -168,6 +168,9 @@ function RouteComponent() {
     try {
       const result = await api<KapiSession['sync']>('/food/cart/sync', {
         method: 'POST',
+        headers: organizerSecretRef.current
+          ? { 'x-kapi-organizer-secret': organizerSecretRef.current }
+          : undefined,
         body: JSON.stringify({
           ...makeCartPayload(state.session),
           replaceExistingCart,
