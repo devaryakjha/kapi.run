@@ -1,6 +1,6 @@
 import { cors } from "@elysiajs/cors";
 import { Elysia, t } from "elysia";
-import { unlink } from "node:fs/promises";
+import { chmod, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type {
   Address,
@@ -108,7 +108,7 @@ let token: Token | null = process.env.SWIGGY_MCP_ACCESS_TOKEN
       access_token: process.env.SWIGGY_MCP_ACCESS_TOKEN,
       expires_at: Date.now() + 4 * 24 * 60 * 60 * 1000,
     }
-  : await readJson<Token | null>(tokenFile, null);
+  : await readTokenFromFile(tokenFile);
 
 async function readJson<T>(path: string, fallback: T): Promise<T> {
   try {
@@ -122,10 +122,22 @@ async function writeJson(path: string, value: unknown) {
   await bunRuntime.write(path, JSON.stringify(value));
 }
 
+export async function readTokenFromFile(path: string) {
+  return readJson<Token | null>(path, null);
+}
+
+export async function saveTokenToFile(path: string, nextToken: Token | null) {
+  if (nextToken) {
+    await writeFile(path, JSON.stringify(nextToken), { mode: 0o600 });
+    await chmod(path, 0o600);
+  } else {
+    await unlink(path).catch(() => {});
+  }
+}
+
 async function saveToken(nextToken: Token | null) {
   token = nextToken;
-  if (nextToken) await writeJson(tokenFile, nextToken);
-  else await unlink(tokenFile).catch(() => {});
+  await saveTokenToFile(tokenFile, nextToken);
 }
 
 function assertConnected() {
