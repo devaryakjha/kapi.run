@@ -274,7 +274,14 @@ export async function resolveSessionLinkParts(
   if (!parts.inviteId) return parts
   const invite = await resolveSessionInvite(parts.inviteId)
   localStorage.setItem(localKeyKey(invite.sessionId), invite.key)
-  return { ...parts, sessionId: invite.sessionId, key: invite.key }
+  return {
+    ...parts,
+    organizerSecret:
+      parts.organizerSecret ??
+      localStorage.getItem(localOrganizerKeyKey(invite.sessionId)),
+    sessionId: invite.sessionId,
+    key: invite.key,
+  }
 }
 
 export async function loadMenuCustomization({

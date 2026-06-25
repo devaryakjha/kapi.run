@@ -174,7 +174,7 @@ function RouteComponent() {
         role: 'organizer',
         organizerSecret,
       })
-      window.location.href = `/review?session=${id}&owner=1#key=${key}&ownerKey=${organizerSecret}`
+      window.location.href = `/review?i=${invite.id}&owner=1`
     } catch (caught) {
       setState({
         error:

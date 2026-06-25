@@ -7,10 +7,14 @@ import { ArrowRight, Loader2, Users } from 'lucide-react'
 import { Alert, AlertDescription } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { parseParticipantTarget } from '#/features/group-ordering/join-target'
+import {
+  buildOrganizerReviewPath,
+  parseParticipantTarget,
+} from '#/features/group-ordering/join-target'
 import {
   ErrorAlert,
   getOrCreateLocalParticipantId,
+  hasOrganizerCapability,
   loadEncryptedSessionRecord,
   localParticipantNameKey,
   resolveSessionLinkParts,
@@ -68,6 +72,20 @@ function Join() {
         parts.sessionId,
         parts.key,
       )
+      if (
+        parts.organizerSecret &&
+        (await hasOrganizerCapability(loaded.session, parts.organizerSecret))
+      ) {
+        window.location.replace(
+          buildOrganizerReviewPath({
+            inviteId: parts.inviteId ?? undefined,
+            sessionId: parts.sessionId,
+            key: parts.key,
+            ownerKey: parts.organizerSecret,
+          }),
+        )
+        return
+      }
       getOrCreateLocalParticipantId(parts.sessionId)
       setState({
         key: parts.key,

@@ -5,9 +5,10 @@ export type ParticipantTarget = {
 }
 
 export type OrganizerModeTarget = {
-  sessionId: string
-  key: string
-  ownerKey: string
+  inviteId?: string
+  sessionId?: string
+  key?: string | null
+  ownerKey?: string | null
 }
 
 export function buildParticipantJoinPath(target: ParticipantTarget) {
@@ -31,12 +32,18 @@ export function buildOrganizerMenuPath(target: OrganizerModeTarget) {
 
 function buildOrganizerModePath(pathname: string, target: OrganizerModeTarget) {
   const url = new URL(pathname, 'http://kapi.local')
-  url.searchParams.set('session', target.sessionId)
+  if (target.inviteId) {
+    url.searchParams.set('i', target.inviteId)
+  } else if (target.sessionId) {
+    url.searchParams.set('session', target.sessionId)
+  }
   url.searchParams.set('owner', '1')
-  url.hash = new URLSearchParams({
-    key: target.key,
-    ownerKey: target.ownerKey,
-  }).toString()
+  if (!target.inviteId) {
+    const hash = new URLSearchParams()
+    if (target.key) hash.set('key', target.key)
+    if (target.ownerKey) hash.set('ownerKey', target.ownerKey)
+    url.hash = hash.toString()
+  }
   return `${url.pathname}${url.search}${url.hash}`
 }
 

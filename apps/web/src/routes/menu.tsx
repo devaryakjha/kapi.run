@@ -98,7 +98,8 @@ function RouteComponent() {
   useEffect(() => {
     const initialParts = getSessionLinkParts()
     const loadSession = async () => {
-      const { key, sessionId } = await resolveSessionLinkParts(initialParts)
+      const resolvedParts = await resolveSessionLinkParts(initialParts)
+      const { key, organizerSecret, sessionId } = resolvedParts
       if (!sessionId || !key) {
         setState({ error: 'Session link is invalid.' })
         return
@@ -111,12 +112,9 @@ function RouteComponent() {
       const loaded = loadedRecord.session
       const isOrganizerMode =
         initialParts.owner &&
-        (await hasOrganizerCapability(loaded, initialParts.organizerSecret))
-      if (isOrganizerMode && initialParts.organizerSecret) {
-        localStorage.setItem(
-          localOrganizerKeyKey(sessionId),
-          initialParts.organizerSecret,
-        )
+        (await hasOrganizerCapability(loaded, organizerSecret))
+      if (isOrganizerMode && organizerSecret) {
+        localStorage.setItem(localOrganizerKeyKey(sessionId), organizerSecret)
       }
       const participantId = participantIdRef.current
       const loadedMenu = await api<MenuItem[]>(
@@ -132,11 +130,12 @@ function RouteComponent() {
         session: loaded,
         menu: loadedMenu,
         organizerReviewPath:
-          isOrganizerMode && initialParts.organizerSecret
+          isOrganizerMode && organizerSecret
             ? buildOrganizerReviewPath({
+                inviteId: resolvedParts.inviteId ?? undefined,
                 sessionId,
                 key,
-                ownerKey: initialParts.organizerSecret,
+                ownerKey: organizerSecret,
               })
             : null,
         participantName,

@@ -56,6 +56,23 @@ describe('buildParticipantJoinPath', () => {
 })
 
 describe('organizer mode paths', () => {
+  it('builds a short organizer review path from an invite id', () => {
+    expect(
+      buildOrganizerReviewPath({
+        inviteId: 'invite1',
+        sessionId: 'abc',
+        key: 'session-secret',
+        ownerKey: 'owner-secret',
+      }),
+    ).toBe('/review?i=invite1&owner=1')
+  })
+
+  it('builds a short organizer menu path from an invite id', () => {
+    expect(buildOrganizerMenuPath({ inviteId: 'invite1' })).toBe(
+      '/menu?i=invite1&owner=1',
+    )
+  })
+
   it('builds an organizer review path with session and owner keys', () => {
     expect(
       buildOrganizerReviewPath({

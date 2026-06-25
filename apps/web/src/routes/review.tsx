@@ -20,6 +20,7 @@ import {
   makeCartPayload,
   makeManualFallback,
   publishSession,
+  resolveSessionLinkParts,
 } from '#/features/group-ordering/shared'
 
 export const Route = createFileRoute('/review')({
@@ -37,13 +38,14 @@ type ReviewState = {
 }
 
 function initialReviewState(): ReviewState {
-  const { key, sessionId } = getSessionLinkParts()
+  const { inviteId, key, sessionId } = getSessionLinkParts()
   return {
     session: null,
     fallback: null,
     isOrganizer: false,
     pending: false,
-    error: !sessionId || !key ? 'Session link is invalid.' : null,
+    error:
+      !inviteId && (!sessionId || !key) ? 'Session link is invalid.' : null,
     stale: false,
     swiggyCart: null,
   }
@@ -60,6 +62,7 @@ function RouteComponent() {
     initialReviewState,
   )
   const sessionKeyRef = useRef('')
+  const inviteIdRef = useRef<string | null>(null)
   const organizerSecretRef = useRef<string | null>(null)
   const relayUpdatedAtRef = useRef<string | null>(null)
 
@@ -110,29 +113,34 @@ function RouteComponent() {
   }
 
   useEffect(() => {
-    const { key, organizerSecret, owner, sessionId } = getSessionLinkParts()
-    if (!sessionId || !key) {
-      return
+    const initialParts = getSessionLinkParts()
+    const loadSession = async () => {
+      const { inviteId, key, organizerSecret, owner, sessionId } =
+        await resolveSessionLinkParts(initialParts)
+      if (!sessionId || !key) {
+        setState({ error: 'Session link is invalid.' })
+        return
+      }
+
+      sessionKeyRef.current = key
+      inviteIdRef.current = inviteId
+      organizerSecretRef.current = organizerSecret
+      const loaded = await loadEncryptedSessionRecord(sessionId, key)
+      relayUpdatedAtRef.current = loaded.relayUpdatedAt
+      const session = loaded.session
+      const isOrganizer =
+        owner && (await hasOrganizerCapability(session, organizerSecret))
+      if (isOrganizer && organizerSecret) {
+        localStorage.setItem(localOrganizerKeyKey(sessionId), organizerSecret)
+      }
+      setState({
+        isOrganizer,
+        session,
+        stale: loaded.relayUpdatedAt === null,
+      })
     }
 
-    sessionKeyRef.current = key
-    organizerSecretRef.current = organizerSecret
-    loadEncryptedSessionRecord(sessionId, key)
-      .then(async (loaded) => {
-        relayUpdatedAtRef.current = loaded.relayUpdatedAt
-        const session = loaded.session
-        const isOrganizer =
-          owner && (await hasOrganizerCapability(session, organizerSecret))
-        if (isOrganizer && organizerSecret) {
-          localStorage.setItem(localOrganizerKeyKey(sessionId), organizerSecret)
-        }
-        setState({
-          isOrganizer,
-          session,
-          stale: loaded.relayUpdatedAt === null,
-        })
-      })
-      .catch((caught: Error) => setState({ error: caught.message }))
+    loadSession().catch((caught: Error) => setState({ error: caught.message }))
   }, [])
 
   async function syncCart() {
@@ -272,6 +280,7 @@ function RouteComponent() {
       return
     }
     window.location.href = buildOrganizerMenuPath({
+      inviteId: inviteIdRef.current ?? undefined,
       sessionId: state.session.id,
       key: sessionKeyRef.current,
       ownerKey: organizerSecretRef.current,
