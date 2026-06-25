@@ -100,7 +100,7 @@ function Join() {
 
   return (
     <main className="flex min-h-svh bg-background px-6 py-10 text-foreground">
-      <div className="m-auto w-full max-w-md rounded-xl border border-border bg-background p-5">
+      <div className="m-auto w-full max-w-md rounded-2xl border border-border bg-background p-5">
         <div className="mb-5 flex items-start gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Users className="size-5" />

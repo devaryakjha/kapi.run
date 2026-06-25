@@ -8,6 +8,7 @@ import type {
   MenuVariantGroup,
 } from '@kapi/spec'
 import {
+  AlertTriangle,
   CheckCircle2,
   Loader2,
   Minus,
@@ -185,6 +186,7 @@ export function ParticipantMenuPage({
             <div className="mx-auto max-w-3xl">
               {stale ? (
                 <Alert className="mb-4">
+                  <AlertTriangle />
                   <AlertDescription>
                     Showing a saved copy. Refresh before changing this order.
                   </AlertDescription>
@@ -1093,7 +1095,7 @@ function MobileCartBar({
             ₹{total}
           </p>
           {hasSubmitted ? (
-            <p className="text-[11px] leading-4 text-muted-foreground">
+            <p className="text-[11px] tabular-nums leading-4 text-muted-foreground">
               {submittedItemCount} submitted
             </p>
           ) : null}
