@@ -146,9 +146,21 @@ function RouteComponent() {
     setState({ pending: true, error: null })
     try {
       const id = crypto.randomUUID()
-      const key = await makeSessionKey()
       const organizerSecret = makeOrganizerSecret()
-      const invite = await createSessionInvite(id, key)
+      const keyPromise = makeSessionKey()
+      const invitePromise = keyPromise.then((key) =>
+        createSessionInvite(id, key),
+      )
+      const organizerSecretHashPromise = hashOrganizerSecret(organizerSecret)
+      const menuPromise = api<MenuItem[]>(
+        `/food/restaurants/${restaurant.id}/menu?addressId=${address.id}`,
+      )
+      const [key, invite, organizerSecretHash] = await Promise.all([
+        keyPromise,
+        invitePromise,
+        organizerSecretHashPromise,
+        menuPromise,
+      ])
       const shareUrl = `${window.location.origin}/join?i=${invite.id}`
       const organiserName = inferOrganiserName(address)
       const nextSession: KapiSession = {
@@ -159,15 +171,12 @@ function RouteComponent() {
         cutoffTime: formatTimeLabel(state.cutoffTime),
         cutoffAt: cutoff.cutoffAt,
         shareUrl,
-        organizerSecretHash: await hashOrganizerSecret(organizerSecret),
+        organizerSecretHash,
         status: 'open',
         participants: [],
         items: [],
         audit: [audit(organiserName, 'created session')],
       }
-      await api<MenuItem[]>(
-        `/food/restaurants/${restaurant.id}/menu?addressId=${address.id}`,
-      )
       localStorage.setItem(localKeyKey(id), key)
       localStorage.setItem(localOrganizerKeyKey(id), organizerSecret)
       await publishSession(nextSession, key, {
