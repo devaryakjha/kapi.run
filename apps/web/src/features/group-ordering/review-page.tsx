@@ -43,6 +43,7 @@ import { cn } from '#/lib/utils'
 import {
   ErrorAlert,
   SummaryRow,
+  groupCartLinesByParticipant,
   getOrderQuantity,
   getOrderSubtotal,
 } from './shared'
@@ -82,26 +83,10 @@ export function OrganizerReviewPage({
   onSync: () => void
   onUpdateItem: (itemId: string, quantity: number) => void
 }) {
-  const groups = useMemo(() => {
-    const keys = [
-      ...new Set(
-        session.items.map(
-          (item) => item.participantId || `name:${item.participantName}`,
-        ),
-      ),
-    ]
-    return keys.map((key) => {
-      const items = session.items.filter(
-        (item) =>
-          (item.participantId || `name:${item.participantName}`) === key,
-      )
-      return {
-        key,
-        name: items.at(-1)?.participantName ?? 'Guest',
-        items,
-      }
-    })
-  }, [session.items])
+  const groups = useMemo(
+    () => groupCartLinesByParticipant(session.items),
+    [session.items],
+  )
 
   const subtotal = getOrderSubtotal(session)
   const unavailable = session.items.filter((item) => !item.available)

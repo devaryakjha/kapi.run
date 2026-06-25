@@ -662,6 +662,24 @@ function participantGroupKey(item: CartLine) {
   return item.participantId || `name:${item.participantName}`
 }
 
+export function groupCartLinesByParticipant(items: CartLine[]) {
+  const groups = new Map<string, CartLine[]>()
+  for (const item of items) {
+    const key = participantGroupKey(item)
+    const group = groups.get(key)
+    if (group) {
+      group.push(item)
+    } else {
+      groups.set(key, [item])
+    }
+  }
+  return [...groups].map(([key, groupItems]) => ({
+    key,
+    name: groupItems.at(-1)?.participantName ?? 'Guest',
+    items: groupItems,
+  }))
+}
+
 export function getOrderSubtotal(session: KapiSession) {
   return session.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -676,7 +694,6 @@ export function getOrderQuantity(session: KapiSession) {
 export function makeManualFallback(
   session: KapiSession,
 ): ManualFallbackSummary {
-  const groups = [...new Set(session.items.map(participantGroupKey))]
   return {
     restaurantName: session.restaurant.name,
     addressLabel: session.address.label,
@@ -685,12 +702,10 @@ export function makeManualFallback(
       (item) =>
         `${item.quantity}x ${item.name}${item.customizationSummary ? ` (${item.customizationSummary})` : ''} - ${item.participantName}`,
     ),
-    byParticipant: groups.map((key) => {
-      const items = session.items.filter(
-        (item) => participantGroupKey(item) === key,
-      )
+    byParticipant: groupCartLinesByParticipant(session.items).map((group) => {
+      const { items } = group
       return {
-        participantName: items.at(-1)?.participantName ?? 'Guest',
+        participantName: group.name,
         total: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
         items: items.map(
           (item) =>
