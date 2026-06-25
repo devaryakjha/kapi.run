@@ -47,6 +47,7 @@ type OAuthClient = { client_id: string };
 type Token = { access_token: string; expires_at: number };
 type ToolEnvelope = {
   success?: boolean;
+  successful?: boolean;
   data?: unknown;
   message?: string;
   error?: { message?: string };
@@ -391,16 +392,24 @@ function firstItemCount(value: unknown): number | undefined {
 }
 
 function normalizeCartSummary(raw: unknown): SwiggyCartSummary {
-  const itemCount = firstItemCount(raw);
+  const cartData =
+    raw && typeof raw === "object" && "data" in raw
+      ? (raw as { data?: unknown }).data
+      : raw;
+  const itemCount = firstItemCount(cartData);
   return {
     empty: itemCount === undefined ? true : itemCount === 0,
-    restaurantId: firstText(raw, ["restaurantId", "restaurant_id", "storeId"]),
-    restaurantName: firstText(raw, [
+    restaurantId: firstText(cartData, [
+      "restaurantId",
+      "restaurant_id",
+      "storeId",
+    ]),
+    restaurantName: firstText(cartData, [
       "restaurantName",
       "restaurant_name",
       "name",
     ]),
-    total: firstPositiveNumber(raw, [
+    total: firstPositiveNumber(cartData, [
       "total",
       "totalAmount",
       "subtotal",
@@ -490,7 +499,7 @@ async function callSwiggyTool(
     }),
   });
   const payload = await parseMcpResponse(response);
-  if (payload.success === false)
+  if (payload.success === false || payload.successful === false)
     throw new Error(
       payload.error?.message ?? payload.message ?? "Swiggy request failed.",
     );
@@ -881,14 +890,20 @@ export const app = new Elysia()
             : {}),
         }),
       );
+      const syncedItemCount = payload.cartItems.reduce(
+        (sum, item) => sum + item.quantity,
+        0,
+      );
+      if (syncedItemCount > 0 && cart.empty) {
+        throw new Error(
+          "Swiggy did not return the synced cart. Open Swiggy and check the cart, then try again.",
+        );
+      }
       return {
         status: "synced",
         message: "Swiggy cart updated. Review and pay in Swiggy.",
         swiggyCartTotal: cart.total,
-        syncedItemCount: payload.cartItems.reduce(
-          (sum, item) => sum + item.quantity,
-          0,
-        ),
+        syncedItemCount,
         payload,
       };
     },
