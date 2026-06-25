@@ -15,6 +15,7 @@ import {
   applyParticipantSubmission,
   api,
   changeDraftLineQuantity,
+  draftCartFromSubmittedItems,
   getOrCreateLocalParticipantId,
   getSessionLinkParts,
   isSessionLockedForParticipants,
@@ -33,6 +34,7 @@ type MenuState = {
   menu: MenuItem[]
   session: KapiSession | null
   draft: DraftCart
+  submittedDraft: DraftCart
   participantName: string
   pending: boolean
   error: string | null
@@ -49,6 +51,7 @@ function initialMenuState(): MenuState {
     menu: [],
     session: null,
     draft: {},
+    submittedDraft: {},
     participantName: name ?? '',
     pending: false,
     error:
@@ -96,10 +99,18 @@ function RouteComponent() {
       const loadedRecord = await loadEncryptedSessionRecord(sessionId, key)
       relayUpdatedAtRef.current = loadedRecord.relayUpdatedAt
       const loaded = loadedRecord.session
+      const participantId = participantIdRef.current
       const loadedMenu = await api<MenuItem[]>(
         `/food/restaurants/${loaded.restaurant.id}/menu?addressId=${loaded.address.id}`,
       )
-      setState({ session: loaded, menu: loadedMenu, error: null })
+      setState({
+        session: loaded,
+        menu: loadedMenu,
+        submittedDraft: draftCartFromSubmittedItems(
+          loaded.items.filter((item) => item.participantId === participantId),
+        ),
+        error: null,
+      })
     }
 
     loadSession().catch((caught: Error) => setState({ error: caught.message }))
@@ -108,6 +119,17 @@ function RouteComponent() {
   function changeDraftLine(lineId: string, delta: number) {
     setState({
       draft: changeDraftLineQuantity(state.draft, lineId, delta),
+      notice: null,
+    })
+  }
+
+  function changeSubmittedLine(lineId: string, delta: number) {
+    setState({
+      submittedDraft: changeDraftLineQuantity(
+        state.submittedDraft,
+        lineId,
+        delta,
+      ),
       notice: null,
     })
   }
@@ -132,7 +154,10 @@ function RouteComponent() {
 
   async function submitDraft() {
     if (!state.session || !sessionKeyRef.current) return
-    const items = Object.values(state.draft)
+    const items = [
+      ...Object.values(state.submittedDraft),
+      ...Object.values(state.draft),
+    ]
     if (!items.length) {
       setState({
         error: 'Add at least one item before submitting.',
@@ -205,9 +230,12 @@ function RouteComponent() {
       }
       setState({
         session: updated,
+        submittedDraft: draftCartFromSubmittedItems(
+          updated.items.filter((item) => item.participantId === participantId),
+        ),
         draft: {},
         error: null,
-        notice: 'Items added to the group cart.',
+        notice: 'Submitted items updated.',
       })
     } catch (caught) {
       setState({
@@ -237,6 +265,7 @@ function RouteComponent() {
       participantName={state.participantName}
       pending={state.pending}
       session={state.session}
+      submittedDraft={state.submittedDraft}
       onAddCustomItem={addCustomItem}
       onAddPlainItem={addPlainItem}
       onLoadCustomization={(item) =>
@@ -246,6 +275,7 @@ function RouteComponent() {
         setState({ participantName, notice: null })
       }
       onQuantityChange={changeDraftLine}
+      onSubmittedQuantityChange={changeSubmittedLine}
       onSubmit={submitDraft}
     />
   )

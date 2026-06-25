@@ -59,6 +59,28 @@ export function changeDraftLineQuantity(
   return { ...draft, [lineId]: { ...current, quantity: nextQuantity } }
 }
 
+export function draftCartFromSubmittedItems(items: CartLine[]): DraftCart {
+  return Object.fromEntries(
+    items.flatMap((item) =>
+      item.quantity > 0
+        ? [
+            [
+              item.id,
+              {
+                id: item.id,
+                menuItemId: item.menuItemId,
+                quantity: item.quantity,
+                customization: item.customization,
+                customizationSummary: item.customizationSummary,
+                unitPrice: item.price,
+              },
+            ],
+          ]
+        : [],
+    ),
+  )
+}
+
 export type RelaySessionRecord = {
   ciphertext: string
   updatedAt: string

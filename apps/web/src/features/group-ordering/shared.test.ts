@@ -7,6 +7,7 @@ import {
   addPlainDraftItem,
   applyParticipantSubmission,
   changeDraftLineQuantity,
+  draftCartFromSubmittedItems,
   hasOrganizerCapability,
   hashOrganizerSecret,
   isSessionLockedForParticipants,
@@ -492,6 +493,29 @@ describe('draft cart helpers', () => {
     const draft = addPlainDraftItem({}, 'menu-swiggy-1')
 
     expect(changeDraftLineQuantity(draft, 'menu-swiggy-1', -1)).toEqual({})
+  })
+
+  it('converts submitted cart lines back into editable draft lines', () => {
+    expect(
+      draftCartFromSubmittedItems([
+        {
+          ...cartItem('swiggy-1', 2),
+          id: 'cart-line-1',
+          menuItemId: 'menu-swiggy-1',
+          customizationSummary: 'Size: Large',
+          price: 139,
+        },
+      ]),
+    ).toEqual({
+      'cart-line-1': {
+        id: 'cart-line-1',
+        menuItemId: 'menu-swiggy-1',
+        quantity: 2,
+        customization: undefined,
+        customizationSummary: 'Size: Large',
+        unitPrice: 139,
+      },
+    })
   })
 })
 

@@ -56,11 +56,13 @@ export function ParticipantMenuPage({
   participantName,
   pending,
   session,
+  submittedDraft,
   onAddCustomItem,
   onAddPlainItem,
   onLoadCustomization,
   onNameChange,
   onQuantityChange,
+  onSubmittedQuantityChange,
   onSubmit,
 }: {
   draft: DraftCart
@@ -70,11 +72,13 @@ export function ParticipantMenuPage({
   participantName: string
   pending: boolean
   session: KapiSession
+  submittedDraft: DraftCart
   onAddCustomItem: (line: Omit<DraftCartLine, 'id'>) => void
   onAddPlainItem: (menuItemId: string) => void
   onLoadCustomization: (item: MenuItem) => Promise<MenuCustomization>
   onNameChange: (name: string) => void
   onQuantityChange: (lineId: string, delta: number) => void
+  onSubmittedQuantityChange: (lineId: string, delta: number) => void
   onSubmit: () => void
 }) {
   const [query, setQuery] = useState('')
@@ -233,7 +237,9 @@ export function ParticipantMenuPage({
           pending={pending}
           onNameChange={onNameChange}
           onQuantityChange={onQuantityChange}
+          onSubmittedQuantityChange={onSubmittedQuantityChange}
           onSubmit={onSubmit}
+          submittedDraft={submittedDraft}
         />
       </div>
 
@@ -244,6 +250,7 @@ export function ParticipantMenuPage({
         menu={menu}
         notice={notice}
         pending={pending}
+        submittedDraft={submittedDraft}
         onSubmit={onSubmit}
       />
 
@@ -837,8 +844,10 @@ function CartSidebar({
   notice,
   participantName,
   pending,
+  submittedDraft,
   onNameChange,
   onQuantityChange,
+  onSubmittedQuantityChange,
   onSubmit,
 }: {
   draft: DraftCart
@@ -848,20 +857,24 @@ function CartSidebar({
   notice: string | null
   participantName: string
   pending: boolean
+  submittedDraft: DraftCart
   onNameChange: (name: string) => void
   onQuantityChange: (menuItemId: string, delta: number) => void
+  onSubmittedQuantityChange: (lineId: string, delta: number) => void
   onSubmit: () => void
 }) {
-  const lines = Object.values(draft).flatMap((line) => {
-    const item = menu.find((c) => c.id === line.menuItemId)
-    return item && line.quantity > 0 ? [{ item, line }] : []
-  })
+  const lines = draftLinesWithItems(draft, menu)
+  const submittedLines = draftLinesWithItems(submittedDraft, menu)
   const total = lines.reduce(
     (sum, l) => sum + (l.line.unitPrice ?? l.item.price) * l.line.quantity,
     0,
   )
-  const surcharge = lines.length ? 15 : 0
   const itemCount = lines.reduce((sum, l) => sum + l.line.quantity, 0)
+  const submittedItemCount = submittedLines.reduce(
+    (sum, l) => sum + l.line.quantity,
+    0,
+  )
+  const hasSubmitted = submittedItemCount > 0
 
   return (
     <aside className="hidden w-72 shrink-0 flex-col border-l border-border lg:flex">
@@ -888,6 +901,19 @@ function CartSidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4">
+        {submittedLines.length ? (
+          <div className="mb-5">
+            <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+              Submitted items
+            </h4>
+            <CartLineList
+              lines={submittedLines}
+              locked={locked}
+              onQuantityChange={onSubmittedQuantityChange}
+            />
+          </div>
+        ) : null}
+
         {lines.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
@@ -895,55 +921,20 @@ function CartSidebar({
             </div>
             <p className="text-sm text-muted-foreground">Nothing here yet.</p>
             <p className="text-xs text-muted-foreground">
-              Add items from the menu.
+              Add items from the menu to your draft.
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
-            {lines.map(({ item, line }) => (
-              <div key={line.id} className="flex items-start gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-medium leading-5">
-                    {item.name}
-                  </p>
-                  <p className="font-mono text-xs tabular-nums text-muted-foreground">
-                    ₹{line.unitPrice ?? item.price} × {line.quantity}
-                  </p>
-                  {line.customizationSummary ? (
-                    <p className="text-[11px] leading-4 text-muted-foreground">
-                      {line.customizationSummary}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="flex h-7 items-center rounded-full border border-border">
-                    <button
-                      onClick={() => onQuantityChange(line.id, -1)}
-                      className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96]"
-                    >
-                      <Minus className="size-2.5" />
-                    </button>
-                    <span className="min-w-[1.1rem] text-center font-mono text-xs font-medium tabular-nums">
-                      {line.quantity}
-                    </span>
-                    <button
-                      onClick={() => onQuantityChange(line.id, 1)}
-                      disabled={locked}
-                      className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96] disabled:pointer-events-none"
-                    >
-                      <Plus className="size-2.5" />
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => onQuantityChange(line.id, -line.quantity)}
-                    className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-destructive/10 hover:text-destructive active:scale-[0.96]"
-                  >
-                    <Trash2 className="size-2.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <>
+            <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+              Your draft
+            </h4>
+            <CartLineList
+              lines={lines}
+              locked={locked}
+              onQuantityChange={onQuantityChange}
+            />
+          </>
         )}
       </div>
 
@@ -952,26 +943,90 @@ function CartSidebar({
         <NoticeAlert message={notice} className="mb-3" />
         <div className="mb-4 flex flex-col gap-1.5">
           <SummaryRow label="Items" value={`₹${total}`} />
-          <SummaryRow label="Surcharge" value={`₹${surcharge}`} />
           <Separator className="my-1" />
           <div className="flex justify-between text-sm font-semibold">
-            <span>Total</span>
-            <span className="font-mono tabular-nums">₹{total + surcharge}</span>
+            <span>Draft subtotal</span>
+            <span className="font-mono tabular-nums">₹{total}</span>
           </div>
         </div>
         <Button
           onClick={onSubmit}
-          disabled={locked || pending || lines.length === 0}
+          disabled={locked || pending || (!lines.length && !hasSubmitted)}
           className="h-10 w-full rounded-xl text-sm font-semibold"
         >
           {pending ? (
             <Loader2 className="animate-spin" data-icon="inline-start" />
           ) : null}
-          Submit to group
+          {hasSubmitted ? 'Update my items' : 'Submit items'}
           <Send className="size-3.5" data-icon="inline-end" />
         </Button>
       </div>
     </aside>
+  )
+}
+
+function draftLinesWithItems(draft: DraftCart, menu: MenuItem[]) {
+  return Object.values(draft).flatMap((line) => {
+    const item = menu.find((candidate) => candidate.id === line.menuItemId)
+    return item && line.quantity > 0 ? [{ item, line }] : []
+  })
+}
+
+function CartLineList({
+  lines,
+  locked,
+  onQuantityChange,
+}: {
+  lines: Array<{ item: MenuItem; line: DraftCartLine }>
+  locked: boolean
+  onQuantityChange: (lineId: string, delta: number) => void
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      {lines.map(({ item, line }) => (
+        <div key={line.id} className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium leading-5">{item.name}</p>
+            <p className="font-mono text-xs tabular-nums text-muted-foreground">
+              ₹{line.unitPrice ?? item.price} × {line.quantity}
+            </p>
+            {line.customizationSummary ? (
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                {line.customizationSummary}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="flex h-7 items-center rounded-full border border-border">
+              <button
+                onClick={() => onQuantityChange(line.id, -1)}
+                disabled={locked}
+                className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96] disabled:pointer-events-none"
+              >
+                <Minus className="size-2.5" />
+              </button>
+              <span className="min-w-[1.1rem] text-center font-mono text-xs font-medium tabular-nums">
+                {line.quantity}
+              </span>
+              <button
+                onClick={() => onQuantityChange(line.id, 1)}
+                disabled={locked}
+                className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-muted active:scale-[0.96] disabled:pointer-events-none"
+              >
+                <Plus className="size-2.5" />
+              </button>
+            </div>
+            <button
+              onClick={() => onQuantityChange(line.id, -line.quantity)}
+              disabled={locked}
+              className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[colors,scale] duration-150 hover:bg-destructive/10 hover:text-destructive active:scale-[0.96] disabled:pointer-events-none"
+            >
+              <Trash2 className="size-2.5" />
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -982,6 +1037,7 @@ function MobileCartBar({
   menu,
   notice,
   pending,
+  submittedDraft,
   onSubmit,
 }: {
   draft: DraftCart
@@ -990,19 +1046,23 @@ function MobileCartBar({
   menu: MenuItem[]
   notice: string | null
   pending: boolean
+  submittedDraft: DraftCart
   onSubmit: () => void
 }) {
-  const lines = Object.values(draft).flatMap((line) => {
-    const item = menu.find((c) => c.id === line.menuItemId)
-    return item && line.quantity > 0 ? [{ item, line }] : []
-  })
+  const lines = draftLinesWithItems(draft, menu)
+  const submittedLines = draftLinesWithItems(submittedDraft, menu)
   const total = lines.reduce(
     (sum, l) => sum + (l.line.unitPrice ?? l.item.price) * l.line.quantity,
     0,
   )
   const itemCount = lines.reduce((sum, l) => sum + l.line.quantity, 0)
+  const submittedItemCount = submittedLines.reduce(
+    (sum, l) => sum + l.line.quantity,
+    0,
+  )
+  const hasSubmitted = submittedItemCount > 0
 
-  if (itemCount === 0 && !error && !notice) return null
+  if (itemCount === 0 && !hasSubmitted && !error && !notice) return null
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm lg:hidden">
@@ -1014,18 +1074,23 @@ function MobileCartBar({
             {itemCount} {itemCount === 1 ? 'item' : 'items'}
           </p>
           <p className="font-mono text-sm font-bold tabular-nums leading-5">
-            ₹{total + (lines.length ? 15 : 0)}
+            ₹{total}
           </p>
+          {hasSubmitted ? (
+            <p className="text-[11px] leading-4 text-muted-foreground">
+              {submittedItemCount} submitted
+            </p>
+          ) : null}
         </div>
         <Button
           onClick={onSubmit}
-          disabled={locked || pending || lines.length === 0}
+          disabled={locked || pending || (!lines.length && !hasSubmitted)}
           className="h-10 rounded-xl px-5 text-sm font-semibold"
         >
           {pending ? (
             <Loader2 className="animate-spin" data-icon="inline-start" />
           ) : null}
-          Submit
+          {hasSubmitted ? 'Update' : 'Submit'}
           <Send className="size-3.5" data-icon="inline-end" />
         </Button>
       </div>
