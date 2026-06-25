@@ -1,5 +1,10 @@
 import { useMemo } from 'react'
-import type { CartLine, KapiSession, ManualFallbackSummary } from '@kapi/spec'
+import type {
+  CartLine,
+  KapiSession,
+  ManualFallbackSummary,
+  SwiggyCartSummary,
+} from '@kapi/spec'
 import {
   AlertTriangle,
   Check,
@@ -17,6 +22,14 @@ import { Avatar, AvatarFallback } from '#/components/ui/avatar'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '#/components/ui/dialog'
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -27,7 +40,12 @@ import { Input } from '#/components/ui/input'
 import { Separator } from '#/components/ui/separator'
 import { cn } from '#/lib/utils'
 
-import { ErrorAlert, SummaryRow } from './shared'
+import {
+  ErrorAlert,
+  SummaryRow,
+  getOrderQuantity,
+  getOrderSubtotal,
+} from './shared'
 
 export function OrganizerReviewPage({
   error,
@@ -36,6 +54,9 @@ export function OrganizerReviewPage({
   pending,
   session,
   stale,
+  swiggyCart,
+  onCancelSync,
+  onConfirmSync,
   onFallback,
   onJoinOrder,
   onLock,
@@ -50,6 +71,9 @@ export function OrganizerReviewPage({
   pending: boolean
   session: KapiSession
   stale: boolean
+  swiggyCart: SwiggyCartSummary | null
+  onCancelSync: () => void
+  onConfirmSync: () => void
   onFallback: () => void
   onJoinOrder: () => void
   onLock: () => void
@@ -79,14 +103,9 @@ export function OrganizerReviewPage({
     })
   }, [session.items])
 
-  const subtotal = session.items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  )
+  const subtotal = getOrderSubtotal(session)
   const unavailable = session.items.filter((item) => !item.available)
-  const taxes = Math.round(subtotal * 0.12)
-  const finalTotal = subtotal + taxes
-  const totalQty = session.items.reduce((sum, item) => sum + item.quantity, 0)
+  const totalQty = getOrderQuantity(session)
 
   return (
     <main className="min-h-svh bg-background text-foreground">
@@ -222,19 +241,16 @@ export function OrganizerReviewPage({
                   value={String(totalQty)}
                   strong
                 />
-                <SummaryRow label="Subtotal" value={`₹${subtotal}`} strong />
                 <SummaryRow
-                  label="Taxes & delivery"
-                  value={`₹${taxes}`}
+                  label="Item subtotal"
+                  value={`₹${subtotal}`}
                   strong
                 />
                 <Separator className="my-1" />
-                <div className="flex justify-between text-base font-semibold">
-                  <span>Total</span>
-                  <span className="font-mono tabular-nums text-primary">
-                    ₹{finalTotal}
-                  </span>
-                </div>
+                <p className="text-[11px] leading-5 text-muted-foreground">
+                  Taxes, delivery fees, coupons, and final charges are handled
+                  in Swiggy.
+                </p>
               </div>
 
               <div className="mt-5 flex flex-col gap-2">
@@ -260,12 +276,6 @@ export function OrganizerReviewPage({
                       : 'Sync to Swiggy cart'}
                   </Button>
                 ) : null}
-                <Button
-                  variant="outline"
-                  className="h-9 w-full rounded-xl text-sm"
-                >
-                  Download receipt
-                </Button>
                 {isOrganizer ? (
                   <Button
                     onClick={onFallback}
@@ -310,13 +320,6 @@ export function OrganizerReviewPage({
                   Apply coupons or payment details in Swiggy, then place the
                   order.
                 </p>
-                <Button
-                  variant="link"
-                  className="mt-2 h-auto gap-1 px-0 text-xs text-primary"
-                >
-                  <ShoppingCart className="size-3" data-icon="inline-start" />
-                  Continue in Swiggy
-                </Button>
               </div>
             ) : null}
 
@@ -343,6 +346,12 @@ export function OrganizerReviewPage({
           </div>
         </div>
       </div>
+      <SwiggySyncDialog
+        cart={swiggyCart}
+        pending={pending}
+        onCancel={onCancelSync}
+        onConfirm={onConfirmSync}
+      />
     </main>
   )
 }
@@ -356,6 +365,61 @@ function statusLabel(status: KapiSession['status']) {
     sync_failed: 'Sync failed',
     closed: 'Closed',
   }[status]
+}
+
+function SwiggySyncDialog({
+  cart,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  cart: SwiggyCartSummary | null
+  pending: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const hasExistingCart = Boolean(cart && !cart.empty)
+  const details = cart
+    ? [
+        cart.itemCount
+          ? `${cart.itemCount} item${cart.itemCount === 1 ? '' : 's'}`
+          : '',
+        cart.restaurantName ? `from ${cart.restaurantName}` : '',
+        typeof cart.total === 'number' ? `totalling ₹${cart.total}` : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : ''
+
+  return (
+    <Dialog open={Boolean(cart)} onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {hasExistingCart
+              ? 'Replace your Swiggy cart?'
+              : 'Add group cart to Swiggy?'}
+          </DialogTitle>
+          <DialogDescription>
+            {hasExistingCart
+              ? `Your Swiggy cart already has ${details || 'items'}. Replacing it will clear those items and add this group cart. You will still review and place the order in Swiggy.`
+              : 'This adds the available items to your Swiggy cart. You will still review and place the order in Swiggy.'}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel} disabled={pending}>
+            {hasExistingCart ? 'Keep current cart' : 'Cancel'}
+          </Button>
+          <Button onClick={onConfirm} disabled={pending}>
+            {pending ? (
+              <Loader2 className="animate-spin" data-icon="inline-start" />
+            ) : null}
+            {hasExistingCart ? 'Replace cart' : 'Add to Swiggy cart'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function ParticipantGroup({

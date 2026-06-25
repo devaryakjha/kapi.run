@@ -33,6 +33,7 @@ type ReviewState = {
   pending: boolean
   error: string | null
   stale: boolean
+  swiggyCart: SwiggyCartSummary | null
 }
 
 function initialReviewState(): ReviewState {
@@ -44,6 +45,7 @@ function initialReviewState(): ReviewState {
     pending: false,
     error: !sessionId || !key ? 'Session link is invalid.' : null,
     stale: false,
+    swiggyCart: null,
   }
 }
 
@@ -138,25 +140,27 @@ function RouteComponent() {
     setState({ pending: true, error: null })
     try {
       const cart = await api<SwiggyCartSummary>('/food/cart')
-      const details = [
-        cart.itemCount
-          ? `${cart.itemCount} item${cart.itemCount === 1 ? '' : 's'}`
-          : '',
-        cart.restaurantName ? `from ${cart.restaurantName}` : '',
-        typeof cart.total === 'number' ? `totalling ₹${cart.total}` : '',
-      ]
-        .filter(Boolean)
-        .join(' ')
-      const message = cart.empty
-        ? 'Add these items to your Swiggy cart? This will not place the order.'
-        : `Your Swiggy cart has ${details || 'items'}. Replace it with this group cart? This will not place the order.`
-      if (!window.confirm(message)) return
+      setState({ swiggyCart: cart })
+    } catch (caught) {
+      setState({
+        error:
+          caught instanceof Error ? caught.message : 'Could not check cart.',
+      })
+    } finally {
+      setState({ pending: false })
+    }
+  }
 
+  async function confirmSyncCart() {
+    if (!state.session || !state.isOrganizer || !state.swiggyCart) return
+    const replaceExistingCart = !state.swiggyCart.empty
+    setState({ pending: true, error: null })
+    try {
       const result = await api<KapiSession['sync']>('/food/cart/sync', {
         method: 'POST',
         body: JSON.stringify({
           ...makeCartPayload(state.session),
-          replaceExistingCart: !cart.empty,
+          replaceExistingCart,
         }),
       })
       await saveSession((session) => ({
@@ -169,6 +173,7 @@ function RouteComponent() {
         sync: result,
         audit: [...session.audit, audit('Organiser', 'synced cart to Swiggy')],
       }))
+      setState({ swiggyCart: null })
     } catch (caught) {
       setState({
         error:
@@ -284,6 +289,9 @@ function RouteComponent() {
       pending={state.pending}
       session={state.session}
       stale={state.stale}
+      swiggyCart={state.swiggyCart}
+      onCancelSync={() => setState({ swiggyCart: null })}
+      onConfirmSync={confirmSyncCart}
       onFallback={loadManualFallback}
       onJoinOrder={joinAsParticipant}
       onLock={lockSession}

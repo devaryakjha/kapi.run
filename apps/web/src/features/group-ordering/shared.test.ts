@@ -10,6 +10,8 @@ import {
   draftCartFromSubmittedItems,
   hasOrganizerCapability,
   hashOrganizerSecret,
+  getOrderQuantity,
+  getOrderSubtotal,
   isSessionLockedForParticipants,
   makeCartPayload,
   makeManualFallback,
@@ -374,6 +376,29 @@ describe('makeCartPayload', () => {
         addons: [{ group_id: 'bun', choice_id: 'brioche' }],
       },
     ])
+  })
+})
+
+describe('order totals', () => {
+  it('sums item subtotals with quantities and custom prices', () => {
+    expect(
+      getOrderSubtotal({
+        ...session('open'),
+        items: [
+          cartItem('swiggy-1', 2),
+          { ...cartItem('swiggy-2', 3), price: 95 },
+        ],
+      }),
+    ).toBe(525)
+  })
+
+  it('sums item quantities', () => {
+    expect(
+      getOrderQuantity({
+        ...session('open'),
+        items: [cartItem('swiggy-1', 2), cartItem('swiggy-2', 3)],
+      }),
+    ).toBe(5)
   })
 })
 

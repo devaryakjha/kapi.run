@@ -437,6 +437,17 @@ function participantGroupKey(item: CartLine) {
   return item.participantId || `name:${item.participantName}`
 }
 
+export function getOrderSubtotal(session: KapiSession) {
+  return session.items.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  )
+}
+
+export function getOrderQuantity(session: KapiSession) {
+  return session.items.reduce((sum, item) => sum + item.quantity, 0)
+}
+
 export function makeManualFallback(
   session: KapiSession,
 ): ManualFallbackSummary {
@@ -444,10 +455,7 @@ export function makeManualFallback(
   return {
     restaurantName: session.restaurant.name,
     addressLabel: session.address.label,
-    total: session.items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    ),
+    total: getOrderSubtotal(session),
     checklist: session.items.map(
       (item) =>
         `${item.quantity}x ${item.name}${item.customizationSummary ? ` (${item.customizationSummary})` : ''} - ${item.participantName}`,
