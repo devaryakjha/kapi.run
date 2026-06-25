@@ -12,10 +12,9 @@ import type {
   SessionInvite,
 } from '@kapi/spec'
 import type { LucideIcon } from 'lucide-react'
-import { AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
-import { Badge } from '#/components/ui/badge'
 import { cn } from '#/lib/utils'
 
 export type DraftCartLine = {
@@ -99,7 +98,6 @@ export type SessionLinkParts = {
 
 export const API_URL =
   import.meta.env.VITE_KAPI_API_URL ?? 'http://127.0.0.1:3001'
-export const setupImage = '/assets/kapi-setup-illustration.png'
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
@@ -220,11 +218,11 @@ export function localKeyKey(sessionId: string) {
   return `kapi:key:${sessionId}`
 }
 
-export function localParticipantIdKey(sessionId: string) {
+function localParticipantIdKey(sessionId: string) {
   return `kapi:participant:${sessionId}`
 }
 
-export function localParticipantSecretKey(sessionId: string) {
+function localParticipantSecretKey(sessionId: string) {
   return `kapi:participant-secret:${sessionId}`
 }
 
@@ -276,7 +274,7 @@ export async function createSessionInvite(sessionId: string, key: string) {
   })
 }
 
-export async function resolveSessionInvite(inviteId: string) {
+async function resolveSessionInvite(inviteId: string) {
   return api<SessionInvite>(`/relay/invites/${inviteId}`)
 }
 
@@ -500,10 +498,6 @@ export async function loadEncryptedSessionRecord(
     }
     throw new Error('Session not found.')
   }
-}
-
-export async function loadEncryptedSession(sessionId: string, key: string) {
-  return (await loadEncryptedSessionRecord(sessionId, key)).session
 }
 
 export async function publishSession(
@@ -834,45 +828,6 @@ export function ErrorAlert({
   )
 }
 
-export function SetupStep({
-  title,
-  active,
-  status,
-  children,
-}: {
-  title: string
-  active?: boolean
-  status?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section
-      className={cn(
-        'relative border-l-2 pl-6',
-        active ? 'border-primary' : 'border-border',
-      )}
-    >
-      <span
-        className={cn(
-          'absolute -left-2.25 top-0 size-4 rounded-full border-2',
-          active ? 'border-background bg-primary' : 'border-border bg-muted',
-        )}
-      />
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h3 className="text-xs font-semibold uppercase leading-4 tracking-[0.02em]">
-          {title}
-        </h3>
-        {status ? (
-          <Badge variant="outline">
-            <CheckCircle2 data-icon="inline-start" /> {status}
-          </Badge>
-        ) : null}
-      </div>
-      {children}
-    </section>
-  )
-}
-
 export function SummaryRow({
   label,
   value,
@@ -909,19 +864,6 @@ export function IconTile({
       )}
     >
       <Icon />
-    </div>
-  )
-}
-
-export function BrandLockup() {
-  return (
-    <div className="mb-6 flex items-center gap-2">
-      <span className="font-heading text-2xl font-extrabold text-primary">
-        Kapi.run
-      </span>
-      <Badge className="h-5 rounded-full bg-primary px-2 text-[10px] font-bold uppercase tracking-widest text-primary-foreground">
-        Ops
-      </Badge>
     </div>
   )
 }
