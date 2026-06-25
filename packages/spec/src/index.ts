@@ -14,10 +14,23 @@ export type RelaySessionMetadata = {
   organizerSecretHash?: string;
 };
 
+export type RelayParticipantSubmissionRecord = {
+  ciphertext: string;
+  updatedAt: string;
+};
+
+export type RelaySessionRecord = {
+  ciphertext: string;
+  updatedAt: string;
+  metadata?: RelaySessionMetadata;
+  participantSubmissions?: Record<string, RelayParticipantSubmissionRecord>;
+};
+
 export type RelayWritePayload = {
   ciphertext: string;
   expectedUpdatedAt?: string | null;
   metadata?: RelaySessionMetadata;
+  participantId?: string;
   role?: RelayWriteRole;
 };
 

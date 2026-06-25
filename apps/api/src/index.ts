@@ -7,6 +7,7 @@ import type {
   MenuItem,
   MenuCustomization,
   RelaySessionMetadata,
+  RelaySessionRecord,
   RelayWritePayload,
   RelayWriteRole,
   Restaurant,
@@ -58,10 +59,9 @@ type ToolEnvelope = {
   message?: string;
   error?: { message?: string };
 };
-export type RelayRecord = {
-  ciphertext: string;
-  updatedAt: string;
-  metadata?: RelaySessionMetadata;
+export type RelayRecord = Omit<RelaySessionRecord, "participantSubmissions"> & {
+  participantSecretHashes?: Record<string, string>;
+  participantSubmissions?: RelaySessionRecord["participantSubmissions"];
 };
 type RelayStore = Record<string, RelayRecord>;
 type InviteStore = Record<string, SessionInvite>;
@@ -307,10 +307,47 @@ export async function authorizeCartSync(
   return hasOrganizerProof(sessions[sessionId]?.metadata, organizerSecret);
 }
 
+function publicRelayRecord(record: RelayRecord): RelaySessionRecord {
+  const participantSubmissions = record.participantSubmissions
+    ? Object.fromEntries(
+        Object.entries(record.participantSubmissions).map(
+          ([participantId, submission]) => [
+            participantId,
+            {
+              ciphertext: submission.ciphertext,
+              updatedAt: submission.updatedAt,
+            },
+          ],
+        ),
+      )
+    : undefined;
+  return {
+    ciphertext: record.ciphertext,
+    updatedAt: record.updatedAt,
+    metadata: record.metadata,
+    ...(participantSubmissions ? { participantSubmissions } : {}),
+  };
+}
+
+type RelayWriteSuccess =
+  | {
+      ok: true;
+      role: "organizer";
+      metadata?: RelaySessionMetadata;
+    }
+  | {
+      ok: true;
+      role: "participant";
+      metadata: RelaySessionMetadata;
+      participantId: string;
+      participantSecretHash: string;
+    };
+
 export async function decideRelayWrite(
   current: RelayRecord | undefined,
   body: RelayWrite,
   organizerSecret: string | null,
+  participantSecret: string | null = null,
 ) {
   const expectedUpdatedAt = body.expectedUpdatedAt;
   const role: RelayWriteRole =
@@ -337,6 +374,13 @@ export async function decideRelayWrite(
   }
 
   if (!current) {
+    if (role !== "organizer") {
+      return {
+        ok: false,
+        status: 404,
+        body: { error: "Session not found." },
+      } as const;
+    }
     const metadata = sanitizeRelayMetadata(body.metadata);
     if (!metadata)
       return {
@@ -364,7 +408,7 @@ export async function decideRelayWrite(
         body: { error: "Organizer proof is required." },
       } as const;
     }
-    return { ok: true, metadata } as const;
+    return { ok: true, role: "organizer", metadata } as const;
   }
 
   if (role === "organizer") {
@@ -377,7 +421,24 @@ export async function decideRelayWrite(
     }
     return {
       ok: true,
+      role: "organizer",
       metadata: sanitizeRelayMetadata(body.metadata) ?? current.metadata,
+    } as const;
+  }
+
+  const participantId = body.participantId?.trim();
+  if (!participantId) {
+    return {
+      ok: false,
+      status: 400,
+      body: { error: "Participant id is required." },
+    } as const;
+  }
+  if (!participantSecret) {
+    return {
+      ok: false,
+      status: 403,
+      body: { error: "Participant proof is required." },
     } as const;
   }
 
@@ -395,7 +456,62 @@ export async function decideRelayWrite(
       body: { error: "Session is locked." },
     } as const;
   }
-  return { ok: true, metadata: current.metadata } as const;
+  const participantSecretHash = await sha256Base64Url(participantSecret);
+  const currentParticipantSecretHash =
+    current.participantSecretHashes?.[participantId];
+  if (
+    currentParticipantSecretHash &&
+    currentParticipantSecretHash !== participantSecretHash
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      body: { error: "Participant proof is required." },
+    } as const;
+  }
+  return {
+    ok: true,
+    role: "participant",
+    metadata: current.metadata,
+    participantId,
+    participantSecretHash,
+  } as const;
+}
+
+export function applyRelayWrite(
+  current: RelayRecord | undefined,
+  body: RelayWrite,
+  decision: RelayWriteSuccess,
+  updatedAt = new Date().toISOString(),
+): RelayRecord {
+  if (decision.role === "organizer") {
+    return {
+      ciphertext: body.ciphertext,
+      updatedAt,
+      metadata: decision.metadata,
+      ...(current?.participantSecretHashes
+        ? { participantSecretHashes: current.participantSecretHashes }
+        : {}),
+    };
+  }
+  if (!current)
+    throw new Error("Participant write requires an existing session.");
+  return {
+    ...current,
+    updatedAt,
+    metadata: decision.metadata,
+    participantSecretHashes: {
+      ...current.participantSecretHashes,
+      [decision.participantId]: decision.participantSecretHash,
+    },
+    participantSubmissions: {
+      ...current.participantSubmissions,
+      [decision.participantId]: {
+        ciphertext: body.ciphertext,
+        updatedAt,
+      },
+    },
+  };
 }
 
 async function getOAuthClient() {
@@ -1104,7 +1220,7 @@ export const app = new Elysia()
         set.status = 404;
         return { error: "Session not found." };
       }
-      return record;
+      return publicRelayRecord(record);
     },
     { params: t.Object({ sessionId: t.String() }) },
   )
@@ -1151,19 +1267,16 @@ export const app = new Elysia()
         current,
         body,
         request.headers.get("x-kapi-organizer-secret"),
+        request.headers.get("x-kapi-participant-secret"),
       );
       if (!decision.ok) {
         set.status = decision.status;
         return decision.body;
       }
 
-      relay[params.sessionId] = {
-        ciphertext: body.ciphertext,
-        updatedAt: new Date().toISOString(),
-        metadata: decision.metadata,
-      };
+      relay[params.sessionId] = applyRelayWrite(current, body, decision);
       await writeJson(relayFile, relay);
-      return relay[params.sessionId];
+      return publicRelayRecord(relay[params.sessionId]);
     },
     {
       params: t.Object({ sessionId: t.String() }),
@@ -1184,6 +1297,7 @@ export const app = new Elysia()
             organizerSecretHash: t.Optional(t.String()),
           }),
         ),
+        participantId: t.Optional(t.String()),
         role: t.Optional(
           t.Union([t.Literal("organizer"), t.Literal("participant")]),
         ),
