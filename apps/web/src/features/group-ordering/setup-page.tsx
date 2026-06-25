@@ -68,6 +68,7 @@ export function OrganizerSetupPage({
   pending,
   restaurantQuery,
   restaurants,
+  cutoffError,
   cutoffTime,
   selectedAddressId,
   selectedRestaurantId,
@@ -84,6 +85,7 @@ export function OrganizerSetupPage({
   pending: boolean
   restaurantQuery: string
   restaurants: Restaurant[]
+  cutoffError: string | null
   cutoffTime: string
   selectedAddressId: string
   selectedRestaurantId: string
@@ -215,6 +217,11 @@ export function OrganizerSetupPage({
                     value={cutoffTime}
                     onChange={(e) => onCutoffTimeChange(e.target.value)}
                   />
+                  {cutoffError ? (
+                    <p className="text-xs leading-5 text-destructive">
+                      {cutoffError}
+                    </p>
+                  ) : null}
                 </Field>
               </FieldGroup>
             </StepCard>
@@ -240,6 +247,7 @@ export function OrganizerSetupPage({
                 pending ||
                 !authStatus.connected ||
                 !selectedAddressId ||
+                Boolean(cutoffError) ||
                 !selectedRestaurantId
               }
               className="h-12 w-full rounded-xl text-base font-semibold"

@@ -502,6 +502,32 @@ export function formatTimeLabel(value: string) {
   return `${hour % 12 || 12}:${minute} ${hour >= 12 ? 'PM' : 'AM'}`
 }
 
+export function resolveSetupCutoffAt(
+  value: string,
+  now = new Date(),
+): { cutoffAt: string } | { error: string } {
+  const [hourValue, minuteValue] = value.split(':')
+  const hour = Number(hourValue)
+  const minute = Number(minuteValue)
+  if (
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return { error: 'Choose a valid cutoff time.' }
+  }
+
+  const cutoff = new Date(now)
+  cutoff.setHours(hour, minute, 0, 0)
+  if (cutoff.getTime() <= now.getTime()) {
+    return { error: 'Choose a cutoff later than now.' }
+  }
+  return { cutoffAt: cutoff.toISOString() }
+}
+
 function cutoffTime(session: KapiSession) {
   if (!session.cutoffAt) return null
   const time = new Date(session.cutoffAt).getTime()

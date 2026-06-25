@@ -13,6 +13,7 @@ import {
   isSessionLockedForParticipants,
   makeCartPayload,
   makeManualFallback,
+  resolveSetupCutoffAt,
 } from './shared'
 
 function session(status: SessionStatus, cutoffAt?: string): KapiSession {
@@ -118,6 +119,34 @@ describe('isSessionLockedForParticipants', () => {
     expect(
       isSessionLockedForParticipants(session('open', 'not-a-date'), now),
     ).toBe(false)
+  })
+})
+
+describe('resolveSetupCutoffAt', () => {
+  const now = new Date(2026, 5, 19, 12, 0, 0, 0)
+
+  it('accepts a future same-day cutoff', () => {
+    expect(resolveSetupCutoffAt('12:45', now)).toEqual({
+      cutoffAt: new Date(2026, 5, 19, 12, 45, 0, 0).toISOString(),
+    })
+  })
+
+  it('rejects the current minute', () => {
+    expect(resolveSetupCutoffAt('12:00', now)).toEqual({
+      error: 'Choose a cutoff later than now.',
+    })
+  })
+
+  it('rejects a past time instead of rolling to tomorrow', () => {
+    expect(resolveSetupCutoffAt('11:59', now)).toEqual({
+      error: 'Choose a cutoff later than now.',
+    })
+  })
+
+  it('rejects invalid time input', () => {
+    expect(resolveSetupCutoffAt('bad', now)).toEqual({
+      error: 'Choose a valid cutoff time.',
+    })
   })
 })
 

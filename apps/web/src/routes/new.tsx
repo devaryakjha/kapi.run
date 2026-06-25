@@ -22,6 +22,7 @@ import {
   makeOrganizerSecret,
   makeSessionKey,
   publishSession,
+  resolveSetupCutoffAt,
 } from '#/features/group-ordering/shared'
 
 export const Route = createFileRoute('/new')({
@@ -60,28 +61,6 @@ function connectSwiggy() {
   window.location.href = `${API_URL}/auth/start?next=${encodeURIComponent(window.location.href)}`
 }
 
-function cutoffAtFromTime(value: string) {
-  const [hourValue, minuteValue] = value.split(':')
-  const hour = Number(hourValue)
-  const minute = Number(minuteValue)
-  if (
-    !Number.isFinite(hour) ||
-    !Number.isFinite(minute) ||
-    hour < 0 ||
-    hour > 23 ||
-    minute < 0 ||
-    minute > 59
-  ) {
-    return cutoffAtFromTime(initialSetupState.cutoffTime)
-  }
-  const cutoff = new Date()
-  cutoff.setHours(hour, minute, 0, 0)
-  if (cutoff.getTime() <= Date.now()) {
-    cutoff.setDate(cutoff.getDate() + 1)
-  }
-  return cutoff.toISOString()
-}
-
 function inferOrganiserName(address: Address) {
   const [name] = address.detail.split(':')
   return name.trim() || 'Organiser'
@@ -89,6 +68,8 @@ function inferOrganiserName(address: Address) {
 
 function RouteComponent() {
   const [state, setState] = useReducer(patchSetupState, initialSetupState)
+  const setupCutoff = resolveSetupCutoffAt(state.cutoffTime)
+  const cutoffError = 'error' in setupCutoff ? setupCutoff.error : null
 
   useEffect(() => {
     const { owner, sessionId } = getSessionLinkParts()
@@ -131,10 +112,7 @@ function RouteComponent() {
           if (cancelled) return
           setState({
             restaurants: nextRestaurants,
-            selectedRestaurantId:
-              nextRestaurants.find(
-                (restaurant) => restaurant.availabilityStatus === 'OPEN',
-              )?.id ?? '',
+            selectedRestaurantId: '',
           })
         })
         .catch((caught: Error) => {
@@ -159,6 +137,11 @@ function RouteComponent() {
       (candidate) => candidate.id === state.selectedRestaurantId,
     )
     if (!address || !restaurant) return
+    const cutoff = resolveSetupCutoffAt(state.cutoffTime)
+    if ('error' in cutoff) {
+      setState({ error: cutoff.error })
+      return
+    }
 
     setState({ pending: true, error: null })
     try {
@@ -174,7 +157,7 @@ function RouteComponent() {
         address,
         restaurant,
         cutoffTime: formatTimeLabel(state.cutoffTime),
-        cutoffAt: cutoffAtFromTime(state.cutoffTime),
+        cutoffAt: cutoff.cutoffAt,
         shareUrl,
         organizerSecretHash: await hashOrganizerSecret(organizerSecret),
         status: 'open',
@@ -212,10 +195,17 @@ function RouteComponent() {
       pending={state.pending}
       restaurantQuery={state.restaurantQuery}
       restaurants={state.restaurants}
+      cutoffError={cutoffError}
       cutoffTime={state.cutoffTime}
       selectedAddressId={state.selectedAddressId}
       selectedRestaurantId={state.selectedRestaurantId}
-      onAddressChange={(selectedAddressId) => setState({ selectedAddressId })}
+      onAddressChange={(selectedAddressId) =>
+        setState({
+          selectedAddressId,
+          restaurants: [],
+          selectedRestaurantId: '',
+        })
+      }
       onConnect={connectSwiggy}
       onCutoffTimeChange={(cutoffTime) => setState({ cutoffTime })}
       onCreate={createSession}
