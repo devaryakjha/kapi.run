@@ -154,7 +154,7 @@ function RouteComponent() {
   async function confirmSyncCart() {
     if (!state.session || !state.isOrganizer || !state.swiggyCart) return
     const replaceExistingCart = !state.swiggyCart.empty
-    setState({ pending: true, error: null })
+    setState({ pending: true, error: null, swiggyCart: null })
     try {
       const result = await api<KapiSession['sync']>('/food/cart/sync', {
         method: 'POST',
@@ -173,7 +173,6 @@ function RouteComponent() {
         sync: result,
         audit: [...session.audit, audit('Organiser', 'synced cart to Swiggy')],
       }))
-      setState({ swiggyCart: null })
     } catch (caught) {
       setState({
         error:

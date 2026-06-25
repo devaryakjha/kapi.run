@@ -378,18 +378,18 @@ function SwiggySyncDialog({
   onCancel: () => void
   onConfirm: () => void
 }) {
-  const hasExistingCart = Boolean(cart && !cart.empty)
-  const details = cart
-    ? [
-        cart.itemCount
-          ? `${cart.itemCount} item${cart.itemCount === 1 ? '' : 's'}`
-          : '',
-        cart.restaurantName ? `from ${cart.restaurantName}` : '',
-        typeof cart.total === 'number' ? `totalling ₹${cart.total}` : '',
-      ]
-        .filter(Boolean)
-        .join(' ')
-    : ''
+  if (!cart) return null
+
+  const hasExistingCart = !cart.empty
+  const details = [
+    cart.itemCount
+      ? `${cart.itemCount} item${cart.itemCount === 1 ? '' : 's'}`
+      : '',
+    cart.restaurantName ? `from ${cart.restaurantName}` : '',
+    typeof cart.total === 'number' ? `totalling ₹${cart.total}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <Dialog open={Boolean(cart)} onOpenChange={(open) => !open && onCancel()}>
