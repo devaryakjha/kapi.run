@@ -149,10 +149,14 @@ function Join() {
             ) : null}
             <ErrorAlert message={state.error} />
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+              <label
+                htmlFor="join-name"
+                className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+              >
                 Your name
               </label>
               <Input
+                id="join-name"
                 value={state.name}
                 onChange={(event) =>
                   setState({ name: event.target.value, error: null })
