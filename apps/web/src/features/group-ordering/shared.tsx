@@ -32,7 +32,7 @@ export function addPlainDraftItem(
   draft: DraftCart,
   menuItemId: string,
 ): DraftCart {
-  const current = draft[menuItemId]
+  const current = draft[menuItemId] as DraftCartLine | undefined
   return {
     ...draft,
     [menuItemId]: {
@@ -48,8 +48,8 @@ export function changeDraftLineQuantity(
   lineId: string,
   delta: number,
 ): DraftCart {
-  const current = draft[lineId]
-  if (!current) return draft
+  const current = draft[lineId] as DraftCartLine | undefined
+  if (current === undefined) return draft
   const nextQuantity = Math.max(current.quantity + delta, 0)
   if (nextQuantity === 0) {
     const next = { ...draft }

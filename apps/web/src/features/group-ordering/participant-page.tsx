@@ -751,7 +751,7 @@ function defaultVariantSelections(groups: MenuVariantGroup[]) {
         ) ??
         group.variations.find((choice) => choice.inStock !== false) ??
         group.variations[0]
-      return [group.groupId, selected?.id ?? '']
+      return [group.groupId, selected.id]
     }),
   )
 }
