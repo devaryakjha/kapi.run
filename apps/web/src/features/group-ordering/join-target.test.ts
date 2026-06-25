@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildParticipantJoinPath, parseParticipantTarget } from './join-target'
+import {
+  buildOrganizerMenuPath,
+  buildOrganizerReviewPath,
+  buildParticipantJoinPath,
+  parseParticipantTarget,
+} from './join-target'
 
 describe('parseParticipantTarget', () => {
   it('reads a short invite link', () => {
@@ -47,5 +52,29 @@ describe('buildParticipantJoinPath', () => {
     expect(buildParticipantJoinPath({ sessionId: 'abc', key: 'secret' })).toBe(
       '/join?session=abc#key=secret',
     )
+  })
+})
+
+describe('organizer mode paths', () => {
+  it('builds an organizer review path with session and owner keys', () => {
+    expect(
+      buildOrganizerReviewPath({
+        sessionId: 'abc',
+        key: 'session-secret',
+        ownerKey: 'owner-secret',
+      }),
+    ).toBe(
+      '/review?session=abc&owner=1#key=session-secret&ownerKey=owner-secret',
+    )
+  })
+
+  it('builds an organizer menu path with session and owner keys', () => {
+    expect(
+      buildOrganizerMenuPath({
+        sessionId: 'abc',
+        key: 'session-secret',
+        ownerKey: 'owner-secret',
+      }),
+    ).toBe('/menu?session=abc&owner=1#key=session-secret&ownerKey=owner-secret')
   })
 })

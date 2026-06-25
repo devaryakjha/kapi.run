@@ -8,6 +8,7 @@ import type {
   DraftCartLine,
   LoadedSessionRecord,
 } from '#/features/group-ordering/shared'
+import { buildOrganizerReviewPath } from '#/features/group-ordering/join-target'
 import {
   ApiError,
   ErrorAlert,
@@ -18,8 +19,10 @@ import {
   draftCartFromSubmittedItems,
   getOrCreateLocalParticipantId,
   getSessionLinkParts,
+  hasOrganizerCapability,
   isSessionLockedForParticipants,
   loadEncryptedSessionRecord,
+  localOrganizerKeyKey,
   loadMenuCustomization,
   localParticipantNameKey,
   publishSession,
@@ -39,6 +42,7 @@ type MenuState = {
   pending: boolean
   error: string | null
   notice: string | null
+  organizerReviewPath: string | null
   stale: boolean
 }
 
@@ -58,6 +62,7 @@ function initialMenuState(): MenuState {
     error:
       !inviteId && (!sessionId || !key) ? 'Session link is invalid.' : null,
     notice: null,
+    organizerReviewPath: null,
     stale: false,
   }
 }
@@ -104,13 +109,37 @@ function RouteComponent() {
       const loadedRecord = await loadEncryptedSessionRecord(sessionId, key)
       relayUpdatedAtRef.current = loadedRecord.relayUpdatedAt
       const loaded = loadedRecord.session
+      const isOrganizerMode =
+        initialParts.owner &&
+        (await hasOrganizerCapability(loaded, initialParts.organizerSecret))
+      if (isOrganizerMode && initialParts.organizerSecret) {
+        localStorage.setItem(
+          localOrganizerKeyKey(sessionId),
+          initialParts.organizerSecret,
+        )
+      }
       const participantId = participantIdRef.current
       const loadedMenu = await api<MenuItem[]>(
         `/food/restaurants/${loaded.restaurant.id}/menu?addressId=${loaded.address.id}`,
       )
+      const search = new URLSearchParams(window.location.search)
+      const participantName = isOrganizerMode
+        ? loaded.organiserName
+        : (search.get('name') ??
+          localStorage.getItem(localParticipantNameKey(sessionId)) ??
+          '')
       setState({
         session: loaded,
         menu: loadedMenu,
+        organizerReviewPath:
+          isOrganizerMode && initialParts.organizerSecret
+            ? buildOrganizerReviewPath({
+                sessionId,
+                key,
+                ownerKey: initialParts.organizerSecret,
+              })
+            : null,
+        participantName,
         submittedDraft: draftCartFromSubmittedItems(
           loaded.items.filter((item) => item.participantId === participantId),
         ),
@@ -271,6 +300,7 @@ function RouteComponent() {
       error={state.error}
       menu={state.menu}
       notice={state.notice}
+      organizerReviewPath={state.organizerReviewPath}
       participantName={state.participantName}
       pending={state.pending}
       session={state.session}

@@ -58,8 +58,8 @@ export function OrganizerReviewPage({
   onCancelSync,
   onConfirmSync,
   onFallback,
-  onJoinOrder,
   onLock,
+  onOpenMenuMode,
   onRemoveItem,
   onRefresh,
   onSync,
@@ -75,8 +75,8 @@ export function OrganizerReviewPage({
   onCancelSync: () => void
   onConfirmSync: () => void
   onFallback: () => void
-  onJoinOrder: () => void
   onLock: () => void
+  onOpenMenuMode: () => void
   onRemoveItem: (itemId: string) => void
   onRefresh: () => void
   onSync: () => void
@@ -118,6 +118,21 @@ export function OrganizerReviewPage({
           <span className="text-sm font-medium">{session.restaurant.name}</span>
         </div>
         <div className="flex items-center gap-2">
+          {isOrganizer ? (
+            <div className="hidden items-center rounded-lg border border-border p-0.5 sm:flex">
+              <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">
+                Review
+              </span>
+              <Button
+                onClick={onOpenMenuMode}
+                variant="ghost"
+                size="sm"
+                className="h-7 rounded-md px-2.5 text-xs"
+              >
+                Menu
+              </Button>
+            </div>
+          ) : null}
           <Badge
             variant={session.status === 'open' ? 'secondary' : 'default'}
             className="rounded-full text-[11px]"
@@ -171,6 +186,19 @@ export function OrganizerReviewPage({
                   className="min-w-0 flex-1 font-mono text-xs"
                 />
                 <div className="flex gap-2">
+                  <div className="flex items-center rounded-lg border border-border p-0.5 sm:hidden">
+                    <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">
+                      Review
+                    </span>
+                    <Button
+                      onClick={onOpenMenuMode}
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 rounded-md px-2.5 text-xs"
+                    >
+                      Menu
+                    </Button>
+                  </div>
                   <Button
                     onClick={() =>
                       navigator.clipboard.writeText(session.shareUrl)
@@ -180,14 +208,6 @@ export function OrganizerReviewPage({
                     className="h-8 rounded-lg text-xs"
                   >
                     Copy link
-                  </Button>
-                  <Button
-                    onClick={onJoinOrder}
-                    variant="outline"
-                    size="sm"
-                    className="h-8 rounded-lg text-xs"
-                  >
-                    Add my items
                   </Button>
                   <Button
                     onClick={onRefresh}

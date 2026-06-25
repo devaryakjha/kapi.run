@@ -54,6 +54,7 @@ export function ParticipantMenuPage({
   error,
   menu,
   notice,
+  organizerReviewPath,
   participantName,
   pending,
   session,
@@ -71,6 +72,7 @@ export function ParticipantMenuPage({
   error: string | null
   menu: MenuItem[]
   notice: string | null
+  organizerReviewPath: string | null
   participantName: string
   pending: boolean
   session: KapiSession
@@ -135,7 +137,36 @@ export function ParticipantMenuPage({
           </span>
         </div>
         <div className="flex items-center gap-3">
+          {organizerReviewPath ? (
+            <div className="hidden items-center rounded-lg border border-border p-0.5 sm:flex">
+              <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">
+                Menu
+              </span>
+              <Button
+                onClick={() => {
+                  window.location.href = organizerReviewPath
+                }}
+                variant="ghost"
+                size="sm"
+                className="h-7 rounded-md px-2.5 text-xs"
+              >
+                Review
+              </Button>
+            </div>
+          ) : null}
           <TimerPill remainingTime={remainingTime} locked={locked} />
+          {organizerReviewPath ? (
+            <Button
+              onClick={() => {
+                window.location.href = organizerReviewPath
+              }}
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-lg px-2.5 text-xs sm:hidden"
+            >
+              Review
+            </Button>
+          ) : null}
           <Avatar className="size-8">
             <AvatarFallback className="text-xs font-semibold">
               {participantName.slice(0, 1).toUpperCase() || 'A'}

@@ -6,7 +6,7 @@ import type {
   SwiggyCartSummary,
 } from '@kapi/spec'
 
-import { buildParticipantJoinPath } from '#/features/group-ordering/join-target'
+import { buildOrganizerMenuPath } from '#/features/group-ordering/join-target'
 import { OrganizerReviewPage } from '#/features/group-ordering/review-page'
 import {
   ApiError,
@@ -261,11 +261,18 @@ function RouteComponent() {
     }
   }
 
-  function joinAsParticipant() {
-    if (!state.session || !sessionKeyRef.current) return
-    window.location.href = buildParticipantJoinPath({
+  function openMenuMode() {
+    if (
+      !state.session ||
+      !sessionKeyRef.current ||
+      !organizerSecretRef.current
+    ) {
+      return
+    }
+    window.location.href = buildOrganizerMenuPath({
       sessionId: state.session.id,
       key: sessionKeyRef.current,
+      ownerKey: organizerSecretRef.current,
     })
   }
 
@@ -292,7 +299,7 @@ function RouteComponent() {
       onCancelSync={() => setState({ swiggyCart: null })}
       onConfirmSync={confirmSyncCart}
       onFallback={loadManualFallback}
-      onJoinOrder={joinAsParticipant}
+      onOpenMenuMode={openMenuMode}
       onLock={lockSession}
       onRemoveItem={removeSubmittedItem}
       onRefresh={refreshSessionFromRelay}
