@@ -39,6 +39,7 @@ type MenuState = {
   pending: boolean
   error: string | null
   notice: string | null
+  stale: boolean
 }
 
 function initialMenuState(): MenuState {
@@ -57,6 +58,7 @@ function initialMenuState(): MenuState {
     error:
       !inviteId && (!sessionId || !key) ? 'Session link is invalid.' : null,
     notice: null,
+    stale: false,
   }
 }
 
@@ -81,7 +83,10 @@ function RouteComponent() {
       sessionKeyRef.current,
     )
     relayUpdatedAtRef.current = loaded.relayUpdatedAt
-    setState({ session: loaded.session })
+    setState({
+      session: loaded.session,
+      stale: loaded.relayUpdatedAt === null,
+    })
     return loaded
   }
 
@@ -110,6 +115,7 @@ function RouteComponent() {
           loaded.items.filter((item) => item.participantId === participantId),
         ),
         error: null,
+        stale: loadedRecord.relayUpdatedAt === null,
       })
     }
 
@@ -252,6 +258,9 @@ function RouteComponent() {
     return (
       <main className="min-h-svh bg-background p-6 text-foreground">
         <ErrorAlert message={state.error} />
+        {!state.error ? (
+          <p className="text-sm text-muted-foreground">Loading order...</p>
+        ) : null}
       </main>
     )
   }
@@ -265,6 +274,7 @@ function RouteComponent() {
       participantName={state.participantName}
       pending={state.pending}
       session={state.session}
+      stale={state.stale}
       submittedDraft={state.submittedDraft}
       onAddCustomItem={addCustomItem}
       onAddPlainItem={addPlainItem}

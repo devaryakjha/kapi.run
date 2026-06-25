@@ -35,6 +35,7 @@ export function OrganizerReviewPage({
   isOrganizer,
   pending,
   session,
+  stale,
   onFallback,
   onJoinOrder,
   onLock,
@@ -48,6 +49,7 @@ export function OrganizerReviewPage({
   isOrganizer: boolean
   pending: boolean
   session: KapiSession
+  stale: boolean
   onFallback: () => void
   onJoinOrder: () => void
   onLock: () => void
@@ -101,7 +103,7 @@ export function OrganizerReviewPage({
             variant={session.status === 'open' ? 'secondary' : 'default'}
             className="rounded-full text-[11px]"
           >
-            {session.status}
+            {statusLabel(session.status)}
           </Badge>
           {isOrganizer ? (
             <Button
@@ -133,6 +135,15 @@ export function OrganizerReviewPage({
 
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_280px]">
           <div className="flex flex-col gap-4">
+            {stale ? (
+              <Alert>
+                <AlertTriangle />
+                <AlertDescription>
+                  Showing a saved copy. Refresh before changing this order.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             {isOrganizer ? (
               <div className="flex flex-col gap-2 rounded-xl border border-border p-4 sm:flex-row sm:items-center">
                 <Input
@@ -334,6 +345,17 @@ export function OrganizerReviewPage({
       </div>
     </main>
   )
+}
+
+function statusLabel(status: KapiSession['status']) {
+  return {
+    open: 'Open',
+    locked: 'Locked',
+    syncing: 'Syncing',
+    synced: 'Synced',
+    sync_failed: 'Sync failed',
+    closed: 'Closed',
+  }[status]
 }
 
 function ParticipantGroup({

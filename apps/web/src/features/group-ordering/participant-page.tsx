@@ -56,6 +56,7 @@ export function ParticipantMenuPage({
   participantName,
   pending,
   session,
+  stale,
   submittedDraft,
   onAddCustomItem,
   onAddPlainItem,
@@ -72,6 +73,7 @@ export function ParticipantMenuPage({
   participantName: string
   pending: boolean
   session: KapiSession
+  stale: boolean
   submittedDraft: DraftCart
   onAddCustomItem: (line: Omit<DraftCartLine, 'id'>) => void
   onAddPlainItem: (menuItemId: string) => void
@@ -84,6 +86,12 @@ export function ParticipantMenuPage({
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
   const [customizing, setCustomizing] = useState<MenuItem | null>(null)
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const categories = useMemo(
     () => [
@@ -110,8 +118,8 @@ export function ParticipantMenuPage({
     })
   }, [menu, query, activeCategory])
 
-  const locked = isSessionLockedForParticipants(session)
-  const remainingTime = formatRemainingTime(session)
+  const locked = isSessionLockedForParticipants(session, now)
+  const remainingTime = formatRemainingTime(session, now)
 
   return (
     <main className="flex h-svh flex-col bg-background text-foreground">
@@ -175,6 +183,14 @@ export function ParticipantMenuPage({
 
           <div className="px-4 py-4 pb-28 md:px-6 lg:pb-6">
             <div className="mx-auto max-w-3xl">
+              {stale ? (
+                <Alert className="mb-4">
+                  <AlertDescription>
+                    Showing a saved copy. Refresh before changing this order.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
               <div className="mb-4 md:hidden">
                 <Field className="gap-1.5">
                   <FieldLabel className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">

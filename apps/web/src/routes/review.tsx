@@ -32,6 +32,7 @@ type ReviewState = {
   isOrganizer: boolean
   pending: boolean
   error: string | null
+  stale: boolean
 }
 
 function initialReviewState(): ReviewState {
@@ -42,6 +43,7 @@ function initialReviewState(): ReviewState {
     isOrganizer: false,
     pending: false,
     error: !sessionId || !key ? 'Session link is invalid.' : null,
+    stale: false,
   }
 }
 
@@ -73,7 +75,7 @@ function RouteComponent() {
         organizerSecret: organizerSecretRef.current,
       })
       relayUpdatedAtRef.current = saved.relayUpdatedAt
-      setState({ session: saved.session })
+      setState({ session: saved.session, stale: false })
       return saved.session
     } catch (caught) {
       if (!(caught instanceof ApiError) || caught.status !== 409) throw caught
@@ -86,7 +88,7 @@ function RouteComponent() {
         organizerSecret: organizerSecretRef.current,
       })
       relayUpdatedAtRef.current = saved.relayUpdatedAt
-      setState({ session: saved.session })
+      setState({ session: saved.session, stale: false })
       return saved.session
     }
   }
@@ -98,7 +100,10 @@ function RouteComponent() {
       sessionKeyRef.current,
     )
     relayUpdatedAtRef.current = loaded.relayUpdatedAt
-    setState({ session: loaded.session })
+    setState({
+      session: loaded.session,
+      stale: loaded.relayUpdatedAt === null,
+    })
     return loaded
   }
 
@@ -119,7 +124,11 @@ function RouteComponent() {
         if (isOrganizer && organizerSecret) {
           localStorage.setItem(localOrganizerKeyKey(sessionId), organizerSecret)
         }
-        setState({ isOrganizer, session })
+        setState({
+          isOrganizer,
+          session,
+          stale: loaded.relayUpdatedAt === null,
+        })
       })
       .catch((caught: Error) => setState({ error: caught.message }))
   }, [])
@@ -260,6 +269,9 @@ function RouteComponent() {
     return (
       <main className="min-h-svh bg-background p-6 text-foreground">
         <ErrorAlert message={state.error} />
+        {!state.error ? (
+          <p className="text-sm text-muted-foreground">Loading order...</p>
+        ) : null}
       </main>
     )
   }
@@ -271,6 +283,7 @@ function RouteComponent() {
       isOrganizer={state.isOrganizer}
       pending={state.pending}
       session={state.session}
+      stale={state.stale}
       onFallback={loadManualFallback}
       onJoinOrder={joinAsParticipant}
       onLock={lockSession}
