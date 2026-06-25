@@ -1,11 +1,17 @@
 import type { KapiSession, RelayWritePayload, SessionStatus } from '@kapi/spec'
 import { describe, expect, it } from 'vitest'
 import type { RelayRecord } from '../../../../api/src/index'
-import { decideRelayWrite } from '../../../../api/src/index'
+import {
+  app,
+  applyRelayWrite,
+  authorizeCartSync,
+  decideRelayWrite,
+} from '../../../../api/src/index'
 
 import {
   addPlainDraftItem,
   applyParticipantSubmission,
+  applyRelayParticipantSubmission,
   changeDraftLineQuantity,
   draftCartFromSubmittedItems,
   hasOrganizerCapability,
@@ -211,6 +217,7 @@ describe('decideRelayWrite', () => {
         status: 'open',
         organizerSecretHash: 'hash',
       },
+      participantId: 'participant-1',
       role: 'participant',
       ...patch,
     }
@@ -221,10 +228,14 @@ describe('decideRelayWrite', () => {
       await currentRecord('2999-06-19T12:01:00.000Z'),
       write({ metadata: { status: 'locked' } }),
       null,
+      'participant-secret',
     )
 
     expect(decision.ok).toBe(true)
-    if (decision.ok) expect(decision.metadata?.status).toBe('open')
+    if (decision.ok) {
+      expect(decision.role).toBe('participant')
+      expect(decision.metadata?.status).toBe('open')
+    }
   })
 
   it('rejects a participant write after cutoff', async () => {
@@ -232,9 +243,66 @@ describe('decideRelayWrite', () => {
       await currentRecord('2000-06-19T12:01:00.000Z'),
       write(),
       null,
+      'participant-secret',
     )
 
     expect(decision).toMatchObject({ ok: false, status: 423 })
+  })
+
+  it('rejects a participant write without participant proof', async () => {
+    const decision = await decideRelayWrite(
+      await currentRecord('2999-06-19T12:01:00.000Z'),
+      write(),
+      null,
+    )
+
+    expect(decision).toMatchObject({ ok: false, status: 403 })
+  })
+
+  it('keeps participant writes from replacing the organizer session ciphertext', async () => {
+    const current = await currentRecord('2999-06-19T12:01:00.000Z')
+    const body = write({ ciphertext: 'participant-crafted-full-session' })
+    const decision = await decideRelayWrite(
+      current,
+      body,
+      null,
+      'participant-secret',
+    )
+
+    expect(decision.ok).toBe(true)
+    if (!decision.ok) return
+    const updated = applyRelayWrite(current, body, decision, 'version-2')
+
+    expect(updated.ciphertext).toBe('old-ciphertext')
+    expect(updated.participantSubmissions?.['participant-1']).toMatchObject({
+      ciphertext: 'participant-crafted-full-session',
+      updatedAt: 'version-2',
+    })
+    expect(updated.participantSecretHashes).toEqual({
+      'participant-1': await hashOrganizerSecret('participant-secret'),
+    })
+  })
+
+  it("rejects writes to another participant's existing slot", async () => {
+    const current = await currentRecord('2999-06-19T12:01:00.000Z')
+    current.participantSecretHashes = {
+      'participant-2': await hashOrganizerSecret('victim-secret'),
+    }
+    current.participantSubmissions = {
+      'participant-2': {
+        ciphertext: 'victim-submission',
+        updatedAt: 'version-1',
+      },
+    }
+
+    const decision = await decideRelayWrite(
+      current,
+      write({ participantId: 'participant-2' }),
+      null,
+      'attacker-secret',
+    )
+
+    expect(decision).toMatchObject({ ok: false, status: 403 })
   })
 
   it('allows an organizer write with the correct secret after cutoff', async () => {
@@ -287,19 +355,21 @@ describe('decideRelayWrite', () => {
   })
 
   it('sanitizes relay metadata to allowed fields', async () => {
+    const organizerSecretHash = await hashOrganizerSecret('organizer-secret')
     const decision = await decideRelayWrite(
       undefined,
       write({
+        role: 'organizer',
         metadata: {
           cutoffAt: '2026-06-19T12:01:00.000Z',
           status: 'open',
-          organizerSecretHash: 'hash',
+          organizerSecretHash,
           address: 'forbidden',
           cartItems: [],
           participantName: 'forbidden',
         } as RelayWritePayload['metadata'],
       }),
-      null,
+      'organizer-secret',
     )
 
     expect(decision.ok).toBe(true)
@@ -307,9 +377,104 @@ describe('decideRelayWrite', () => {
       expect(decision.metadata).toEqual({
         cutoffAt: '2026-06-19T12:01:00.000Z',
         status: 'open',
-        organizerSecretHash: 'hash',
+        organizerSecretHash,
       })
     }
+  })
+
+  it('clears staged participant submissions after an organizer write', async () => {
+    const current = await currentRecord('2999-06-19T12:01:00.000Z')
+    current.participantSecretHashes = {
+      'participant-1': await hashOrganizerSecret('participant-secret'),
+    }
+    current.participantSubmissions = {
+      'participant-1': {
+        ciphertext: 'participant-submission',
+        updatedAt: 'version-1',
+      },
+    }
+    const body = write({
+      ciphertext: 'organizer-session',
+      role: 'organizer',
+      metadata: {
+        cutoffAt: '2026-06-19T12:01:00.000Z',
+        status: 'locked',
+        organizerSecretHash: await hashOrganizerSecret('organizer-secret'),
+      },
+    })
+    const decision = await decideRelayWrite(current, body, 'organizer-secret')
+
+    expect(decision.ok).toBe(true)
+    if (!decision.ok) return
+    const updated = applyRelayWrite(current, body, decision, 'version-2')
+
+    expect(updated.ciphertext).toBe('organizer-session')
+    expect(updated.participantSubmissions).toBeUndefined()
+    expect(updated.participantSecretHashes).toEqual({
+      'participant-1': await hashOrganizerSecret('participant-secret'),
+    })
+  })
+})
+
+describe('authorizeCartSync', () => {
+  async function relayRecord(
+    secret = 'organizer-secret',
+  ): Promise<RelayRecord> {
+    return {
+      ciphertext: 'ciphertext',
+      updatedAt: 'version-1',
+      metadata: {
+        status: 'locked',
+        organizerSecretHash: await hashOrganizerSecret(secret),
+      },
+    }
+  }
+
+  it('accepts a matching organizer secret for the session', async () => {
+    await expect(
+      authorizeCartSync(
+        { 'session-1': await relayRecord() },
+        'session-1',
+        'organizer-secret',
+      ),
+    ).resolves.toBe(true)
+  })
+
+  it('rejects missing or wrong organizer proof', async () => {
+    const sessions = { 'session-1': await relayRecord() }
+
+    await expect(authorizeCartSync(sessions, 'session-1', null)).resolves.toBe(
+      false,
+    )
+    await expect(
+      authorizeCartSync(sessions, 'session-1', 'wrong-secret'),
+    ).resolves.toBe(false)
+    await expect(
+      authorizeCartSync(sessions, 'other-session', 'organizer-secret'),
+    ).resolves.toBe(false)
+  })
+})
+
+describe('/food/cart/sync', () => {
+  it('rejects missing organizer proof before using the Swiggy token', async () => {
+    const response = await app.handle(
+      new Request('http://localhost/food/cart/sync', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ...makeCartPayload({
+            ...session('locked'),
+            items: [cartItem('swiggy-1', 1)],
+          }),
+          replaceExistingCart: true,
+        }),
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toEqual({
+      error: 'Only the organiser can sync the Swiggy cart.',
+    })
   })
 })
 
@@ -321,6 +486,7 @@ describe('makeCartPayload', () => {
         items: [cartItem('swiggy-1', 2), cartItem('swiggy-1', 3)],
       }),
     ).toEqual({
+      sessionId: 'session-1',
       restaurantId: 'restaurant-1',
       restaurantName: 'Cafe',
       addressId: 'address-1',
@@ -517,6 +683,47 @@ describe('applyParticipantSubmission', () => {
       },
       customizationSummary: 'Size: Large, Bun: Brioche',
       price: 139,
+    })
+  })
+})
+
+describe('applyRelayParticipantSubmission', () => {
+  it("replaces only the relay-owned participant's lines", () => {
+    const current = {
+      ...session('open'),
+      items: [
+        cartItem('swiggy-1', 1, true, 'participant-1', 'Alex'),
+        cartItem('swiggy-2', 2, true, 'participant-2', 'Blair'),
+      ],
+    }
+
+    const next = applyRelayParticipantSubmission(
+      current,
+      'participant-1',
+      {
+        participantName: 'Mallory',
+        items: [
+          {
+            ...cartItem('swiggy-2', 3, true, 'participant-2', 'Blair'),
+            id: 'crafted-line',
+          },
+        ],
+      },
+      '2026-06-19T12:02:00.000Z',
+    )
+
+    expect(
+      next.items.map((item) => [item.participantId, item.quantity]),
+    ).toEqual([
+      ['participant-2', 2],
+      ['participant-1', 3],
+    ])
+    expect(next.participants).toContainEqual({
+      id: 'participant-1',
+      displayName: 'Mallory',
+      status: 'submitted',
+      joinedAt: '2026-06-19T12:02:00.000Z',
+      submittedAt: '2026-06-19T12:02:00.000Z',
     })
   })
 })

@@ -6,7 +6,7 @@ import type {
   ManualFallbackSummary,
   MenuCustomization,
   MenuItem,
-  RelaySessionMetadata,
+  RelaySessionRecord,
   RelayWriteRole,
   Restaurant,
   SessionInvite,
@@ -27,6 +27,10 @@ export type DraftCartLine = {
   unitPrice?: number
 }
 export type DraftCart = Record<string, DraftCartLine>
+type RelayParticipantSubmission = {
+  participantName: string
+  items: CartLine[]
+}
 
 export function addPlainDraftItem(
   draft: DraftCart,
@@ -81,11 +85,6 @@ export function draftCartFromSubmittedItems(items: CartLine[]): DraftCart {
   )
 }
 
-export type RelaySessionRecord = {
-  ciphertext: string
-  updatedAt: string
-  metadata?: RelaySessionMetadata
-}
 export type LoadedSessionRecord = {
   session: KapiSession
   relayUpdatedAt: string | null
@@ -118,6 +117,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const { headers, ...rest } = init ?? {}
   const response = await fetch(`${API_URL}${path}`, {
     ...rest,
+    credentials: 'include',
     headers: { 'content-type': 'application/json', ...headers },
   })
 
@@ -187,20 +187,20 @@ async function importSessionKey(key: string) {
   )
 }
 
-async function encryptSession(session: KapiSession, key: string) {
+async function encryptSession(value: unknown, key: string) {
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const cryptoKey = await importSessionKey(key)
   const ciphertext = new Uint8Array(
     await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv },
       cryptoKey,
-      encoder.encode(JSON.stringify(session)),
+      encoder.encode(JSON.stringify(value)),
     ),
   )
   return `${bytesToBase64Url(iv)}.${bytesToBase64Url(ciphertext)}`
 }
 
-async function decryptSession(ciphertext: string, key: string) {
+async function decryptSession<T>(ciphertext: string, key: string) {
   const [iv, data] = ciphertext.split('.')
   if (!iv || !data) throw new Error('Session link is invalid.')
   const cryptoKey = await importSessionKey(key)
@@ -209,7 +209,7 @@ async function decryptSession(ciphertext: string, key: string) {
     cryptoKey,
     base64UrlToBytes(data),
   )
-  return JSON.parse(decoder.decode(plaintext)) as KapiSession
+  return JSON.parse(decoder.decode(plaintext)) as T
 }
 
 function localSessionKey(sessionId: string) {
@@ -224,6 +224,10 @@ export function localParticipantIdKey(sessionId: string) {
   return `kapi:participant:${sessionId}`
 }
 
+export function localParticipantSecretKey(sessionId: string) {
+  return `kapi:participant-secret:${sessionId}`
+}
+
 export function localParticipantNameKey(sessionId: string) {
   return `kapi:participant-name:${sessionId}`
 }
@@ -235,6 +239,15 @@ export function getOrCreateLocalParticipantId(sessionId: string) {
   const id = crypto.randomUUID()
   localStorage.setItem(key, id)
   return id
+}
+
+export function getOrCreateLocalParticipantSecret(sessionId: string) {
+  const key = localParticipantSecretKey(sessionId)
+  const existing = localStorage.getItem(key)
+  if (existing) return existing
+  const secret = makeOrganizerSecret()
+  localStorage.setItem(key, secret)
+  return secret
 }
 
 export function localOrganizerKeyKey(sessionId: string) {
@@ -287,13 +300,180 @@ export async function resolveSessionLinkParts(
 export async function loadMenuCustomization({
   addressId,
   item,
+  sessionId,
+  sessionKey,
 }: {
   addressId: string
   item: MenuItem
+  sessionId: string
+  sessionKey: string
 }) {
   return api<MenuCustomization>(
-    `/food/restaurants/${item.restaurantId}/menu/${item.swiggyItemId}/customization?addressId=${encodeURIComponent(addressId)}&q=${encodeURIComponent(item.name)}`,
+    `/food/restaurants/${item.restaurantId}/menu/${item.swiggyItemId}/customization?addressId=${encodeURIComponent(addressId)}&q=${encodeURIComponent(item.name)}&sessionId=${encodeURIComponent(sessionId)}`,
+    { headers: { 'x-kapi-session-key': sessionKey } },
   )
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' ? value : ''
+}
+
+function numberValue(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function normalizeCustomization(value: unknown): CartCustomization | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const customization = value as Record<string, unknown>
+  const variantsV2 = Array.isArray(customization.variantsV2)
+    ? customization.variantsV2.flatMap((variant) => {
+        if (!variant || typeof variant !== 'object') return []
+        const item = variant as Record<string, unknown>
+        const group_id = stringValue(item.group_id)
+        const variation_id = stringValue(item.variation_id)
+        return group_id && variation_id ? [{ group_id, variation_id }] : []
+      })
+    : undefined
+  const addons = Array.isArray(customization.addons)
+    ? customization.addons.flatMap((addon) => {
+        if (!addon || typeof addon !== 'object') return []
+        const item = addon as Record<string, unknown>
+        const group_id = stringValue(item.group_id)
+        const choice_id = stringValue(item.choice_id)
+        return group_id && choice_id ? [{ group_id, choice_id }] : []
+      })
+    : undefined
+  return variantsV2?.length || addons?.length
+    ? {
+        ...(variantsV2?.length ? { variantsV2 } : {}),
+        ...(addons?.length ? { addons } : {}),
+      }
+    : undefined
+}
+
+function normalizeSubmission(
+  value: unknown,
+  participantId: string,
+): RelayParticipantSubmission {
+  const submission =
+    value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  const participantName =
+    stringValue(submission.participantName).trim() || 'Guest'
+  const items = Array.isArray(submission.items)
+    ? submission.items.flatMap((raw) => {
+        if (!raw || typeof raw !== 'object') return []
+        const item = raw as Record<string, unknown>
+        const quantity = numberValue(item.quantity)
+        const price = numberValue(item.price)
+        const menuItemId = stringValue(item.menuItemId)
+        const name = stringValue(item.name)
+        const swiggyItemId = stringValue(item.swiggyItemId)
+        if (
+          !quantity ||
+          quantity <= 0 ||
+          price === null ||
+          !menuItemId ||
+          !name ||
+          !swiggyItemId
+        ) {
+          return []
+        }
+        const customization = normalizeCustomization(item.customization)
+        return [
+          {
+            id: stringValue(item.id) || crypto.randomUUID(),
+            participantId,
+            participantName,
+            menuItemId,
+            name,
+            quantity: Math.floor(quantity),
+            price,
+            available: item.available !== false,
+            swiggyItemId,
+            ...(customization ? { customization } : {}),
+            ...(stringValue(item.customizationSummary)
+              ? { customizationSummary: stringValue(item.customizationSummary) }
+              : {}),
+          },
+        ]
+      })
+    : []
+  return { participantName, items }
+}
+
+export function applyRelayParticipantSubmission(
+  latest: KapiSession,
+  participantId: string,
+  submission: unknown,
+  submittedAt: string,
+) {
+  const normalized = normalizeSubmission(submission, participantId)
+  const existingParticipant = latest.participants.find(
+    (participant) => participant.id === participantId,
+  )
+  return {
+    ...latest,
+    participants: existingParticipant
+      ? latest.participants.map((participant) =>
+          participant.id === participantId
+            ? {
+                ...participant,
+                displayName: normalized.participantName,
+                status: 'submitted',
+                submittedAt,
+              }
+            : participant,
+        )
+      : [
+          ...latest.participants,
+          {
+            id: participantId,
+            displayName: normalized.participantName,
+            status: 'submitted',
+            joinedAt: submittedAt,
+            submittedAt,
+          },
+        ],
+    items: [
+      ...latest.items.filter((item) => item.participantId !== participantId),
+      ...normalized.items,
+    ],
+    audit: [
+      ...latest.audit.filter(
+        (event) => event.id !== `participant:${participantId}:${submittedAt}`,
+      ),
+      {
+        id: `participant:${participantId}:${submittedAt}`,
+        at: submittedAt,
+        actor: normalized.participantName,
+        action: `submitted ${normalized.items.length} item lines`,
+      },
+    ],
+  } satisfies KapiSession
+}
+
+async function mergeRelayParticipantSubmissions(
+  session: KapiSession,
+  record: RelaySessionRecord,
+  key: string,
+) {
+  let next = session
+  const submissions = Object.entries(record.participantSubmissions ?? {}).sort(
+    ([left], [right]) => left.localeCompare(right),
+  )
+  for (const [participantId, submission] of submissions) {
+    try {
+      next = applyRelayParticipantSubmission(
+        next,
+        participantId,
+        await decryptSession<unknown>(submission.ciphertext, key),
+        submission.updatedAt,
+      )
+    } catch {
+      continue
+    }
+  }
+  return next
 }
 
 export async function loadEncryptedSessionRecord(
@@ -302,7 +482,11 @@ export async function loadEncryptedSessionRecord(
 ): Promise<LoadedSessionRecord> {
   try {
     const record = await api<RelaySessionRecord>(`/relay/sessions/${sessionId}`)
-    const loaded = await decryptSession(record.ciphertext, key)
+    const loaded = await mergeRelayParticipantSubmissions(
+      await decryptSession<KapiSession>(record.ciphertext, key),
+      record,
+      key,
+    )
     localStorage.setItem(localSessionKey(sessionId), JSON.stringify(loaded))
     localStorage.setItem(localKeyKey(sessionId), key)
     return { session: loaded, relayUpdatedAt: record.updatedAt }
@@ -327,27 +511,61 @@ export async function publishSession(
   key: string,
   options: {
     expectedUpdatedAt?: string | null
+    participantId?: string
+    participantSecret?: string
     role?: RelayWriteRole
     organizerSecret?: string | null
   } = {},
 ): Promise<LoadedSessionRecord> {
+  const role = options.role ?? 'participant'
+  const participantSubmission =
+    role === 'participant' && options.participantId
+      ? {
+          participantName:
+            nextSession.participants.find(
+              (participant) => participant.id === options.participantId,
+            )?.displayName ??
+            nextSession.items.find(
+              (item) => item.participantId === options.participantId,
+            )?.participantName ??
+            'Guest',
+          items: nextSession.items.filter(
+            (item) => item.participantId === options.participantId,
+          ),
+        }
+      : null
+  if (
+    role === 'participant' &&
+    (!options.participantId || !options.participantSecret)
+  ) {
+    throw new Error('Participant proof is missing.')
+  }
   const record = await api<RelaySessionRecord>(
     `/relay/sessions/${nextSession.id}`,
     {
       method: 'PUT',
       headers:
-        options.role === 'organizer' && options.organizerSecret
+        role === 'organizer' && options.organizerSecret
           ? { 'x-kapi-organizer-secret': options.organizerSecret }
-          : undefined,
+          : role === 'participant' && options.participantSecret
+            ? { 'x-kapi-participant-secret': options.participantSecret }
+            : undefined,
       body: JSON.stringify({
-        ciphertext: await encryptSession(nextSession, key),
+        ciphertext: await encryptSession(
+          participantSubmission ?? nextSession,
+          key,
+        ),
         expectedUpdatedAt: options.expectedUpdatedAt,
-        metadata: {
-          cutoffAt: nextSession.cutoffAt,
-          status: nextSession.status,
-          organizerSecretHash: nextSession.organizerSecretHash,
-        },
-        role: options.role,
+        ...(role === 'organizer'
+          ? {
+              metadata: {
+                cutoffAt: nextSession.cutoffAt,
+                status: nextSession.status,
+                organizerSecretHash: nextSession.organizerSecretHash,
+              },
+            }
+          : { participantId: options.participantId }),
+        role,
       }),
     },
   )
@@ -485,6 +703,7 @@ export function makeManualFallback(
 
 export function makeCartPayload(session: KapiSession) {
   return {
+    sessionId: session.id,
     restaurantId: session.restaurant.id,
     restaurantName: session.restaurant.name,
     addressId: session.address.id,

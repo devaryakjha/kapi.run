@@ -18,6 +18,7 @@ import {
   changeDraftLineQuantity,
   draftCartFromSubmittedItems,
   getOrCreateLocalParticipantId,
+  getOrCreateLocalParticipantSecret,
   getSessionLinkParts,
   hasOrganizerCapability,
   isSessionLockedForParticipants,
@@ -79,6 +80,7 @@ function RouteComponent() {
   )
   const sessionKeyRef = useRef('')
   const participantIdRef = useRef('')
+  const participantSecretRef = useRef('')
   const relayUpdatedAtRef = useRef<string | null>(null)
 
   async function refreshSessionFromRelay(): Promise<LoadedSessionRecord | null> {
@@ -107,6 +109,8 @@ function RouteComponent() {
 
       sessionKeyRef.current = key
       participantIdRef.current = getOrCreateLocalParticipantId(sessionId)
+      participantSecretRef.current =
+        getOrCreateLocalParticipantSecret(sessionId)
       const loadedRecord = await loadEncryptedSessionRecord(sessionId, key)
       relayUpdatedAtRef.current = loadedRecord.relayUpdatedAt
       const loaded = loadedRecord.session
@@ -118,7 +122,8 @@ function RouteComponent() {
       }
       const participantId = participantIdRef.current
       const loadedMenu = await api<MenuItem[]>(
-        `/food/restaurants/${loaded.restaurant.id}/menu?addressId=${loaded.address.id}`,
+        `/food/restaurants/${loaded.restaurant.id}/menu?addressId=${encodeURIComponent(loaded.address.id)}&sessionId=${encodeURIComponent(sessionId)}`,
+        { headers: { 'x-kapi-session-key': key } },
       )
       const search = new URLSearchParams(window.location.search)
       const participantName = isOrganizerMode
@@ -235,6 +240,8 @@ function RouteComponent() {
       try {
         const saved = await publishSession(updated, sessionKeyRef.current, {
           expectedUpdatedAt: latest.relayUpdatedAt,
+          participantId,
+          participantSecret: participantSecretRef.current,
           role: 'participant',
         })
         relayUpdatedAtRef.current = saved.relayUpdatedAt
@@ -253,6 +260,8 @@ function RouteComponent() {
         updated = buildUpdated(latest.session)
         const saved = await publishSession(updated, sessionKeyRef.current, {
           expectedUpdatedAt: latest.relayUpdatedAt,
+          participantId,
+          participantSecret: participantSecretRef.current,
           role: 'participant',
         }).catch((retryError) => {
           if (retryError instanceof ApiError && retryError.status === 409) {
@@ -308,7 +317,12 @@ function RouteComponent() {
       onAddCustomItem={addCustomItem}
       onAddPlainItem={addPlainItem}
       onLoadCustomization={(item) =>
-        loadMenuCustomization({ addressId: state.session!.address.id, item })
+        loadMenuCustomization({
+          addressId: state.session!.address.id,
+          item,
+          sessionId: state.session!.id,
+          sessionKey: sessionKeyRef.current,
+        })
       }
       onNameChange={(participantName) =>
         setState({ participantName, notice: null })

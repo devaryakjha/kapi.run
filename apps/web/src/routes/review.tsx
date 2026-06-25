@@ -148,7 +148,12 @@ function RouteComponent() {
     setState({ pending: true, error: null })
     try {
       const cart = await api<SwiggyCartSummary>(
-        `/food/cart?addressId=${encodeURIComponent(state.session.address.id)}&restaurantName=${encodeURIComponent(state.session.restaurant.name)}`,
+        `/food/cart?addressId=${encodeURIComponent(state.session.address.id)}&restaurantName=${encodeURIComponent(state.session.restaurant.name)}&sessionId=${encodeURIComponent(state.session.id)}`,
+        {
+          headers: organizerSecretRef.current
+            ? { 'x-kapi-organizer-secret': organizerSecretRef.current }
+            : undefined,
+        },
       )
       setState({ swiggyCart: cart })
     } catch (caught) {
@@ -168,6 +173,9 @@ function RouteComponent() {
     try {
       const result = await api<KapiSession['sync']>('/food/cart/sync', {
         method: 'POST',
+        headers: organizerSecretRef.current
+          ? { 'x-kapi-organizer-secret': organizerSecretRef.current }
+          : undefined,
         body: JSON.stringify({
           ...makeCartPayload(state.session),
           replaceExistingCart,
