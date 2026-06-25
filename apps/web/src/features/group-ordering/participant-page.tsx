@@ -120,6 +120,7 @@ export function ParticipantMenuPage({
       return matchesCategory && matchesQuery
     })
   }, [menu, query, activeCategory])
+  const draftItemIndex = useMemo(() => indexDraftItems(draft), [draft])
 
   const locked = isSessionLockedForParticipants(session, now)
   const remainingTime = formatRemainingTime(session, now)
@@ -265,7 +266,7 @@ export function ParticipantMenuPage({
                     <MenuCard
                       key={`${item.id}:${index}`}
                       item={item}
-                      quantity={itemQuantity(draft, item.id)}
+                      quantity={draftItemIndex.get(item.id)?.quantity ?? 0}
                       locked={locked}
                       onAdd={() =>
                         item.hasVariants || item.hasAddons
@@ -273,7 +274,7 @@ export function ParticipantMenuPage({
                           : onAddPlainItem(item.id)
                       }
                       onRemove={() => {
-                        const lineId = firstLineId(draft, item.id)
+                        const lineId = draftItemIndex.get(item.id)?.firstLineId
                         if (lineId) onQuantityChange(lineId, -1)
                       }}
                       onView={() => setCustomizing(item)}
@@ -326,15 +327,16 @@ export function ParticipantMenuPage({
   )
 }
 
-function itemQuantity(draft: DraftCart, menuItemId: string) {
-  return Object.values(draft).reduce(
-    (sum, line) => sum + (line.menuItemId === menuItemId ? line.quantity : 0),
-    0,
-  )
-}
-
-function firstLineId(draft: DraftCart, menuItemId: string) {
-  return Object.values(draft).find((line) => line.menuItemId === menuItemId)?.id
+function indexDraftItems(draft: DraftCart) {
+  const index = new Map<string, { quantity: number; firstLineId: string }>()
+  for (const line of Object.values(draft)) {
+    const current = index.get(line.menuItemId)
+    index.set(line.menuItemId, {
+      quantity: (current?.quantity ?? 0) + line.quantity,
+      firstLineId: current?.firstLineId ?? line.id,
+    })
+  }
+  return index
 }
 
 function TimerPill({
@@ -1101,8 +1103,9 @@ function CartSidebar({
 }
 
 function draftLinesWithItems(draft: DraftCart, menu: MenuItem[]) {
+  const menuById = new Map(menu.map((item) => [item.id, item]))
   return Object.values(draft).flatMap((line) => {
-    const item = menu.find((candidate) => candidate.id === line.menuItemId)
+    const item = menuById.get(line.menuItemId)
     return item && line.quantity > 0 ? [{ item, line }] : []
   })
 }

@@ -19,6 +19,7 @@ import {
   applyRelayParticipantSubmission,
   changeDraftLineQuantity,
   draftCartFromSubmittedItems,
+  groupCartLinesByParticipant,
   hasOrganizerCapability,
   hashOrganizerSecret,
   getOrderQuantity,
@@ -874,6 +875,31 @@ describe('draft cart helpers', () => {
         unitPrice: 139,
       },
     })
+  })
+})
+
+describe('groupCartLinesByParticipant', () => {
+  it('preserves first-seen group order and latest participant names', () => {
+    const groups = groupCartLinesByParticipant([
+      cartItem('swiggy-1', 1, true, 'participant-1', 'Alex'),
+      cartItem('swiggy-2', 1, true, 'participant-2', 'Sam'),
+      cartItem('swiggy-3', 1, true, 'participant-1', 'Alec'),
+    ])
+
+    expect(
+      groups.map((group) => ({
+        key: group.key,
+        name: group.name,
+        itemIds: group.items.map((item) => item.id),
+      })),
+    ).toEqual([
+      {
+        key: 'participant-1',
+        name: 'Alec',
+        itemIds: ['swiggy-1-1', 'swiggy-3-1'],
+      },
+      { key: 'participant-2', name: 'Sam', itemIds: ['swiggy-2-1'] },
+    ])
   })
 })
 
