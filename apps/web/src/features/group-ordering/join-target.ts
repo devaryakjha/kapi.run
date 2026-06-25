@@ -11,6 +11,8 @@ export type OrganizerModeTarget = {
   ownerKey?: string | null
 }
 
+const targetTokenPattern = /^[A-Za-z0-9_-]+$/
+
 export function buildParticipantJoinPath(target: ParticipantTarget) {
   const url = new URL('/join', 'http://kapi.local')
   if (target.inviteId) {
@@ -47,28 +49,40 @@ function buildOrganizerModePath(pathname: string, target: OrganizerModeTarget) {
   return `${url.pathname}${url.search}${url.hash}`
 }
 
-export function parseParticipantTarget(
+export function parseParticipantJoinTarget(
   sessionOrLink: string,
   sessionKey: string,
 ): ParticipantTarget | null {
   const raw = sessionOrLink.trim()
-  const keyFallback = sessionKey.trim()
+  const keyFallback = readTargetToken(sessionKey)
   if (!raw) return null
 
   try {
     const url = new URL(raw, 'http://kapi.local')
-    const inviteId = url.searchParams.get('i') ?? url.searchParams.get('invite')
+    const inviteId =
+      readTargetToken(url.searchParams.get('i')) ??
+      readTargetToken(url.searchParams.get('invite'))
     if (inviteId) return { inviteId }
-    const sessionId = url.searchParams.get('session')?.trim() ?? ''
+    const sessionId = readTargetToken(url.searchParams.get('session'))
     const key =
-      new URLSearchParams(url.hash.slice(1)).get('key')?.trim() ?? keyFallback
+      readTargetToken(new URLSearchParams(url.hash.slice(1)).get('key')) ??
+      keyFallback
     if (sessionId && key) return { sessionId, key }
   } catch {
     // Fall through to manual session id parsing.
   }
 
   const [sessionId, inlineKey] = raw.split(/\s+/)
-  if (sessionId && !inlineKey && !keyFallback) return { inviteId: sessionId }
-  const key = keyFallback || inlineKey || ''
-  return sessionId && key ? { sessionId, key } : null
+  const validSessionId = readTargetToken(sessionId)
+  const validInlineKey = readTargetToken(inlineKey)
+  if (validSessionId && !inlineKey && !keyFallback) {
+    return { inviteId: validSessionId }
+  }
+  const key = keyFallback ?? validInlineKey
+  return validSessionId && key ? { sessionId: validSessionId, key } : null
+}
+
+function readTargetToken(value: string | null | undefined) {
+  const token = value?.trim() ?? ''
+  return targetTokenPattern.test(token) ? token : null
 }

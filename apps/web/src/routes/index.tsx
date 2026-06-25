@@ -8,7 +8,7 @@ import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import {
   buildParticipantJoinPath,
-  parseParticipantTarget,
+  parseParticipantJoinTarget,
 } from '#/features/group-ordering/join-target'
 
 export const Route = createFileRoute('/')({
@@ -25,7 +25,7 @@ function Home() {
 
   function joinSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const target = parseParticipantTarget(sessionOrLink, '')
+    const target = parseParticipantJoinTarget(sessionOrLink, '')
     if (!target) {
       setError('Enter a valid invite link, or paste the session id and key.')
       return
