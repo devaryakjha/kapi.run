@@ -322,6 +322,7 @@ describe('makeCartPayload', () => {
       }),
     ).toEqual({
       restaurantId: 'restaurant-1',
+      restaurantName: 'Cafe',
       addressId: 'address-1',
       cartItems: [
         { menu_item_id: 'swiggy-1', quantity: 2 },

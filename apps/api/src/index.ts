@@ -76,6 +76,10 @@ type MenuItemDetailQueryContext = {
   query: { addressId: string; q?: string };
   set: StatusSetter;
 };
+type CartQueryContext = {
+  query: { addressId: string; restaurantName?: string };
+  request: Request;
+};
 type CartSyncContext = RequestContext & {
   body: SwiggyCartPayload;
   set: StatusSetter;
@@ -389,7 +393,7 @@ function firstItemCount(value: unknown): number | undefined {
 function normalizeCartSummary(raw: unknown): SwiggyCartSummary {
   const itemCount = firstItemCount(raw);
   return {
-    empty: itemCount === 0,
+    empty: itemCount === undefined ? true : itemCount === 0,
     restaurantId: firstText(raw, ["restaurantId", "restaurant_id", "storeId"]),
     restaurantName: firstText(raw, [
       "restaurantName",
@@ -411,6 +415,9 @@ function toSwiggyCartToolPayload(
 ): SwiggyCartToolPayload & Record<string, unknown> {
   return {
     restaurantId: payload.restaurantId,
+    ...(payload.restaurantName
+      ? { restaurantName: payload.restaurantName }
+      : {}),
     addressId: payload.addressId,
     cartItems: payload.cartItems.map((item) => ({
       menu_item_id: item.menu_item_id,
@@ -819,18 +826,37 @@ export const app = new Elysia()
       query: t.Object({ addressId: t.String(), q: t.Optional(t.String()) }),
     },
   )
-  .get("/food/cart", async ({ request }: RequestContext) => {
-    assertAllowedOrigin(request);
-    const cart = await callSwiggyTool("get_food_cart");
-    return normalizeCartSummary(cart);
-  })
+  .get(
+    "/food/cart",
+    async ({ query, request }: CartQueryContext) => {
+      assertAllowedOrigin(request);
+      const cart = await callSwiggyTool("get_food_cart", {
+        addressId: query.addressId,
+        ...(query.restaurantName
+          ? { restaurantName: query.restaurantName }
+          : {}),
+      });
+      return normalizeCartSummary(cart);
+    },
+    {
+      query: t.Object({
+        addressId: t.String(),
+        restaurantName: t.Optional(t.String()),
+      }),
+    },
+  )
   .post(
     "/food/cart/sync",
     async ({ body, request, set }: CartSyncContext) => {
       assertAllowedOrigin(request);
       const payload = body;
       const existingCart = normalizeCartSummary(
-        await callSwiggyTool("get_food_cart"),
+        await callSwiggyTool("get_food_cart", {
+          addressId: payload.addressId,
+          ...(payload.restaurantName
+            ? { restaurantName: payload.restaurantName }
+            : {}),
+        }),
       );
       if (!existingCart.empty && payload.replaceExistingCart !== true) {
         set.status = 409;
@@ -840,11 +866,21 @@ export const app = new Elysia()
           cart: existingCart,
         };
       }
+      if (!existingCart.empty && payload.replaceExistingCart === true) {
+        await callSwiggyTool("flush_food_cart");
+      }
       await callSwiggyTool(
         "update_food_cart",
         toSwiggyCartToolPayload(payload),
       );
-      const cart = normalizeCartSummary(await callSwiggyTool("get_food_cart"));
+      const cart = normalizeCartSummary(
+        await callSwiggyTool("get_food_cart", {
+          addressId: payload.addressId,
+          ...(payload.restaurantName
+            ? { restaurantName: payload.restaurantName }
+            : {}),
+        }),
+      );
       return {
         status: "synced",
         message: "Swiggy cart updated. Review and pay in Swiggy.",
@@ -859,6 +895,7 @@ export const app = new Elysia()
     {
       body: t.Object({
         restaurantId: t.String(),
+        restaurantName: t.Optional(t.String()),
         addressId: t.String(),
         replaceExistingCart: t.Optional(t.Boolean()),
         cartItems: t.Array(

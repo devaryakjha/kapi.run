@@ -139,7 +139,9 @@ function RouteComponent() {
     if (!state.session || !state.isOrganizer) return
     setState({ pending: true, error: null })
     try {
-      const cart = await api<SwiggyCartSummary>('/food/cart')
+      const cart = await api<SwiggyCartSummary>(
+        `/food/cart?addressId=${encodeURIComponent(state.session.address.id)}&restaurantName=${encodeURIComponent(state.session.restaurant.name)}`,
+      )
       setState({ swiggyCart: cart })
     } catch (caught) {
       setState({

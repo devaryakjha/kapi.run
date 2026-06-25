@@ -181,6 +181,7 @@ export type AuditEvent = {
 
 export type SwiggyCartToolPayload = {
   restaurantId: string;
+  restaurantName?: string;
   addressId: string;
   cartItems: Array<{
     menu_item_id: string;

@@ -479,6 +479,7 @@ export function makeManualFallback(
 export function makeCartPayload(session: KapiSession) {
   return {
     restaurantId: session.restaurant.id,
+    restaurantName: session.restaurant.name,
     addressId: session.address.id,
     cartItems: session.items.flatMap((item) => {
       if (!item.available) return []
