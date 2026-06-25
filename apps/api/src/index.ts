@@ -22,6 +22,7 @@ const redirectUri =
   process.env.SWIGGY_REDIRECT_URI ?? `http://localhost:${port}/auth/callback`;
 const swiggyBase = "https://mcp.swiggy.com";
 const swiggyFoodUrl = `${swiggyBase}/food`;
+const publicWebOrigin = new URL(publicWebUrl).origin;
 const dataDir = process.env.KAPI_DATA_DIR;
 const tokenFile = dataDir
   ? join(dataDir, ".kapi-swiggy-token.json")
@@ -38,7 +39,7 @@ type BunRuntime = {
 };
 const bunRuntime = (globalThis as typeof globalThis & { Bun: BunRuntime }).Bun;
 const allowedOrigins = new Set([
-  new URL(publicWebUrl).origin,
+  publicWebOrigin,
   "http://127.0.0.1:3000",
   "http://localhost:3000",
 ]);
@@ -164,6 +165,16 @@ function isAllowedOrigin(request: Request) {
 function assertAllowedOrigin(request: Request) {
   if (!isAllowedOrigin(request)) {
     throw Object.assign(new Error("Origin not allowed."), { status: 403 });
+  }
+}
+
+function safeReturnUrl(next: string | undefined) {
+  if (!next) return publicWebUrl;
+  try {
+    const url = new URL(next, `${publicWebOrigin}/`);
+    return allowedOrigins.has(url.origin) ? url.toString() : publicWebUrl;
+  } catch {
+    return publicWebUrl;
   }
 }
 
@@ -709,7 +720,7 @@ export const app = new Elysia()
       const client = await getOAuthClient();
       const state = randomBase64Url(24);
       const codeVerifier = randomBase64Url(64);
-      authStates.set(state, { codeVerifier, next: query.next ?? publicWebUrl });
+      authStates.set(state, { codeVerifier, next: safeReturnUrl(query.next) });
       const url = new URL(`${swiggyBase}/auth/authorize`);
       url.searchParams.set("response_type", "code");
       url.searchParams.set("client_id", client.client_id);
