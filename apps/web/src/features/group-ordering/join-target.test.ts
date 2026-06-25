@@ -4,25 +4,25 @@ import {
   buildOrganizerMenuPath,
   buildOrganizerReviewPath,
   buildParticipantJoinPath,
-  parseParticipantTarget,
+  parseParticipantJoinTarget,
 } from './join-target'
 
-describe('parseParticipantTarget', () => {
+describe('parseParticipantJoinTarget', () => {
   it('reads a short invite link', () => {
     expect(
-      parseParticipantTarget('https://app.kapi.run/join?i=invite1', ''),
+      parseParticipantJoinTarget('https://app.kapi.run/join?i=invite1', ''),
     ).toEqual({ inviteId: 'invite1' })
   })
 
   it('reads a pasted invite code', () => {
-    expect(parseParticipantTarget('invite1', '')).toEqual({
+    expect(parseParticipantJoinTarget('invite1', '')).toEqual({
       inviteId: 'invite1',
     })
   })
 
   it('reads session details from an invite link', () => {
     expect(
-      parseParticipantTarget(
+      parseParticipantJoinTarget(
         'https://app.kapi.run/menu?session=abc#key=secret',
         '',
       ),
@@ -30,14 +30,32 @@ describe('parseParticipantTarget', () => {
   })
 
   it('reads pasted session id and key', () => {
-    expect(parseParticipantTarget('abc secret', '')).toEqual({
+    expect(parseParticipantJoinTarget('abc secret', '')).toEqual({
       sessionId: 'abc',
       key: 'secret',
     })
   })
 
+  it('strips organizer mode from pasted invite links', () => {
+    expect(
+      parseParticipantJoinTarget(
+        'https://app.kapi.run/review?i=invite1&owner=1#ownerKey=secret',
+        '',
+      ),
+    ).toEqual({ inviteId: 'invite1' })
+  })
+
+  it('rejects malformed URL target tokens', () => {
+    expect(
+      parseParticipantJoinTarget(
+        'https://app.kapi.run/join?i=../admin#key=secret',
+        '',
+      ),
+    ).toBeNull()
+  })
+
   it('rejects empty session info', () => {
-    expect(parseParticipantTarget('', '')).toBeNull()
+    expect(parseParticipantJoinTarget('', '')).toBeNull()
   })
 })
 

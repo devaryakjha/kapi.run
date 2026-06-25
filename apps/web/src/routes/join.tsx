@@ -9,7 +9,7 @@ import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import {
   buildOrganizerReviewPath,
-  parseParticipantTarget,
+  parseParticipantJoinTarget,
 } from '#/features/group-ordering/join-target'
 import {
   ErrorAlert,
@@ -180,8 +180,8 @@ function parseTargetFromLocation(): SessionLinkParts | null {
   const search = new URLSearchParams(window.location.search)
   const rawTarget = search.get('target')
   const target = rawTarget
-    ? parseParticipantTarget(rawTarget, '')
-    : parseParticipantTarget(window.location.href, '')
+    ? parseParticipantJoinTarget(rawTarget, '')
+    : parseParticipantJoinTarget(window.location.href, '')
   if (!target) return null
   return {
     inviteId: target.inviteId ?? null,
