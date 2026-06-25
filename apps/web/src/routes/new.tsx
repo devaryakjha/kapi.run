@@ -109,7 +109,6 @@ function RouteComponent() {
         setState({
           authStatus: status,
           addresses: nextAddresses,
-          selectedAddressId: nextAddresses[0]?.id ?? '',
         })
       })
       .catch((caught: Error) => setState({ error: caught.message }))
