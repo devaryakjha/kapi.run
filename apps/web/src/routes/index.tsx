@@ -4,7 +4,6 @@ import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { ArrowRight, LinkIcon, Plus } from 'lucide-react'
 
 import { Alert, AlertDescription } from '#/components/ui/alert'
-import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import {
   buildParticipantJoinPath,
@@ -41,12 +40,6 @@ function Home() {
         <span className="text-base font-bold tracking-tight text-primary">
           kapi.run
         </span>
-        <Badge
-          variant="secondary"
-          className="rounded-full text-[10px] font-semibold uppercase tracking-wider"
-        >
-          Ops
-        </Badge>
       </nav>
 
       <div className="flex flex-1 items-center px-6 py-12">

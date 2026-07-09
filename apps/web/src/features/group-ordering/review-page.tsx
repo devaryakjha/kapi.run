@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type {
   CartLine,
@@ -43,9 +43,12 @@ import { cn } from '#/lib/utils'
 
 import {
   ErrorAlert,
+  TimerPill,
+  formatRemainingTime,
   groupCartLinesByParticipant,
   getOrderQuantity,
   getOrderSubtotal,
+  isSessionLockedForParticipants,
 } from './shared'
 import { SummaryRow } from './summary-row'
 
@@ -155,6 +158,13 @@ function ReviewPageHeader({
   onLock: () => void
   onOpenMenuMode: () => void
 }) {
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
   return (
     <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-3">
@@ -168,6 +178,10 @@ function ReviewPageHeader({
         {isOrganizer ? (
           <ReviewModeSwitch onOpenMenuMode={onOpenMenuMode} />
         ) : null}
+        <TimerPill
+          remainingTime={formatRemainingTime(session, now)}
+          locked={isSessionLockedForParticipants(session, now)}
+        />
         <Badge
           variant={session.status === 'open' ? 'secondary' : 'default'}
           className="rounded-full text-[11px]"
@@ -499,7 +513,10 @@ function OrderSummaryCard({
       {unavailable.length ? (
         <Alert variant="destructive" className="mt-4">
           <AlertTriangle />
-          <AlertTitle>{unavailable.length} item unavailable</AlertTitle>
+          <AlertTitle>
+            {unavailable.length} {unavailable.length === 1 ? 'item' : 'items'}{' '}
+            unavailable
+          </AlertTitle>
           <AlertDescription>Remove or replace before syncing.</AlertDescription>
         </Alert>
       ) : null}

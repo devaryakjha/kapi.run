@@ -44,6 +44,7 @@ import { cn } from '#/lib/utils'
 import type { DraftCart, DraftCartLine } from './shared'
 import {
   ErrorAlert,
+  TimerPill,
   formatRemainingTime,
   isSessionLockedForParticipants,
 } from './shared'
@@ -98,11 +99,9 @@ export function ParticipantMenuPage({
   const categories = useMemo(
     () => [
       'All',
-      ...[
-        ...new Set(
-          menu.flatMap((item) => (item.category ? [item.category] : [])),
-        ),
-      ].slice(0, 5),
+      ...new Set(
+        menu.flatMap((item) => (item.category ? [item.category] : [])),
+      ),
     ],
     [menu],
   )
@@ -115,7 +114,8 @@ export function ParticipantMenuPage({
       const matchesQuery =
         !normalized ||
         item.name.toLowerCase().includes(normalized) ||
-        item.category.toLowerCase().includes(normalized)
+        item.category.toLowerCase().includes(normalized) ||
+        item.description.toLowerCase().includes(normalized)
       return matchesCategory && matchesQuery
     })
   }, [menu, query, activeCategory])
@@ -336,35 +336,6 @@ function indexDraftItems(draft: DraftCart) {
   return index
 }
 
-function TimerPill({
-  remainingTime,
-  locked,
-}: {
-  remainingTime: string
-  locked: boolean
-}) {
-  return (
-    <div
-      className={cn(
-        'flex items-center gap-2 rounded-full border px-3 py-1.5',
-        locked
-          ? 'border-destructive/30 bg-destructive/10 text-destructive'
-          : 'border-border bg-(--kapi-subtle) text-foreground',
-      )}
-    >
-      {!locked && (
-        <span className="relative flex size-1.5 shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
-          <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
-        </span>
-      )}
-      <span className="font-mono text-xs font-semibold tabular-nums">
-        {remainingTime}
-      </span>
-    </div>
-  )
-}
-
 function MenuCard({
   item,
   quantity,
@@ -397,6 +368,8 @@ function MenuCard({
           <img
             src={item.imageUrl}
             alt={item.name}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
           />
         ) : (

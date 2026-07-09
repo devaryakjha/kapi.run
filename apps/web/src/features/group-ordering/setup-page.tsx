@@ -10,7 +10,6 @@ import {
   Utensils,
 } from 'lucide-react'
 
-import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { buttonVariants } from '#/components/ui/button-variants'
 import {
@@ -51,6 +50,7 @@ import {
   formatAddressOption,
   formatRestaurantLocationMeta,
   formatRestaurantValueMeta,
+  setupCutoffTimeAfter,
 } from './shared'
 import { IconTile } from './icon-tile'
 
@@ -108,12 +108,6 @@ export function OrganizerSetupPage({
         <span className="text-base font-bold tracking-tight text-primary">
           kapi.run
         </span>
-        <Badge
-          variant="secondary"
-          className="rounded-full text-[10px] font-semibold uppercase tracking-wider"
-        >
-          Ops
-        </Badge>
       </nav>
 
       <div className="flex flex-1 flex-col items-center px-4 py-10 md:py-16">
@@ -226,6 +220,26 @@ export function OrganizerSetupPage({
                     value={cutoffTime}
                     onChange={(e) => onCutoffTimeChange(e.target.value)}
                   />
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      ['+30m', 30],
+                      ['+1h', 60],
+                      ['+2h', 120],
+                    ].map(([label, minutes]) => (
+                      <button
+                        type="button"
+                        key={label}
+                        onClick={() =>
+                          onCutoffTimeChange(
+                            setupCutoffTimeAfter(Number(minutes)),
+                          )
+                        }
+                        className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                   {cutoffError ? (
                     <p className="text-xs leading-5 text-destructive">
                       {cutoffError}

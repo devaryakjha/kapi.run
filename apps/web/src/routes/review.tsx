@@ -13,6 +13,7 @@ import { useLiveSessionRecord } from '#/features/group-ordering/use-live-session
 import {
   ApiError,
   ErrorAlert,
+  applyOrderItemQuantityUpdates,
   api,
   audit,
   getSessionLinkParts,
@@ -72,6 +73,8 @@ function RouteComponent() {
   const inviteIdRef = useRef<string | null>(null)
   const organizerSecretRef = useRef<string | null>(null)
   const relayUpdatedAtRef = useRef<string | null>(null)
+  const pendingQuantityUpdatesRef = useRef(new Map<string, number>())
+  const quantitySaveTimerRef = useRef<number | null>(null)
 
   async function saveSession(
     mutate: (session: KapiSession) => KapiSession,
@@ -149,6 +152,15 @@ function RouteComponent() {
 
     loadSession().catch((caught: Error) => setState({ error: caught.message }))
   }, [])
+
+  useEffect(
+    () => () => {
+      if (quantitySaveTimerRef.current) {
+        window.clearTimeout(quantitySaveTimerRef.current)
+      }
+    },
+    [],
+  )
 
   const sessionId = state.session?.id
 
@@ -250,27 +262,45 @@ function RouteComponent() {
     }
   }
 
-  async function updateSubmittedItem(itemId: string, quantity: number) {
-    if (!state.session || !state.isOrganizer) return
-    setState({ pending: true, error: null })
+  async function flushQuantityUpdates(fallbackSession: KapiSession) {
+    const updates = new Map(pendingQuantityUpdatesRef.current)
+    if (!updates.size) return
     try {
-      await saveSession((session) => ({
-        ...session,
-        items: session.items.map((item) =>
-          item.id === itemId
-            ? { ...item, quantity: Math.max(1, Math.floor(quantity)) }
-            : item,
-        ),
-        audit: [...session.audit, audit('Organiser', 'updated item')],
-      }))
+      await saveSession(
+        (session) => ({
+          ...applyOrderItemQuantityUpdates(session, updates),
+          audit: [...session.audit, audit('Organiser', 'updated item')],
+        }),
+        fallbackSession,
+      )
+      for (const [itemId, quantity] of updates) {
+        if (pendingQuantityUpdatesRef.current.get(itemId) === quantity) {
+          pendingQuantityUpdatesRef.current.delete(itemId)
+        }
+      }
     } catch (caught) {
       setState({
         error:
           caught instanceof Error ? caught.message : 'Could not update item.',
       })
-    } finally {
-      setState({ pending: false })
     }
+  }
+
+  function updateSubmittedItem(itemId: string, quantity: number) {
+    if (!state.session || !state.isOrganizer) return
+    const nextQuantity = Math.max(1, Math.floor(quantity))
+    pendingQuantityUpdatesRef.current.set(itemId, nextQuantity)
+    const nextSession = applyOrderItemQuantityUpdates(
+      state.session,
+      new Map([[itemId, nextQuantity]]),
+    )
+    setState({ session: nextSession, error: null })
+    if (quantitySaveTimerRef.current) {
+      window.clearTimeout(quantitySaveTimerRef.current)
+    }
+    quantitySaveTimerRef.current = window.setTimeout(() => {
+      void flushQuantityUpdates(nextSession)
+    }, 450)
   }
 
   async function removeSubmittedItem(itemId: string) {

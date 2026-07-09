@@ -14,6 +14,7 @@ import type {
 import { AlertTriangle } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
+import { cn } from '#/lib/utils'
 
 export type DraftCartLine = {
   id: string
@@ -832,6 +833,21 @@ export function formatTimeLabel(value: string) {
   return `${hour % 12 || 12}:${minute} ${hour >= 12 ? 'PM' : 'AM'}`
 }
 
+function formatTimeInput(date: Date) {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+export function setupCutoffTimeAfter(minutesFromNow: number, now = new Date()) {
+  const next = new Date(now.getTime() + minutesFromNow * 60_000)
+  const roundedMinute = Math.ceil(next.getMinutes() / 5) * 5
+  next.setMinutes(roundedMinute, 0, 0)
+  return formatTimeInput(next)
+}
+
+export function defaultSetupCutoffTime(now = new Date()) {
+  return setupCutoffTimeAfter(45, now)
+}
+
 export function resolveSetupCutoffAt(
   value: string,
   now = new Date(),
@@ -853,9 +869,24 @@ export function resolveSetupCutoffAt(
   const cutoff = new Date(now)
   cutoff.setHours(hour, minute, 0, 0)
   if (cutoff.getTime() <= now.getTime()) {
-    return { error: 'Choose a cutoff later than now.' }
+    cutoff.setDate(cutoff.getDate() + 1)
   }
   return { cutoffAt: cutoff.toISOString() }
+}
+
+export function applyOrderItemQuantityUpdates(
+  session: KapiSession,
+  updates: Map<string, number>,
+) {
+  if (!updates.size) return session
+  return {
+    ...session,
+    items: session.items.map((item) =>
+      updates.has(item.id)
+        ? { ...item, quantity: Math.max(1, Math.floor(updates.get(item.id)!)) }
+        : item,
+    ),
+  }
 }
 
 function cutoffTime(session: KapiSession) {
@@ -885,6 +916,35 @@ export function formatRemainingTime(session: KapiSession, now = new Date()) {
     return `${hours}h ${String(minutes % 60).padStart(2, '0')}m remaining`
   }
   return `${minutes}m remaining`
+}
+
+export function TimerPill({
+  remainingTime,
+  locked,
+}: {
+  remainingTime: string
+  locked: boolean
+}) {
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2 rounded-full border px-3 py-1.5',
+        locked
+          ? 'border-destructive/30 bg-destructive/10 text-destructive'
+          : 'border-border bg-(--kapi-subtle) text-foreground',
+      )}
+    >
+      {!locked && (
+        <span className="relative flex size-1.5 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+          <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
+        </span>
+      )}
+      <span className="font-mono text-xs font-semibold tabular-nums">
+        {remainingTime}
+      </span>
+    </div>
+  )
 }
 
 export function formatAddressOption(address: Address) {

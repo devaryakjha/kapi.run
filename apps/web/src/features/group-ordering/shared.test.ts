@@ -16,8 +16,10 @@ import {
 import {
   addPlainDraftItem,
   applyParticipantSubmission,
+  applyOrderItemQuantityUpdates,
   applyRelayParticipantSubmission,
   changeDraftLineQuantity,
+  defaultSetupCutoffTime,
   draftCartFromSubmittedItems,
   groupCartLinesByParticipant,
   hasOrganizerCapability,
@@ -33,6 +35,7 @@ import {
   safeLocalStorageGet,
   safeLocalStorageRemove,
   safeLocalStorageSet,
+  setupCutoffTimeAfter,
 } from './shared'
 
 const encoder = new TextEncoder()
@@ -263,15 +266,15 @@ describe('resolveSetupCutoffAt', () => {
     })
   })
 
-  it('rejects the current minute', () => {
+  it('rolls the current minute to tomorrow', () => {
     expect(resolveSetupCutoffAt('12:00', now)).toEqual({
-      error: 'Choose a cutoff later than now.',
+      cutoffAt: new Date(2026, 5, 20, 12, 0, 0, 0).toISOString(),
     })
   })
 
-  it('rejects a past time instead of rolling to tomorrow', () => {
+  it('rolls a past time to tomorrow', () => {
     expect(resolveSetupCutoffAt('11:59', now)).toEqual({
-      error: 'Choose a cutoff later than now.',
+      cutoffAt: new Date(2026, 5, 20, 11, 59, 0, 0).toISOString(),
     })
   })
 
@@ -279,6 +282,42 @@ describe('resolveSetupCutoffAt', () => {
     expect(resolveSetupCutoffAt('bad', now)).toEqual({
       error: 'Choose a valid cutoff time.',
     })
+  })
+})
+
+describe('setup cutoff defaults', () => {
+  it('defaults to 45 minutes from now rounded up to five minutes', () => {
+    expect(defaultSetupCutoffTime(new Date(2026, 5, 19, 12, 3, 0, 0))).toBe(
+      '12:50',
+    )
+  })
+
+  it('supports quick picks across midnight', () => {
+    expect(setupCutoffTimeAfter(30, new Date(2026, 5, 19, 23, 40, 0, 0))).toBe(
+      '00:10',
+    )
+  })
+})
+
+describe('applyOrderItemQuantityUpdates', () => {
+  it('updates submitted item quantities without dropping other items', () => {
+    const current = {
+      ...session('open'),
+      items: [cartItem('swiggy-1', 1), cartItem('swiggy-2', 2)],
+    }
+
+    expect(
+      applyOrderItemQuantityUpdates(
+        current,
+        new Map([
+          [`swiggy-1-1`, 3],
+          [`swiggy-2-2`, 0],
+        ]),
+      ).items.map((item) => [item.id, item.quantity]),
+    ).toEqual([
+      ['swiggy-1-1', 3],
+      ['swiggy-2-2', 1],
+    ])
   })
 })
 

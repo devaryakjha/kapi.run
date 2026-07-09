@@ -14,6 +14,7 @@ import {
   api,
   audit,
   createSessionInvite,
+  defaultSetupCutoffTime,
   formatTimeLabel,
   getSessionLinkParts,
   hashOrganizerSecret,
@@ -45,16 +46,18 @@ type SetupState = {
   error: string | null
 }
 
-const initialSetupState: SetupState = {
-  addresses: [],
-  restaurants: [],
-  authStatus: { connected: false, expiresAt: null },
-  selectedAddressId: '',
-  selectedRestaurantId: '',
-  cutoffTime: '12:45',
-  restaurantQuery: '',
-  pending: false,
-  error: null,
+function initialSetupState(): SetupState {
+  return {
+    addresses: [],
+    restaurants: [],
+    authStatus: { connected: false, expiresAt: null },
+    selectedAddressId: '',
+    selectedRestaurantId: '',
+    cutoffTime: defaultSetupCutoffTime(),
+    restaurantQuery: '',
+    pending: false,
+    error: null,
+  }
 }
 
 function patchSetupState(state: SetupState, patch: Partial<SetupState>) {
@@ -72,7 +75,11 @@ function inferOrganiserName(address: Address) {
 
 function RouteComponent() {
   const router = useRouter()
-  const [state, setState] = useReducer(patchSetupState, initialSetupState)
+  const [state, setState] = useReducer(
+    patchSetupState,
+    undefined,
+    initialSetupState,
+  )
   const setupCutoff = resolveSetupCutoffAt(state.cutoffTime)
   const cutoffError = 'error' in setupCutoff ? setupCutoff.error : null
 
