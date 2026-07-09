@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { toast } from 'sonner'
 import type {
   KapiSession,
   ManualFallbackSummary,
@@ -8,6 +9,7 @@ import type {
 
 import { buildOrganizerMenuPath } from '#/features/group-ordering/join-target'
 import { OrganizerReviewPage } from '#/features/group-ordering/review-page'
+import { useLiveSessionRecord } from '#/features/group-ordering/use-live-session'
 import {
   ApiError,
   ErrorAlert,
@@ -25,6 +27,9 @@ import {
 } from '#/features/group-ordering/shared'
 
 export const Route = createFileRoute('/review')({
+  head: () => ({
+    meta: [{ title: 'Review order · kapi.run' }],
+  }),
   component: RouteComponent,
 })
 
@@ -57,6 +62,7 @@ function patchReviewState(state: ReviewState, patch: Partial<ReviewState>) {
 }
 
 function RouteComponent() {
+  const router = useRouter()
   const [state, setState] = useReducer(
     patchReviewState,
     undefined,
@@ -144,6 +150,23 @@ function RouteComponent() {
     loadSession().catch((caught: Error) => setState({ error: caught.message }))
   }, [])
 
+  const sessionId = state.session?.id
+
+  useLiveSessionRecord({
+    sessionId,
+    pending: state.pending,
+    getSessionKey: () => sessionKeyRef.current,
+    getRelayUpdatedAt: () => relayUpdatedAtRef.current,
+    onLoaded: (loaded) => {
+      relayUpdatedAtRef.current = loaded.relayUpdatedAt
+      setState({
+        session: loaded.session,
+        stale: loaded.relayUpdatedAt === null,
+      })
+    },
+    onPoll: async () => refreshSessionFromRelay(),
+  })
+
   async function syncCart() {
     if (!state.session || !state.isOrganizer) return
     setState({ pending: true, error: null })
@@ -192,6 +215,11 @@ function RouteComponent() {
         sync: result,
         audit: [...session.audit, audit('Organiser', 'synced cart to Swiggy')],
       }))
+      if (result?.status === 'synced') {
+        toast.success('Cart synced to Swiggy')
+      } else {
+        toast.error('Cart sync failed')
+      }
     } catch (caught) {
       setState({
         error:
@@ -211,6 +239,7 @@ function RouteComponent() {
         status: 'locked',
         audit: [...session.audit, audit('Organiser', 'locked session')],
       }))
+      toast('Session locked. Participants can no longer submit.')
     } catch (caught) {
       setState({
         error:
@@ -288,12 +317,14 @@ function RouteComponent() {
     ) {
       return
     }
-    window.location.href = buildOrganizerMenuPath({
-      inviteId: inviteIdRef.current ?? undefined,
-      sessionId: state.session.id,
-      key: sessionKeyRef.current,
-      ownerKey: organizerSecretRef.current,
-    })
+    router.history.push(
+      buildOrganizerMenuPath({
+        inviteId: inviteIdRef.current ?? undefined,
+        sessionId: state.session.id,
+        key: sessionKeyRef.current,
+        ownerKey: organizerSecretRef.current,
+      }),
+    )
   }
 
   if (!state.session) {

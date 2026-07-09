@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { ArrowRight, LinkIcon, Plus } from 'lucide-react'
 
 import { Alert, AlertDescription } from '#/components/ui/alert'
@@ -15,13 +15,14 @@ export const Route = createFileRoute('/')({
   component: Home,
 })
 
-function startSession() {
-  window.location.href = '/new'
-}
-
 function Home() {
+  const router = useRouter()
   const [sessionOrLink, setSessionOrLink] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  function startSession() {
+    router.history.push('/new')
+  }
 
   function joinSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -31,7 +32,7 @@ function Home() {
       return
     }
 
-    window.location.href = buildParticipantJoinPath(target)
+    router.history.push(buildParticipantJoinPath(target))
   }
 
   return (

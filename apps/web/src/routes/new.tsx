@@ -1,5 +1,5 @@
 import { useEffect, useReducer } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 import type {
   Address,
   AuthStatus,
@@ -27,6 +27,9 @@ import {
 } from '#/features/group-ordering/shared'
 
 export const Route = createFileRoute('/new')({
+  head: () => ({
+    meta: [{ title: 'Start a group order · kapi.run' }],
+  }),
   component: RouteComponent,
 })
 
@@ -68,6 +71,7 @@ function inferOrganiserName(address: Address) {
 }
 
 function RouteComponent() {
+  const router = useRouter()
   const [state, setState] = useReducer(patchSetupState, initialSetupState)
   const setupCutoff = resolveSetupCutoffAt(state.cutoffTime)
   const cutoffError = 'error' in setupCutoff ? setupCutoff.error : null
@@ -75,7 +79,7 @@ function RouteComponent() {
   useEffect(() => {
     const { owner, sessionId } = getSessionLinkParts()
     if (sessionId) {
-      window.location.replace(
+      router.history.replace(
         `${owner ? '/review' : '/menu'}?session=${sessionId}${owner ? '&owner=1' : ''}${window.location.hash}`,
       )
       return
@@ -184,7 +188,7 @@ function RouteComponent() {
         role: 'organizer',
         organizerSecret,
       })
-      window.location.href = `/review?i=${invite.id}&owner=1`
+      router.history.push(`/review?i=${invite.id}&owner=1`)
     } catch (caught) {
       setState({
         error:

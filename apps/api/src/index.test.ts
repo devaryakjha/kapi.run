@@ -9,8 +9,10 @@ import {
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { RelaySessionRecord } from "@kapi/spec";
 
 const publicWebUrl = "http://127.0.0.1:3000";
+let api: typeof import("./index.js");
 let app: import("./index.js").App;
 let dataDir: string;
 let originalFetch: typeof fetch;
@@ -113,7 +115,8 @@ beforeAll(async () => {
     );
   }) as typeof fetch;
 
-  app = (await import("./index.js")).app;
+  api = await import("./index.js");
+  app = api.app;
 });
 
 beforeEach(() => {
@@ -132,9 +135,7 @@ afterAll(async () => {
 
 async function finishOAuth(next: string) {
   const start = await app.handle(
-    new Request(
-      `http://api.test/auth/start?next=${encodeURIComponent(next)}`,
-    ),
+    new Request(`http://api.test/auth/start?next=${encodeURIComponent(next)}`),
   );
   expect(start.status).toBe(302);
   const startLocation = start.headers.get("location");
@@ -150,6 +151,31 @@ async function finishOAuth(next: string) {
     cookie: callback.headers.get("set-cookie") ?? "",
     location: callback.headers.get("location"),
   };
+}
+
+async function readStreamUntil(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  needle: string,
+) {
+  const decoder = new TextDecoder();
+  let output = "";
+  while (!output.includes(needle)) {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const chunk = await Promise.race([
+      reader.read(),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error(`Timed out waiting for ${needle}`)),
+          1_000,
+        );
+      }),
+    ]).finally(() => {
+      if (timeout) clearTimeout(timeout);
+    });
+    if (chunk.done) break;
+    output += decoder.decode(chunk.value, { stream: true });
+  }
+  return output;
 }
 
 describe("OAuth return URLs", () => {
@@ -168,11 +194,11 @@ describe("OAuth return URLs", () => {
   });
 
   it("resolves relative app paths onto the public web origin", async () => {
-    await expect(finishOAuth("/review?session=s1#key=k1")).resolves.toMatchObject(
-      {
-        location: "http://127.0.0.1:3000/review?session=s1#key=k1",
-      },
-    );
+    await expect(
+      finishOAuth("/review?session=s1#key=k1"),
+    ).resolves.toMatchObject({
+      location: "http://127.0.0.1:3000/review?session=s1#key=k1",
+    });
   });
 });
 
@@ -241,5 +267,96 @@ describe("Swiggy read proxy authorization", () => {
       },
     ]);
     expect(swiggyCalls).toHaveLength(1);
+  });
+});
+
+describe("relay session events", () => {
+  it("404s unknown sessions without opening a stream", async () => {
+    const response = await app.handle(
+      new Request("http://api.test/relay/sessions/missing/events", {
+        headers: { origin: publicWebUrl },
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Session not found." });
+  });
+
+  it("streams the current record, broadcasts writes, and cleans up", async () => {
+    const sessionId = "sse-session";
+    const organizerSecret = "event-organizer-secret";
+    const create = await app.handle(
+      new Request(`http://api.test/relay/sessions/${sessionId}`, {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          origin: publicWebUrl,
+          "x-kapi-organizer-secret": organizerSecret,
+        },
+        body: JSON.stringify({
+          ciphertext: "initial-ciphertext",
+          metadata: {
+            status: "open",
+            organizerSecretHash: await hash(organizerSecret),
+          },
+          role: "organizer",
+        }),
+      }),
+    );
+    const created = (await create.json()) as RelaySessionRecord;
+    expect(create.status).toBe(200);
+
+    const abort = new AbortController();
+    const events = await app.handle(
+      new Request(`http://api.test/relay/sessions/${sessionId}/events`, {
+        headers: { origin: publicWebUrl },
+        signal: abort.signal,
+      }),
+    );
+    expect(events.status).toBe(200);
+    expect(events.headers.get("content-type")).toBe("text/event-stream");
+    expect(events.headers.get("cache-control")).toBe("no-cache, no-transform");
+    expect(events.headers.get("x-accel-buffering")).toBe("no");
+
+    const reader = events.body?.getReader();
+    expect(reader).toBeTruthy();
+    if (!reader) throw new Error("SSE response body missing.");
+    try {
+      const initial = await readStreamUntil(reader, `id: ${created.updatedAt}`);
+      expect(initial).toContain("retry: 3000\n\n");
+      expect(initial).toContain("event: record\n");
+      expect(initial).toContain(`data: ${JSON.stringify(created)}\n\n`);
+      expect(api.relaySubscriberCount(sessionId)).toBe(1);
+
+      const update = await app.handle(
+        new Request(`http://api.test/relay/sessions/${sessionId}`, {
+          method: "PUT",
+          headers: {
+            "content-type": "application/json",
+            origin: publicWebUrl,
+            "x-kapi-participant-secret": "participant-secret",
+          },
+          body: JSON.stringify({
+            ciphertext: "participant-ciphertext",
+            expectedUpdatedAt: created.updatedAt,
+            participantId: "participant-1",
+            role: "participant",
+          }),
+        }),
+      );
+      const updated = (await update.json()) as RelaySessionRecord;
+      expect(update.status).toBe(200);
+
+      const pushed = await readStreamUntil(reader, `id: ${updated.updatedAt}`);
+      const current = await app.handle(
+        new Request(`http://api.test/relay/sessions/${sessionId}`),
+      );
+      expect(await current.json()).toEqual(updated);
+      expect(pushed).toContain(`data: ${JSON.stringify(updated)}\n\n`);
+    } finally {
+      abort.abort();
+      await reader.cancel().catch(() => {});
+    }
+    expect(api.relaySubscriberCount(sessionId)).toBe(0);
   });
 });

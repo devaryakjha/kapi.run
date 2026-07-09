@@ -228,6 +228,45 @@ export function localParticipantNameKey(sessionId: string) {
   return `kapi:participant-name:${sessionId}`
 }
 
+export function localDraftKey(sessionId: string) {
+  return `kapi:draft:${sessionId}`
+}
+
+export function loadStoredDraft(sessionId: string): DraftCart {
+  const raw = safeLocalStorageGet(localDraftKey(sessionId))
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object') return {}
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, unknown>).flatMap(
+        ([id, line]) => {
+          if (!line || typeof line !== 'object') return []
+          const draftLine = line as DraftCartLine
+          if (
+            typeof draftLine.menuItemId !== 'string' ||
+            typeof draftLine.quantity !== 'number' ||
+            draftLine.quantity <= 0
+          ) {
+            return []
+          }
+          return [[id, { ...draftLine, id }]]
+        },
+      ),
+    )
+  } catch {
+    return {}
+  }
+}
+
+export function storeDraft(sessionId: string, draft: DraftCart) {
+  if (Object.keys(draft).length) {
+    safeLocalStorageSet(localDraftKey(sessionId), JSON.stringify(draft))
+  } else {
+    safeLocalStorageRemove(localDraftKey(sessionId))
+  }
+}
+
 export function safeLocalStorageGet(key: string) {
   try {
     const storage = (globalThis as { localStorage?: Storage }).localStorage
@@ -513,20 +552,28 @@ export async function mergeRelayParticipantSubmissions(
   return next
 }
 
+export async function loadSessionFromRecord(
+  sessionId: string,
+  record: RelaySessionRecord,
+  key: string,
+): Promise<LoadedSessionRecord> {
+  const loaded = await mergeRelayParticipantSubmissions(
+    await decryptSession<KapiSession>(record.ciphertext, key),
+    record,
+    key,
+  )
+  safeLocalStorageSet(localSessionKey(sessionId), JSON.stringify(loaded))
+  safeLocalStorageSet(localKeyKey(sessionId), key)
+  return { session: loaded, relayUpdatedAt: record.updatedAt }
+}
+
 export async function loadEncryptedSessionRecord(
   sessionId: string,
   key: string,
 ): Promise<LoadedSessionRecord> {
   try {
     const record = await api<RelaySessionRecord>(`/relay/sessions/${sessionId}`)
-    const loaded = await mergeRelayParticipantSubmissions(
-      await decryptSession<KapiSession>(record.ciphertext, key),
-      record,
-      key,
-    )
-    safeLocalStorageSet(localSessionKey(sessionId), JSON.stringify(loaded))
-    safeLocalStorageSet(localKeyKey(sessionId), key)
-    return { session: loaded, relayUpdatedAt: record.updatedAt }
+    return await loadSessionFromRecord(sessionId, record, key)
   } catch {
     const local = safeLocalStorageGet(localSessionKey(sessionId))
     if (local) {

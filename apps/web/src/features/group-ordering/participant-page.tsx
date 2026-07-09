@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useReducer, useState } from 'react'
+import { useRouter } from '@tanstack/react-router'
 import type {
   CartCustomization,
   KapiSession,
@@ -9,7 +10,6 @@ import type {
 } from '@kapi/spec'
 import {
   AlertTriangle,
-  CheckCircle2,
   Loader2,
   Minus,
   Plus,
@@ -53,7 +53,6 @@ export function ParticipantMenuPage({
   draft,
   error,
   menu,
-  notice,
   organizerReviewPath,
   participantName,
   pending,
@@ -71,7 +70,6 @@ export function ParticipantMenuPage({
   draft: DraftCart
   error: string | null
   menu: MenuItem[]
-  notice: string | null
   organizerReviewPath: string | null
   participantName: string
   pending: boolean
@@ -86,6 +84,7 @@ export function ParticipantMenuPage({
   onSubmittedQuantityChange: (lineId: string, delta: number) => void
   onSubmit: () => void
 }) {
+  const router = useRouter()
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
   const [customizing, setCustomizing] = useState<MenuItem | null>(null)
@@ -145,7 +144,7 @@ export function ParticipantMenuPage({
               </span>
               <Button
                 onClick={() => {
-                  window.location.href = organizerReviewPath
+                  router.history.push(organizerReviewPath)
                 }}
                 variant="ghost"
                 size="sm"
@@ -159,7 +158,7 @@ export function ParticipantMenuPage({
           {organizerReviewPath ? (
             <Button
               onClick={() => {
-                window.location.href = organizerReviewPath
+                router.history.push(organizerReviewPath)
               }}
               variant="outline"
               size="sm"
@@ -291,7 +290,6 @@ export function ParticipantMenuPage({
           error={error}
           locked={locked}
           menu={menu}
-          notice={notice}
           participantName={participantName}
           pending={pending}
           onNameChange={onNameChange}
@@ -307,7 +305,6 @@ export function ParticipantMenuPage({
         error={error}
         locked={locked}
         menu={menu}
-        notice={notice}
         pending={pending}
         submittedDraft={submittedDraft}
         onSubmit={onSubmit}
@@ -974,7 +971,6 @@ function CartSidebar({
   error,
   locked,
   menu,
-  notice,
   participantName,
   pending,
   submittedDraft,
@@ -987,7 +983,6 @@ function CartSidebar({
   error: string | null
   locked: boolean
   menu: MenuItem[]
-  notice: string | null
   participantName: string
   pending: boolean
   submittedDraft: DraftCart
@@ -1077,7 +1072,6 @@ function CartSidebar({
 
       <div className="border-t border-border px-5 py-4">
         <ErrorAlert message={error} className="mb-3" />
-        <NoticeAlert message={notice} className="mb-3" />
         <div className="mb-4 flex flex-col gap-1.5">
           <SummaryRow label="Items" value={`₹${total}`} />
           <Separator className="my-1" />
@@ -1179,7 +1173,6 @@ function MobileCartBar({
   error,
   locked,
   menu,
-  notice,
   pending,
   submittedDraft,
   onSubmit,
@@ -1188,7 +1181,6 @@ function MobileCartBar({
   error: string | null
   locked: boolean
   menu: MenuItem[]
-  notice: string | null
   pending: boolean
   submittedDraft: DraftCart
   onSubmit: () => void
@@ -1206,12 +1198,11 @@ function MobileCartBar({
   )
   const hasSubmitted = submittedItemCount > 0
 
-  if (itemCount === 0 && !hasSubmitted && !error && !notice) return null
+  if (itemCount === 0 && !hasSubmitted && !error) return null
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm lg:hidden">
       <ErrorAlert message={error} className="mb-2" />
-      <NoticeAlert message={notice} className="mb-2" />
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold leading-4 tabular-nums">
@@ -1239,21 +1230,5 @@ function MobileCartBar({
         </Button>
       </div>
     </div>
-  )
-}
-
-function NoticeAlert({
-  message,
-  className,
-}: {
-  message: string | null
-  className?: string
-}) {
-  if (!message) return null
-  return (
-    <Alert className={className}>
-      <CheckCircle2 />
-      <AlertDescription>{message}</AlertDescription>
-    </Alert>
   )
 }

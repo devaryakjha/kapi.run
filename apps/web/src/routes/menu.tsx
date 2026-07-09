@@ -1,8 +1,10 @@
 import { useEffect, useReducer, useRef } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { toast } from 'sonner'
 import type { KapiSession, MenuItem } from '@kapi/spec'
 
 import { ParticipantMenuPage } from '#/features/group-ordering/participant-page'
+import { useLiveSessionRecord } from '#/features/group-ordering/use-live-session'
 import type {
   DraftCart,
   DraftCartLine,
@@ -23,9 +25,11 @@ import {
   hasOrganizerCapability,
   isSessionLockedForParticipants,
   loadEncryptedSessionRecord,
+  loadStoredDraft,
   localOrganizerKeyKey,
   loadMenuCustomization,
   localParticipantNameKey,
+  storeDraft,
   publishSession,
   resolveSessionLinkParts,
   safeLocalStorageGet,
@@ -33,6 +37,9 @@ import {
 } from '#/features/group-ordering/shared'
 
 export const Route = createFileRoute('/menu')({
+  head: () => ({
+    meta: [{ title: 'Menu · kapi.run' }],
+  }),
   component: RouteComponent,
 })
 
@@ -44,7 +51,6 @@ type MenuState = {
   participantName: string
   pending: boolean
   error: string | null
-  notice: string | null
   organizerReviewPath: string | null
   stale: boolean
 }
@@ -64,7 +70,6 @@ function initialMenuState(): MenuState {
     pending: false,
     error:
       !inviteId && (!sessionId || !key) ? 'Session link is invalid.' : null,
-    notice: null,
     organizerReviewPath: null,
     stale: false,
   }
@@ -146,6 +151,7 @@ function RouteComponent() {
               })
             : null,
         participantName,
+        draft: loadStoredDraft(sessionId),
         submittedDraft: draftCartFromSubmittedItems(
           loaded.items.filter((item) => item.participantId === participantId),
         ),
@@ -157,10 +163,41 @@ function RouteComponent() {
     loadSession().catch((caught: Error) => setState({ error: caught.message }))
   }, [])
 
+  const sessionId = state.session?.id
+  const hasDraftItems = Object.keys(state.draft).length > 0
+
+  useLiveSessionRecord({
+    sessionId,
+    pending: state.pending,
+    getSessionKey: () => sessionKeyRef.current,
+    getRelayUpdatedAt: () => relayUpdatedAtRef.current,
+    onLoaded: (loaded) => {
+      relayUpdatedAtRef.current = loaded.relayUpdatedAt
+      setState({
+        session: loaded.session,
+        stale: loaded.relayUpdatedAt === null,
+      })
+    },
+    onPoll: refreshSessionFromRelay,
+  })
+
+  useEffect(() => {
+    if (!sessionId) return
+    storeDraft(sessionId, state.draft)
+  }, [sessionId, state.draft])
+
+  useEffect(() => {
+    if (!hasDraftItems) return
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+    }
+    window.addEventListener('beforeunload', warnBeforeUnload)
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload)
+  }, [hasDraftItems])
+
   function changeDraftLine(lineId: string, delta: number) {
     setState({
       draft: changeDraftLineQuantity(state.draft, lineId, delta),
-      notice: null,
     })
   }
 
@@ -171,14 +208,12 @@ function RouteComponent() {
         lineId,
         delta,
       ),
-      notice: null,
     })
   }
 
   function addPlainItem(menuItemId: string) {
     setState({
       draft: addPlainDraftItem(state.draft, menuItemId),
-      notice: null,
     })
   }
 
@@ -189,7 +224,6 @@ function RouteComponent() {
         ...state.draft,
         [id]: { ...line, id },
       },
-      notice: null,
     })
   }
 
@@ -202,16 +236,15 @@ function RouteComponent() {
     if (!items.length) {
       setState({
         error: 'Add at least one item before submitting.',
-        notice: null,
       })
       return
     }
     if (!state.participantName.trim()) {
-      setState({ error: 'Enter your name before submitting.', notice: null })
+      setState({ error: 'Enter your name before submitting.' })
       return
     }
 
-    setState({ pending: true, error: null, notice: null })
+    setState({ pending: true, error: null })
     try {
       const name = state.participantName.trim()
       const participantId =
@@ -234,7 +267,6 @@ function RouteComponent() {
         setState({
           session: latest.session,
           error: 'This group session is locked.',
-          notice: null,
         })
         return
       }
@@ -255,7 +287,6 @@ function RouteComponent() {
           setState({
             session: latest.session,
             error: 'This group session is locked.',
-            notice: null,
           })
           return
         }
@@ -280,13 +311,12 @@ function RouteComponent() {
         ),
         draft: {},
         error: null,
-        notice: 'Submitted items updated.',
       })
+      toast.success('Your items were submitted.')
     } catch (caught) {
       setState({
         error:
           caught instanceof Error ? caught.message : 'Could not submit items.',
-        notice: null,
       })
     } finally {
       setState({ pending: false })
@@ -309,7 +339,6 @@ function RouteComponent() {
       draft={state.draft}
       error={state.error}
       menu={state.menu}
-      notice={state.notice}
       organizerReviewPath={state.organizerReviewPath}
       participantName={state.participantName}
       pending={state.pending}
@@ -326,9 +355,7 @@ function RouteComponent() {
           sessionKey: sessionKeyRef.current,
         })
       }
-      onNameChange={(participantName) =>
-        setState({ participantName, notice: null })
-      }
+      onNameChange={(participantName) => setState({ participantName })}
       onQuantityChange={changeDraftLine}
       onSubmittedQuantityChange={changeSubmittedLine}
       onSubmit={submitDraft}

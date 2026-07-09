@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { toast } from 'sonner'
 import type {
   CartLine,
   KapiSession,
@@ -336,7 +337,12 @@ function ShareActionsPanel({
           </Button>
         </div>
         <Button
-          onClick={() => navigator.clipboard.writeText(session.shareUrl)}
+          onClick={() => {
+            navigator.clipboard
+              .writeText(session.shareUrl)
+              .then(() => toast.success('Invite link copied'))
+              .catch(() => toast.error('Could not copy the link'))
+          }}
           variant="outline"
           size="sm"
           className="h-8 rounded-lg text-xs"

@@ -94,6 +94,10 @@ type CartSyncContext = RequestContext & {
   set: StatusSetter;
 };
 type RelayReadContext = { params: { sessionId: string }; set: StatusSetter };
+type RelayEventsContext = RequestContext & {
+  params: { sessionId: string };
+  set: StatusSetter;
+};
 type RelayWriteContext = RequestContext & {
   params: { sessionId: string };
   body: RelayWrite;
@@ -110,6 +114,14 @@ type InviteReadContext = RequestContext & {
 const authStates = new Map<string, { codeVerifier: string; next: string }>();
 const relay: RelayStore = await readJson<RelayStore>(relayFile, {});
 const invites: InviteStore = await readJson<InviteStore>(inviteFile, {});
+const relaySubscribers = new Map<string, Set<RelaySubscriber>>();
+const relayEventEncoder = new TextEncoder();
+const maxRelaySubscribersPerSession = 64;
+type RelaySubscriber = {
+  sendRecord(record: RelayRecord): void;
+  sendGone(): void;
+  close(): void;
+};
 let oauthClient: OAuthClient | null = null;
 let token: Token | null = process.env.SWIGGY_MCP_ACCESS_TOKEN
   ? {
@@ -327,6 +339,108 @@ function publicRelayRecord(record: RelayRecord): RelaySessionRecord {
     metadata: record.metadata,
     ...(participantSubmissions ? { participantSubmissions } : {}),
   };
+}
+
+function formatRelayRecordEvent(record: RelayRecord) {
+  return `id: ${record.updatedAt}\nevent: record\ndata: ${JSON.stringify(publicRelayRecord(record))}\n\n`;
+}
+
+function removeRelaySubscriber(sessionId: string, subscriber: RelaySubscriber) {
+  const subscribers = relaySubscribers.get(sessionId);
+  if (!subscribers) return;
+  subscribers.delete(subscriber);
+  if (!subscribers.size) relaySubscribers.delete(sessionId);
+}
+
+function broadcastRelayRecord(sessionId: string, record: RelayRecord) {
+  relaySubscribers
+    .get(sessionId)
+    ?.forEach((subscriber) => subscriber.sendRecord(record));
+}
+
+export function closeRelaySessionSubscribers(sessionId: string) {
+  const subscribers = relaySubscribers.get(sessionId);
+  if (!subscribers) return;
+  for (const subscriber of [...subscribers]) subscriber.sendGone();
+  relaySubscribers.delete(sessionId);
+}
+
+export function relaySubscriberCount(sessionId: string) {
+  return relaySubscribers.get(sessionId)?.size ?? 0;
+}
+
+function relayEventStream(
+  sessionId: string,
+  record: RelayRecord,
+  request: Request,
+) {
+  let subscribers = relaySubscribers.get(sessionId);
+  if (!subscribers) {
+    subscribers = new Set();
+    relaySubscribers.set(sessionId, subscribers);
+  }
+  if (subscribers.size >= maxRelaySubscribersPerSession) {
+    return jsonResponse({ error: "Too many subscribers." }, 503);
+  }
+
+  let subscriber: RelaySubscriber | undefined;
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      let closed = false;
+      let pingTimer: ReturnType<typeof setInterval> | undefined;
+      let closeTimer: ReturnType<typeof setTimeout> | undefined;
+      const send = (chunk: string) => {
+        if (closed) return;
+        try {
+          controller.enqueue(relayEventEncoder.encode(chunk));
+        } catch {
+          subscriber?.close();
+        }
+      };
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        if (pingTimer) clearInterval(pingTimer);
+        if (closeTimer) clearTimeout(closeTimer);
+        request.signal.removeEventListener("abort", close);
+        if (subscriber) removeRelaySubscriber(sessionId, subscriber);
+        try {
+          controller.close();
+        } catch {
+          // Already closed by the client.
+        }
+      };
+
+      subscriber = {
+        sendRecord: (nextRecord) => send(formatRelayRecordEvent(nextRecord)),
+        sendGone: () => {
+          send("event: gone\ndata: {}\n\n");
+          close();
+        },
+        close,
+      };
+      subscribers.add(subscriber);
+
+      send("retry: 3000\n\n");
+      if (request.headers.get("last-event-id") !== record.updatedAt) {
+        send(formatRelayRecordEvent(record));
+      }
+      pingTimer = setInterval(() => send(": ping\n\n"), 25_000);
+      closeTimer = setTimeout(close, 3 * 60 * 60 * 1000);
+      request.signal.addEventListener("abort", close, { once: true });
+    },
+    cancel() {
+      subscriber?.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }
 
 type RelayWriteSuccess =
@@ -1213,6 +1327,19 @@ export const app = new Elysia()
     },
   )
   .get(
+    "/relay/sessions/:sessionId/events",
+    ({ params, request, set }: RelayEventsContext) => {
+      assertAllowedOrigin(request);
+      const record = relay[params.sessionId];
+      if (!record) {
+        set.status = 404;
+        return { error: "Session not found." };
+      }
+      return relayEventStream(params.sessionId, record, request);
+    },
+    { params: t.Object({ sessionId: t.String() }) },
+  )
+  .get(
     "/relay/sessions/:sessionId",
     ({ params, set }: RelayReadContext) => {
       const record = relay[params.sessionId];
@@ -1276,6 +1403,7 @@ export const app = new Elysia()
 
       relay[params.sessionId] = applyRelayWrite(current, body, decision);
       await writeJson(relayFile, relay);
+      broadcastRelayRecord(params.sessionId, relay[params.sessionId]);
       return publicRelayRecord(relay[params.sessionId]);
     },
     {

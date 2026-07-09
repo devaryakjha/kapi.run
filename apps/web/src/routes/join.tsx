@@ -1,6 +1,6 @@
 import { useEffect, useReducer } from 'react'
 import type { FormEvent } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 import type { KapiSession } from '@kapi/spec'
 import { ArrowRight, Loader2, Users } from 'lucide-react'
 
@@ -24,6 +24,9 @@ import {
 import type { SessionLinkParts } from '#/features/group-ordering/shared'
 
 export const Route = createFileRoute('/join')({
+  head: () => ({
+    meta: [{ title: 'Join the group order · kapi.run' }],
+  }),
   component: Join,
 })
 
@@ -50,6 +53,7 @@ function patchJoinState(state: JoinState, patch: Partial<JoinState>) {
 }
 
 function Join() {
+  const router = useRouter()
   const [state, setState] = useReducer(
     patchJoinState,
     undefined,
@@ -78,7 +82,7 @@ function Join() {
         parts.organizerSecret &&
         (await hasOrganizerCapability(loaded.session, parts.organizerSecret))
       ) {
-        window.location.replace(
+        router.history.replace(
           buildOrganizerReviewPath({
             inviteId: parts.inviteId ?? undefined,
             sessionId: parts.sessionId,
@@ -115,7 +119,7 @@ function Join() {
     const url = new URL('/menu', window.location.origin)
     url.searchParams.set('session', state.session.id)
     url.hash = new URLSearchParams({ key: state.key }).toString()
-    window.location.href = `${url.pathname}${url.search}${url.hash}`
+    router.history.push(`${url.pathname}${url.search}${url.hash}`)
   }
 
   return (
