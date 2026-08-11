@@ -49,6 +49,9 @@
   }
 
   .app-header__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
     justify-self: start;
     font-family: var(--font-heading);
     font-size: 1.125rem;
@@ -56,6 +59,12 @@
     letter-spacing: -0.03em;
     color: var(--primary);
     text-decoration: none;
+  }
+
+  .app-header__brand img {
+    width: 1.35rem;
+    height: 1.35rem;
+    flex: none;
   }
 
   .app-header__brand:hover {
