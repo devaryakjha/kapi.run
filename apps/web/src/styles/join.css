@@ -18,6 +18,8 @@
     width: 100%;
     max-width: 28rem;
     margin: auto;
+    padding: var(--space-5);
+    border-radius: var(--radius-large);
   }
 
   .join-intro {
@@ -81,6 +83,11 @@
     gap: 0.75rem;
   }
 
+  .join-info {
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-large);
+  }
+
   .join-error > svg {
     width: 1rem;
     height: 1rem;
@@ -93,7 +100,14 @@
   }
 
   .join-field {
+    display: grid;
+    gap: var(--space-2);
     padding-top: 0.5625rem;
+  }
+
+  .join-field input {
+    height: 2.25rem;
+    margin: 0;
   }
 
   .join-field > span {

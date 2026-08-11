@@ -65,6 +65,12 @@
     color: var(--foreground);
   }
 
+  :where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']), textarea, select) {
+    border-color: transparent;
+    border-radius: var(--radius-full);
+    background-color: color-mix(in oklch, var(--input) 50%, transparent);
+  }
+
   h1,
   h2,
   h3 {
@@ -79,5 +85,14 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     stroke-width: 2;
+  }
+}
+
+@layer components {
+  [role='alert'][data-variant='error'] {
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-large);
+    background-color: var(--card);
   }
 }

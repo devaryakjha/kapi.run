@@ -51,6 +51,7 @@
 
   .setup-step {
     margin: 0;
+    padding: var(--space-5);
   }
 
   .setup-step[data-done='true'] {
@@ -173,7 +174,9 @@
   }
 
   .setup-field {
+    display: grid;
     min-width: 0;
+    gap: var(--space-2);
   }
 
   .setup-field > span:first-child {
@@ -186,8 +189,18 @@
     text-transform: uppercase;
   }
 
-  .address-dropdown { display:block; min-width:0; margin-top:var(--space-1); }
-  .address-trigger { width:100%; min-width:0; justify-content:flex-start; overflow:hidden; }
+  .setup-field input,
+  .address-dropdown {
+    margin: 0;
+  }
+
+  .setup-field input,
+  .address-trigger {
+    height: 2.25rem;
+  }
+
+  .address-dropdown { display:block; min-width:0; }
+  .address-trigger { width:100%; min-width:0; justify-content:flex-start; overflow:hidden; border-radius:var(--radius-full); background-color:color-mix(in oklch,var(--input) 50%,transparent); }
   .address-trigger>svg { width:1rem; height:1rem; flex:none; color:var(--muted-foreground); }
   .address-trigger>[data-address-trigger-label] { min-width:0; flex:1; overflow:hidden; text-align:left; text-overflow:ellipsis; white-space:nowrap; }
   .address-trigger>.address-trigger__chevron { width:.875rem; height:.875rem; }
@@ -291,7 +304,11 @@
   }
 
   .restaurant-search input {
+    height: 2.25rem;
+    margin: 0;
     padding-inline-start: 2.25rem;
+    border-radius: var(--radius-large);
+    background: var(--muted);
   }
 
   .restaurant-empty {

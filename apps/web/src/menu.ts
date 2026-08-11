@@ -575,6 +575,14 @@ function showItem(itemId: string) {
 function applyCustomization(item: MenuItem, detail: MenuCustomization) {
   if (activeItem?.id !== item.id) return
   customization = detail
+  const rating = detail.rating || item.rating
+  const totalRatings = detail.totalRatings || item.totalRatings
+  const ratingElement = required<HTMLElement>('[data-item-rating]')
+  ratingElement.hidden = !rating
+  ratingElement.textContent = rating
+    ? `★ ${Number(rating).toFixed(1)}${totalRatings ? ` (${totalRatings})` : ''}`
+    : ''
+  required<HTMLElement>('[data-item-description]').textContent = detail.description || item.description
   selectedVariants = defaultVariantSelections(detail.variantsV2 ?? [])
   selectedAddons = defaultAddonSelections(detail.addons ?? [])
   renderItemOptions()
