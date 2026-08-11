@@ -18,9 +18,9 @@ import type {
 } from "@kapi/spec";
 
 const port = Number(process.env.PORT ?? 3001);
-const publicWebUrl = process.env.KAPI_WEB_URL ?? "http://127.0.0.1:3000";
+const publicWebUrl = process.env.KAPI_WEB_URL ?? "http://localhost:3000";
 const redirectUri =
-  process.env.SWIGGY_REDIRECT_URI ?? `http://127.0.0.1:${port}/auth/callback`;
+  process.env.SWIGGY_REDIRECT_URI ?? `http://localhost:${port}/auth/callback`;
 const swiggyBase = "https://mcp.swiggy.com";
 const swiggyFoodUrl = `${swiggyBase}/food`;
 const publicWebOrigin = new URL(publicWebUrl).origin;

@@ -1,0 +1,342 @@
+@layer components {
+  .home-page {
+    display: flex;
+    min-height: 100svh;
+    flex-direction: column;
+    overflow: hidden;
+    padding-block-start: 0;
+  }
+
+  .home-page__content {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    padding: 2rem 1rem;
+  }
+
+  .home-layout {
+    display: grid;
+    width: 100%;
+    max-width: 72rem;
+    gap: 2.5rem;
+    margin-inline: auto;
+  }
+
+  .home-intro {
+    display: flex;
+    width: 100%;
+    max-width: 36rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .home-intro__title {
+    max-width: 36rem;
+    margin: 0;
+    font-size: 3rem;
+    font-weight: 600;
+    line-height: 0.98;
+    letter-spacing: -0.045em;
+  }
+
+  .home-intro__title span {
+    display: block;
+  }
+
+  .home-intro__lead {
+    max-width: 28rem;
+    margin: 1.5rem 0 0;
+    font-size: 1rem;
+    line-height: 1.75rem;
+    color: var(--muted-foreground);
+    text-wrap: pretty;
+  }
+
+  .home-intro__note {
+    max-width: 28rem;
+    margin: 2rem 0 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.75rem;
+    color: color-mix(in oklch, var(--foreground) 70%, transparent);
+  }
+
+  .order-ticket {
+    position: relative;
+    width: 100%;
+    max-width: 36rem;
+    margin-inline: auto;
+  }
+
+  .order-ticket__notch {
+    position: absolute;
+    z-index: 2;
+    top: 38%;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    background: var(--background);
+  }
+
+  .order-ticket__notch--start {
+    left: -0.75rem;
+  }
+
+  .order-ticket__notch--end {
+    right: -0.75rem;
+  }
+
+  .order-card {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 1.125rem;
+    background: var(--card);
+    box-shadow: 0 24px 70px -36px oklch(0.28 0.05 155 / 0.42);
+  }
+
+  .order-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .order-card__header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.5rem;
+    color: inherit;
+  }
+
+  .order-card__header p {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+    color: color-mix(in oklch, var(--primary-foreground) 75%, transparent);
+  }
+
+  .order-card__mark {
+    display: flex;
+    width: 2.5rem;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in oklch, var(--primary-foreground) 20%, transparent);
+    border-radius: 0.875rem;
+    background: color-mix(in oklch, var(--primary-foreground) 10%, transparent);
+  }
+
+  .order-card__mark svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .order-card__body {
+    padding: 1.25rem;
+  }
+
+  .start-order {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    padding-bottom: 1.25rem;
+  }
+
+  .start-order h3,
+  .join-order h3 {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+  }
+
+  .start-order p {
+    margin: 0.25rem 0 0;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: var(--muted-foreground);
+  }
+
+  .join-order__heading p {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: var(--muted-foreground);
+  }
+
+  :is(.start-order__action, .join-form__submit) {
+    display: inline-flex;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    border-radius: 0.875rem;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+  }
+
+  .start-order__action {
+    width: 100%;
+    flex: none;
+    padding: 0 0.625rem 0 1rem;
+    border-color: transparent;
+    box-shadow: 0 1px 0 oklch(0.25 0.05 155 / 0.16);
+  }
+
+  :is(.start-order__action, .join-form__submit) svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
+  .join-order {
+    padding-top: 1.25rem;
+    border-top: 1px dashed var(--border);
+  }
+
+  .join-order__heading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .join-order__icon {
+    display: flex;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.875rem;
+    background: var(--muted);
+    color: var(--muted-foreground);
+  }
+
+  .join-order__icon svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .join-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .join-form label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1rem;
+    color: var(--foreground);
+  }
+
+  .join-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .join-form input {
+    height: 2.75rem;
+    margin: 0;
+    padding: 0 0.875rem;
+    border-radius: 0.875rem;
+    background: var(--background);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .join-form input:focus {
+    border-color: color-mix(in oklch, var(--primary) 55%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 25%, transparent);
+  }
+
+  .join-form__error {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 1.125rem;
+    background: var(--card);
+    color: var(--danger);
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .join-form__submit {
+    width: 100%;
+    padding: 0 0.625rem 0 0.75rem;
+    background: var(--card);
+  }
+}
+
+@media (min-width: 40rem) {
+  @layer components {
+    .start-order {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .start-order__action {
+      width: auto;
+    }
+  }
+}
+
+@media (min-width: 48rem) {
+  @layer components {
+    .home-page__content {
+      padding: 3rem 1.5rem;
+    }
+
+    .home-intro__title {
+      font-size: 3.75rem;
+    }
+
+    .home-intro__lead {
+      font-size: 1.125rem;
+    }
+
+    .order-card__header {
+      padding-inline: 1.5rem;
+    }
+
+    .order-card__body {
+      padding: 1.5rem;
+    }
+  }
+}
+
+@media (min-width: 64rem) {
+  @layer components {
+    .home-layout {
+      grid-template-columns: 0.92fr 1.08fr;
+      align-items: center;
+      gap: 6rem;
+    }
+
+    .home-intro {
+      align-items: flex-start;
+      margin-inline: 0;
+      text-align: start;
+    }
+
+    .home-intro__title {
+      font-size: 4.75rem;
+    }
+
+    .order-ticket {
+      margin-inline: 0;
+    }
+  }
+}

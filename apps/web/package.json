@@ -2,53 +2,20 @@
   "name": "@kapi/web",
   "private": true,
   "type": "module",
-  "imports": {
-    "#/*": "./src/*"
-  },
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "lint": "eslint",
-    "format": "prettier --write . && eslint --fix",
-    "typecheck": "tsc --noEmit",
-    "check": "prettier --check ."
+    "preview": "vite preview --port 3000",
+    "test": "bun test",
+    "test:routing": "bun run build && bun scripts/check-routes.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@base-ui/react": "^1.7.0",
-    "@fontsource-variable/inter": "^5.3.0",
-    "@fontsource-variable/outfit": "^5.3.0",
-    "@kapi/spec": "workspace:*",
-    "@tailwindcss/vite": "^4.3.3",
-    "@tanstack/react-router": "latest",
-    "@tanstack/router-plugin": "^1.168.18",
-    "class-variance-authority": "^0.7.1",
-    "cmdk": "^1.1.1",
-    "cnfast": "^0.0.8",
-    "lucide-react": "^1.31.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "shadcn": "^4.16.2",
-    "sonner": "^2.0.8",
-    "tailwindcss": "^4.3.3",
-    "tw-animate-css": "^1.4.0"
+    "@knadh/oat": "0.7.1"
   },
   "devDependencies": {
-    "@tailwindcss/typography": "^0.5.20",
-    "@tanstack/eslint-config": "latest",
-    "@tanstack/router-plugin": "^1.168.29",
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/react": "^16.3.2",
-    "@types/node": "^22.20.1",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.0.5",
-    "eslint": "^10.8.1",
-    "jsdom": "^29.1.1",
-    "prettier": "^3.9.6",
+    "@kapi/spec": "workspace:*",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16",
-    "vitest": "^4.1.10"
+    "vite": "8.0.16"
   }
 }

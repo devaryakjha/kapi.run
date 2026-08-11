@@ -1,23 +1,36 @@
 # Kapi Web
 
-Kapi web covers organiser setup, participant menu selection, and organiser review before syncing to Swiggy.
+The production web app uses HTML, CSS, browser APIs, and Oat.
 
 ## Commands
 
 ```sh
 bun run --cwd apps/web dev
 bun run --cwd apps/web build
+bun run --cwd apps/web typecheck
 bun run --cwd apps/web test
-bun run --cwd apps/web lint
-bun run --cwd apps/web check
+bun run --cwd apps/web test:routing
 ```
 
-## API
+The development server uses `http://localhost:3000`.
 
-`VITE_KAPI_API_URL` defaults to `http://127.0.0.1:3001`. Start `apps/api` separately for the real Swiggy OAuth, MCP, and local relay flow.
+Application routes use canonical directory URLs such as `/new/`. Clean paths
+redirect to their canonical URL in development, preview, and the standalone
+Nginx image built from `Dockerfile.web`.
 
-## Privacy And Session Notes
+## Rules
 
-- The session key lives in the URL hash and localStorage.
-- Participant draft cart data stays local until submit.
-- Organiser sync writes to the Swiggy cart only; it does not place the order.
+- Use real HTML documents for routes.
+- Use Oat CSS before Kapi theme and page CSS.
+- Prefer native elements and current browser APIs.
+- Keep production runtime dependencies limited to Oat.
+- Keep remote strings out of `innerHTML`.
+- Preserve current copy, behavior, colors, typography, spacing, and geometry.
+
+## Page status
+
+- `/`: implemented and compared.
+- `/new`: implemented and compared.
+- `/join`: implemented and compared.
+- `/menu`: implemented and compared.
+- `/review`: implemented and compared.

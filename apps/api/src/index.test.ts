@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { RelaySessionRecord } from "@kapi/spec";
 
-const publicWebUrl = "http://127.0.0.1:3000";
+const publicWebUrl = "http://localhost:3000";
 let api: typeof import("./index.js");
 let app: import("./index.js").App;
 let dataDir: string;
@@ -42,7 +42,7 @@ beforeAll(async () => {
   dataDir = await mkdtemp(join(tmpdir(), "kapi-api-test-"));
   process.env.KAPI_DATA_DIR = dataDir;
   process.env.KAPI_WEB_URL = publicWebUrl;
-  process.env.SWIGGY_REDIRECT_URI = "http://127.0.0.1:3001/auth/callback";
+  process.env.SWIGGY_REDIRECT_URI = "http://localhost:3001/auth/callback";
   process.env.SWIGGY_MCP_ACCESS_TOKEN = "test-swiggy-token";
   delete process.env.KAPI_SWIGGY_OWNER_SECRET;
 
@@ -187,9 +187,9 @@ describe("OAuth return URLs", () => {
 
   it("preserves trusted absolute app URLs", async () => {
     await expect(
-      finishOAuth("http://127.0.0.1:3000/new?from=oauth#setup"),
+      finishOAuth("http://localhost:3000/new?from=oauth#setup"),
     ).resolves.toMatchObject({
-      location: "http://127.0.0.1:3000/new?from=oauth#setup",
+      location: "http://localhost:3000/new?from=oauth#setup",
     });
   });
 
@@ -197,7 +197,7 @@ describe("OAuth return URLs", () => {
     await expect(
       finishOAuth("/review?session=s1#key=k1"),
     ).resolves.toMatchObject({
-      location: "http://127.0.0.1:3000/review?session=s1#key=k1",
+      location: "http://localhost:3000/review?session=s1#key=k1",
     });
   });
 });

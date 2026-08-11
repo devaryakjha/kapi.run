@@ -10,12 +10,10 @@
     "dev": "bun run --filter '*' dev",
     "dev:web": "bun run --cwd apps/web dev",
     "dev:api": "bun run --cwd apps/api dev",
-    "dev:landing": "bun run --cwd apps/landing dev",
-    "deploy:landing": "bun run --cwd apps/landing deploy",
     "build": "bun run --filter '@kapi/web' build",
-    "check": "bun run --cwd apps/web check && bun run --cwd apps/web typecheck && bun run --cwd apps/api typecheck",
-    "lint": "bun run --filter '@kapi/web' lint",
-    "test": "bun run --filter '@kapi/web' test"
+    "check": "bun run --cwd apps/web typecheck && bun run --cwd apps/api typecheck",
+    "test": "bun run --filter '@kapi/web' test",
+    "test:routing": "bun run --cwd apps/web test:routing"
   },
   "overrides": {
     "fast-uri": "^4.0.0",

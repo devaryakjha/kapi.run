@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f8fbf9" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <title>Join the group order · kapi.run</title>
+  </head>
+  <body>
+    <main class="join-page" aria-busy="true">
+      <header class="app-header">
+        <a class="app-header__brand" href="/" aria-label="kapi.run home">kapi.run</a>
+      </header>
+
+      <div class="join-page__content">
+        <section class="join-card">
+          <header class="join-intro">
+            <span class="join-intro__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </span>
+            <span>
+              <strong>Join this order</strong>
+              <span class="join-intro__description" data-session-description>
+                Confirm your name before adding items.
+              </span>
+            </span>
+          </header>
+
+          <div class="join-loading" data-join-loading>
+            <svg class="spinner" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-6.22-8.56"></path>
+            </svg>
+            <span>Loading order</span>
+          </div>
+
+          <form class="join-form" hidden>
+            <div class="join-info" data-join-info hidden>
+              Your name is shown with the items you submit.
+            </div>
+
+            <div class="join-error" role="alert" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                <path d="M12 9v4"></path>
+                <path d="M12 17h.01"></path>
+              </svg>
+              <span>
+                <strong>Something went wrong</strong>
+                <span data-error-message></span>
+              </span>
+            </div>
+
+            <label class="join-field" for="join-name">
+              <span>Your name</span>
+              <input
+                id="join-name"
+                autocomplete="name"
+                placeholder="Shown in the group cart"
+                disabled
+              />
+            </label>
+
+            <button class="join-submit" type="submit" disabled>
+              <span>Join order</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h14"></path>
+                <path d="m12 5 7 7-7 7"></path>
+              </svg>
+            </button>
+          </form>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="/src/join.ts"></script>
+  </body>
+</html>

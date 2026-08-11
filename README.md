@@ -23,9 +23,8 @@ Kapi does not place or pay for the final order. The organizer completes checkout
 
 The repository uses Bun workspaces.
 
-- `apps/web` contains the React and Vite web app.
+- `apps/web` contains the framework-free HTML, CSS, JavaScript, and Oat web app.
 - `apps/api` contains the Elysia API, Swiggy OAuth proxy, MCP client, and session relay.
-- `apps/landing` contains the standalone Astro landing site.
 - `packages/spec` contains the shared TypeScript contracts.
 
 The browser app connects to the API through a configured base URL. Each deployment can choose its own host and proxy layout.
@@ -55,14 +54,14 @@ Start all workspace apps:
 bun run dev
 ```
 
-Start only the web app and API in separate terminals:
+Start the current web app and API in separate terminals:
 
 ```sh
 bun run dev:web
 bun run dev:api
 ```
 
-The web app uses `http://127.0.0.1:3000` by default. The API uses `http://127.0.0.1:3001` by default.
+The web app uses `http://localhost:3000` by default. The API uses `http://localhost:3001` by default.
 
 ## Commands
 
@@ -73,11 +72,10 @@ Run these commands from the repository root:
 | `bun run dev`         | Start all workspace apps.        |
 | `bun run dev:web`     | Start the web app.               |
 | `bun run dev:api`     | Start the API.                   |
-| `bun run dev:landing` | Start the landing site.          |
 | `bun run build`       | Build the web app.               |
 | `bun run check`       | Check formatting and TypeScript. |
-| `bun run lint`        | Run the web linter.              |
 | `bun run test`        | Run the web tests.               |
+| `bun run test:routing` | Verify static route handling.    |
 
 ## Deployment
 

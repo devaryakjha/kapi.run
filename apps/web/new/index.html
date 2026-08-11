@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#0f7a5a" />
+    <link rel="icon" href="/kapi-mark.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="stylesheet" href="/src/styles/base.css" />
+    <link rel="stylesheet" href="/src/styles/new.css" />
+    <title>Start a group order · kapi.run</title>
+  </head>
+  <body>
+    <main class="setup-page" aria-busy="true">
+      <header class="app-header" data-app-header>
+        <div class="app-header__inner">
+          <a class="app-header__brand" href="/" aria-label="kapi.run home">
+            kapi.run
+          </a>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </div>
+      </header>
+
+      <div class="setup-page__content">
+        <div class="setup-shell">
+          <header class="setup-intro">
+            <h1>Start a group order</h1>
+            <p>Connect Swiggy, pick a spot, share the link.</p>
+          </header>
+
+          <div class="setup-steps">
+            <section class="setup-step" data-step="account">
+              <header class="setup-step__heading">
+                <span class="setup-step__number" data-step-number>1</span>
+                <h2>Swiggy account</h2>
+                <span class="setup-step__done-label" hidden>✓ Connected</span>
+              </header>
+
+              <div class="account-state account-state--loading" data-account-state="loading">
+                <svg class="spinner" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M21 12a9 9 0 1 1-6.22-8.56"></path>
+                </svg>
+                <span>Checking your Swiggy connection…</span>
+              </div>
+
+              <div class="account-state account-state--disconnected" data-account-state="disconnected" hidden>
+                <div class="account-state__message">
+                  <span class="account-state__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path>
+                      <path d="M7 2v20"></path>
+                      <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path>
+                    </svg>
+                  </span>
+                  <p>Sign in to access your saved addresses.</p>
+                </div>
+                <button class="small account-connect" type="button">Connect</button>
+              </div>
+
+              <div class="account-state account-state--connected" data-account-state="connected" hidden>
+                <p>Your Swiggy addresses are ready to use.</p>
+                <button class="ghost account-reconnect" type="button">Reconnect</button>
+              </div>
+            </section>
+
+            <section class="setup-step" data-step="address">
+              <header class="setup-step__heading">
+                <span class="setup-step__number">2</span>
+                <h2>Address &amp; cutoff</h2>
+              </header>
+
+              <div class="setup-fields">
+                <div class="setup-field">
+                  <span>Delivery address</span>
+                  <ot-dropdown class="address-dropdown">
+                    <button class="address-trigger outline" type="button" popovertarget="address-menu" disabled>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                      <span data-address-trigger-label>Connect first</span>
+                      <svg class="address-trigger__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+                    </button>
+                    <menu id="address-menu" popover data-address-menu></menu>
+                  </ot-dropdown>
+                </div>
+
+                <label class="setup-field" for="cutoff-time">
+                  <span>Order cutoff</span>
+                  <input id="cutoff-time" type="time" step="60" />
+                  <small class="setup-field__error" data-cutoff-error hidden></small>
+                </label>
+              </div>
+            </section>
+
+            <section class="setup-step" data-step="restaurant">
+              <header class="setup-step__heading">
+                <span class="setup-step__number">3</span>
+                <h2>Restaurant</h2>
+              </header>
+
+              <button class="outline restaurant-trigger" type="button" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <path d="m21 21-4.3-4.3"></path>
+                </svg>
+                <span data-restaurant-trigger-label>Search restaurants or cuisine…</span>
+              </button>
+            </section>
+          </div>
+
+          <div class="setup-actions">
+            <div class="setup-error" role="alert" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                <path d="M12 9v4"></path>
+                <path d="M12 17h.01"></path>
+              </svg>
+              <span>
+                <strong>Something went wrong</strong>
+                <span data-error-message></span>
+              </span>
+            </div>
+
+            <button class="create-session" type="button" disabled>
+              <svg class="spinner" data-create-spinner viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 12a9 9 0 1 1-6.22-8.56"></path>
+              </svg>
+              <span>Create session</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h14"></path>
+                <path d="m12 5 7 7-7 7"></path>
+              </svg>
+            </button>
+            <p>The invite link is generated instantly.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <dialog id="restaurant-dialog" class="restaurant-dialog" closedby="any">
+      <section class="restaurant-picker">
+        <h2 class="sr-only">Choose Restaurant</h2>
+        <p class="sr-only">Search restaurants or cuisine</p>
+        <label class="restaurant-search" for="restaurant-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </svg>
+          <input
+            id="restaurant-search"
+            autocomplete="off"
+            placeholder="Search restaurants or cuisine"
+          />
+        </label>
+        <div class="restaurant-empty" data-restaurant-empty>
+          Type to search restaurants.
+        </div>
+        <section class="restaurant-results" data-restaurant-results hidden>
+          <h3>Restaurants</h3>
+          <div data-restaurant-list></div>
+        </section>
+      </section>
+    </dialog>
+
+    <template id="restaurant-option-template">
+      <button class="restaurant-option" type="button">
+        <span class="restaurant-option__image" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path>
+            <path d="M7 2v20"></path>
+            <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path>
+          </svg>
+        </span>
+        <span class="restaurant-option__copy">
+          <strong></strong>
+          <span data-location></span>
+          <span data-value></span>
+        </span>
+        <span class="restaurant-option__rating" data-rating>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path>
+          </svg>
+          <span></span>
+        </span>
+      </button>
+    </template>
+
+    <script type="module" src="/src/new.ts"></script>
+  </body>
+</html>

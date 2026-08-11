@@ -17,31 +17,115 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://kapi.run/" />
     <meta property="og:image" content="https://kapi.run/og-image.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta
-      property="og:image:alt"
-      content="kapi.run — Group food orders, sorted."
-    />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="kapi.run group food orders" />
-    <meta
-      name="twitter:description"
-      content="Join the group order, add your items, done. Shared Swiggy lunch runs without the back-and-forth."
-    />
-    <meta name="twitter:image" content="https://kapi.run/og-image.png" />
-    <meta
-      name="twitter:image:alt"
-      content="kapi.run — Group food orders, sorted."
-    />
     <meta name="theme-color" content="#0f7a5a" />
     <link rel="icon" href="/kapi-mark.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
-    <link rel="apple-touch-icon" href="/logo192.png" />
     <title>kapi.run</title>
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <main class="home-page">
+      <header class="app-header" data-app-header>
+        <div class="app-header__inner">
+          <a class="app-header__brand" href="/" aria-label="kapi.run home">
+            kapi.run
+          </a>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </div>
+      </header>
+
+      <div class="home-page__content">
+        <div class="home-layout">
+          <section class="home-intro">
+            <h1 class="home-intro__title">
+              <span>Pick together.</span>
+              <span>Pay once.</span>
+            </h1>
+            <p class="home-intro__lead">
+              Share one link, collect everyone's picks, and sync the final cart
+              when the group is ready.
+            </p>
+            <p class="home-intro__note">
+              Participants join in the browser. Only the organiser connects
+              Swiggy.
+            </p>
+          </section>
+
+          <section class="order-ticket" aria-labelledby="group-order-title">
+            <span class="order-ticket__notch order-ticket__notch--start" aria-hidden="true"></span>
+            <span class="order-ticket__notch order-ticket__notch--end" aria-hidden="true"></span>
+
+            <article class="order-card">
+              <header class="order-card__header">
+                <div>
+                  <h2 id="group-order-title">Group order</h2>
+                  <p>Create one or join one</p>
+                </div>
+                <span class="order-card__mark" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M5 12h14"></path>
+                    <path d="M12 5v14"></path>
+                  </svg>
+                </span>
+              </header>
+
+              <div class="order-card__body">
+                <section class="start-order">
+                  <div>
+                    <h3>Start a new order</h3>
+                    <p>Choose the address, restaurant, and cutoff.</p>
+                  </div>
+                  <a class="button start-order__action" href="/new/">
+                    Start order
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M5 12h14"></path>
+                      <path d="m12 5 7 7-7 7"></path>
+                    </svg>
+                  </a>
+                </section>
+
+                <section class="join-order">
+                  <div class="join-order__heading">
+                    <span class="join-order__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.15"></path>
+                        <path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.15-1.15"></path>
+                      </svg>
+                    </span>
+                    <div>
+                      <h3>Join an order</h3>
+                      <p>Use the invite link or code from the organiser.</p>
+                    </div>
+                  </div>
+
+                  <form class="join-form" novalidate>
+                    <div class="join-form__field">
+                      <label for="session-info">Invite link or code</label>
+                      <input
+                        id="session-info"
+                        name="session-info"
+                        autocomplete="off"
+                        placeholder="Paste the invite link or code"
+                      />
+                    </div>
+                    <div class="join-form__error" role="alert" hidden></div>
+                    <button class="outline join-form__submit" type="submit">
+                      Join order
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 12h14"></path>
+                        <path d="m12 5 7 7-7 7"></path>
+                      </svg>
+                    </button>
+                  </form>
+                </section>
+              </div>
+            </article>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="/src/home.ts"></script>
   </body>
 </html>
