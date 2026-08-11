@@ -4,6 +4,10 @@ type CountdownSource = {
   status?: string
 }
 
+export function countdownShouldRun(source: CountdownSource | null) {
+  return !source || !source.status || source.status === 'open'
+}
+
 export function countdownLabel(source: CountdownSource, now = new Date()) {
   if (source.status === 'locked') return 'Order locked'
   if (source.status === 'synced') return 'Cart synced'
@@ -31,10 +35,10 @@ export function startLiveCountdown(
 
   function paint() {
     const source = getSource()
-    if (!source) return false
+    if (!source) return countdownShouldRun(source)
     element.dataset.status = source.status ?? 'open'
     value.textContent = countdownLabel(source)
-    return !source.status || source.status === 'open'
+    return countdownShouldRun(source)
   }
 
   function schedule() {

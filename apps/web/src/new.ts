@@ -27,6 +27,7 @@ import {
   safeLocalStorageSet,
 } from './lib/session.ts'
 import { writeWorkspaceCache } from './lib/workspace-cache.ts'
+import { bindDismissibleDialog } from './lib/dialog.ts'
 
 type SetupState = {
   addresses: Address[]
@@ -131,6 +132,7 @@ async function initialize() {
 }
 
 function bindEvents() {
+  bindDismissibleDialog(restaurantDialog)
   for (const button of document.querySelectorAll<HTMLButtonElement>(
     '.account-connect, .account-reconnect',
   )) {
@@ -158,10 +160,6 @@ function bindEvents() {
     restaurantDialog.showModal()
     restaurantSearch.value = state.restaurantQuery
     queueMicrotask(() => restaurantSearch.focus())
-  })
-
-  restaurantDialog.addEventListener('click', (event) => {
-    if (event.target === restaurantDialog) restaurantDialog.close()
   })
 
   restaurantSearch.addEventListener('input', () => {

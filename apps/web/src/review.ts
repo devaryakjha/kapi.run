@@ -6,6 +6,7 @@ import './styles/review.css'
 import { api } from './lib/api.ts'
 import { renderAccountPopover } from './lib/account-popover.ts'
 import { startLiveCountdown } from './lib/countdown.ts'
+import { bindDismissibleDialog } from './lib/dialog.ts'
 import { buildOrganizerMenuPath } from './lib/join-target.ts'
 import {
   audit,
@@ -89,6 +90,8 @@ async function initialize() {
 }
 
 function bindEvents() {
+  bindDismissibleDialog(lockDialog)
+  bindDismissibleDialog(syncDialog)
   required<HTMLButtonElement>('.menu-mode').addEventListener('click', () => {
     const parts = getSessionLinkParts()
     window.location.assign(

@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { countdownLabel } from './countdown.ts'
+import { countdownLabel, countdownShouldRun } from './countdown.ts'
 
 describe('countdown label', () => {
+  it('keeps scheduling while session data loads', () => {
+    expect(countdownShouldRun(null)).toBe(true)
+  })
+
   it('shows the locked state instead of a countdown', () => {
     expect(
       countdownLabel(

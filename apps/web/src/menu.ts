@@ -6,6 +6,12 @@ import './styles/menu.css'
 import { api } from './lib/api.ts'
 import { renderAccountPopover } from './lib/account-popover.ts'
 import { startLiveCountdown } from './lib/countdown.ts'
+import {
+  customizationCacheKey,
+  readCustomizationCache,
+  writeCustomizationCache,
+} from './lib/customization-cache.ts'
+import { bindDismissibleDialog } from './lib/dialog.ts'
 import { buildOrganizerReviewPath } from './lib/join-target.ts'
 import {
   addPlainDraftItem,
@@ -84,6 +90,7 @@ let organizerReviewPath: string | null = null
 let activeParts: SessionLinkParts | null = null
 let relayUpdatedAt: string | null = null
 let lockFeedbackTimeout: number | undefined
+const customizationRequests = new Map<string, Promise<MenuCustomization>>()
 
 const lockedMessage = 'This group order is locked. No changes can be made.'
 
@@ -181,6 +188,8 @@ function applyWorkspace(
 }
 
 function bindEvents() {
+  bindDismissibleDialog(cartDialog)
+  bindDismissibleDialog(itemDialog)
   searchInput.addEventListener('input', () => {
     query = searchInput.value
     if (query) activeCategory = 'All'
@@ -527,25 +536,47 @@ function showItem(itemId: string) {
   const itemError = required<HTMLElement>('.item-dialog__error')
   itemError.hidden = true
   if (item.hasVariants || item.hasAddons) {
+    const cacheKey = customizationCacheKey(
+      session!.id,
+      item.restaurantId,
+      item.swiggyItemId,
+    )
+    const cachedDetail = readCustomizationCache(sessionStorage, cacheKey)
+    if (cachedDetail) {
+      applyCustomization(item, cachedDetail)
+      return
+    }
     add.disabled = true
     required<HTMLElement>('[data-item-add-label]').textContent = 'Loading options'
-    void api<MenuCustomization>(
-      `/food/restaurants/${item.restaurantId}/menu/${item.swiggyItemId}/customization?addressId=${encodeURIComponent(session!.address.id)}&q=${encodeURIComponent(item.name)}&sessionId=${encodeURIComponent(session!.id)}`,
-      { headers: { 'x-kapi-session-key': sessionKey } },
-    ).then((detail) => {
+    let request = customizationRequests.get(cacheKey)
+    if (!request) {
+      request = api<MenuCustomization>(
+        `/food/restaurants/${item.restaurantId}/menu/${item.swiggyItemId}/customization?addressId=${encodeURIComponent(session!.address.id)}&q=${encodeURIComponent(item.name)}&sessionId=${encodeURIComponent(session!.id)}`,
+        { headers: { 'x-kapi-session-key': sessionKey } },
+      )
+      customizationRequests.set(cacheKey, request)
+    }
+    void request.then((detail) => {
+      writeCustomizationCache(sessionStorage, cacheKey, detail)
       if (activeItem?.id !== item.id) return
-      customization = detail
-      selectedVariants = defaultVariantSelections(detail.variantsV2 ?? [])
-      selectedAddons = defaultAddonSelections(detail.addons ?? [])
-      renderItemOptions()
+      applyCustomization(item, detail)
     }).catch((caught) => {
         itemError.hidden = false
         required<HTMLElement>('[data-item-error]').textContent =
           caught instanceof Error ? caught.message : 'Could not load options.'
       }).finally(() => {
+        customizationRequests.delete(cacheKey)
         if (activeItem?.id === item.id) updateItemAddButton()
       })
   }
+}
+
+function applyCustomization(item: MenuItem, detail: MenuCustomization) {
+  if (activeItem?.id !== item.id) return
+  customization = detail
+  selectedVariants = defaultVariantSelections(detail.variantsV2 ?? [])
+  selectedAddons = defaultAddonSelections(detail.addons ?? [])
+  renderItemOptions()
 }
 
 function renderItemOptions() {
