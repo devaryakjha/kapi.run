@@ -1,6 +1,7 @@
 import type { CartCustomization, KapiSession, MenuAddonGroup, MenuCustomization, MenuItem, MenuVariantGroup } from '@kapi/spec'
 
 import './styles/base.css'
+import './styles/session.css'
 import './styles/menu.css'
 
 import { api } from './lib/api.ts'

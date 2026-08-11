@@ -42,7 +42,7 @@
         <div class="review-grid">
           <section class="orders-section" aria-labelledby="orders-heading">
             <header><span><h2 id="orders-heading">Orders</h2><p data-orders-meta></p></span><button class="ghost small refresh-order" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg><span>Refresh</span></button></header>
-            <div class="card orders-empty" hidden>
+            <article class="card orders-empty" hidden>
               <span class="empty-state__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24">
                   <circle cx="8" cy="21" r="1"></circle>
@@ -52,18 +52,18 @@
               </span>
               <strong>No orders yet</strong>
               <span>Share the invite link. Submitted orders will appear here.</span>
-            </div>
-            <div class="order-groups"></div>
+            </article>
+            <section class="order-groups" aria-label="Submitted orders"></section>
           </section>
 
           <aside class="summary-section" aria-labelledby="summary-heading">
             <header><h2 id="summary-heading">Order summary</h2><p data-summary-items></p></header>
-            <div class="card summary-card">
+            <article class="card summary-card">
               <dl><div><dt>People</dt><dd data-summary-people>0</dd></div><div><dt>Items</dt><dd data-summary-quantity>0</dd></div><div><dt>Subtotal</dt><dd data-summary-subtotal>₹0</dd></div></dl>
               <p>Swiggy adds taxes, fees, coupons, and the final total.</p>
               <div class="review-action-error" role="alert" data-variant="error" hidden><strong>Something went wrong</strong><span data-review-action-error></span></div>
               <button class="large sync-cart" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2H5l2.66 12.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L21 6H6"></path></svg><span data-sync-label>Sync to Swiggy cart</span></button>
-            </div>
+            </article>
           </aside>
         </div>
       </div>

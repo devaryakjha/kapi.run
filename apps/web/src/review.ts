@@ -1,6 +1,7 @@
 import type { CartLine, KapiSession, SwiggyCartSummary } from '@kapi/spec'
 
 import './styles/base.css'
+import './styles/session.css'
 import './styles/review.css'
 
 import { api } from './lib/api.ts'
