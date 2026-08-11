@@ -45,9 +45,7 @@ The repository uses Bun workspaces.
 - `apps/landing` contains the standalone Astro landing site.
 - `packages/spec` contains the shared TypeScript contracts.
 
-The web and API services use one public origin. Dokploy routes `/auth`, `/food`, and `/relay` to the API service.
-
-All other routes go to the web service. This same-origin design supports OAuth cookies and removes cross-origin browser problems.
+The browser app connects to the API through a configured base URL. Each deployment can choose its own host and proxy layout.
 
 ## Session and privacy model
 
@@ -100,13 +98,13 @@ Run these commands from the repository root:
 
 ## Deployment
 
-The production deployment uses separate web and API containers behind one `kapi.run` origin.
+The repository includes Dockerfiles and a Compose file for container deployments.
 
-Deploy `compose.dokploy.yml` as one Dokploy Compose app. Store the API data in the `kapi_api_data` Docker volume.
+Configure the public web URL, API URL, OAuth redirect URL, and persistent data directory for your environment.
 
-Map `kapi.run` to the Cloudflare Tunnel on the Dokploy server. Do not attach the domain to Cloudflare Pages.
+Keep OAuth tokens and session data out of source control. Store API data on persistent storage.
 
-Read [docs/deployment.md](docs/deployment.md) for the route order, environment variables, and tunnel configuration.
+Read [docs/deployment.md](docs/deployment.md) for the required environment variables and deployment requirements.
 
 ## Product scope
 

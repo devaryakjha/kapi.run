@@ -9,7 +9,7 @@ import {
 
 const session = {
   id: 'session-1',
-  organiserName: 'Arya',
+  organiserName: 'Organizer',
   address: { id: 'address-1', label: 'Home', detail: 'Indiranagar' },
   restaurant: {
     id: 'restaurant-1',

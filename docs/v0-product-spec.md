@@ -2,7 +2,7 @@
 
 ## Product Idea
 
-Kapi.run is an internal company tool for group Swiggy orders.
+Kapi.run is an open-source tool for group Swiggy orders.
 
 Swiggy's native group ordering flow requires every participant to use the Swiggy mobile app. Kapi.run removes that requirement. Only the organiser needs to authenticate with Swiggy. Everyone else joins a Kapi session, picks food from the selected restaurant menu, and submits their items into a shared Kapi cart.
 
@@ -92,7 +92,7 @@ Required steps:
 5. Set a strict cutoff time.
 6. Create the Kapi session.
 
-After creation, Kapi generates a session id/link that the organiser can share internally.
+After creation, Kapi generates a session link that the organiser can share with participants.
 
 ### 2. Participants Join
 
@@ -205,7 +205,7 @@ This avoids relying on MCP `place_food_order`, which currently has beta restrict
 
 ### Kapi Session
 
-A Kapi session is the internal group-order container.
+A Kapi session is the group-order container.
 
 It owns:
 
@@ -363,18 +363,18 @@ v0 is successful if:
 
 ## Quality Of Life Improvements
 
-These are not all required for v0, but they are high-value for a company using Kapi regularly.
+These improvements are not required for v0. They help groups that use Kapi regularly.
 
 These improvements are accepted as product-spec considerations. They should be evaluated during planning and prioritised based on how much organiser effort they remove.
 
 ### Reusable Order Templates
 
-Many offices order from the same few restaurants.
+Many groups order from the same few restaurants.
 
 Useful shortcuts:
 
 - Repeat last session.
-- Save favourite restaurants per office/location.
+- Save favourite restaurants per delivery location.
 - Save default cutoff duration, for example "45 minutes from now".
 - Save common session names like "Friday snacks" or "Lunch order".
 
@@ -403,7 +403,7 @@ Useful actions:
 - "My usual" per restaurant.
 - Duplicate a submitted item before cutoff.
 
-This can be local-only at first, then later tied to company login if needed.
+This can stay local at first. A future account system can sync it across devices.
 
 ### Cutoff Nudges
 
@@ -432,7 +432,7 @@ Useful view:
 
 This should not block ordering, but it helps the organiser decide when to lock.
 
-### Shareable Internal Summary
+### Shareable Order Summary
 
 After cutoff, people often ask "what did I order?" or "how much do I owe?"
 
@@ -448,7 +448,7 @@ This is also useful if Swiggy sync fails and the organiser must add items manual
 
 ### Payment Split Support
 
-Even if Swiggy payment happens in the organiser's app, internal settlement matters.
+Even if Swiggy handles payment, groups often need to split the cost.
 
 Useful v0/v1 features:
 
@@ -513,7 +513,7 @@ This protects the core use case from API/MCP instability.
 
 ### Organizer Audit Trail
 
-For workplace trust, record key changes:
+Record key changes to help participants understand what changed:
 
 - Session created.
 - Cutoff changed.
@@ -524,24 +524,24 @@ For workplace trust, record key changes:
 
 This can be simple event history. It helps resolve "who changed my order?" questions.
 
-### Slack/Teams Integration Later
+### Chat Integration Later
 
-For regular company usage, discovery and reminders matter.
+Groups that order regularly benefit from discovery and reminders.
 
 Useful later:
 
-- Post session link to a Slack channel.
+- Post the session link to a chat channel.
 - Send cutoff reminder.
 - Send final summary.
-- Let people join from Slack link.
+- Let people join from the shared link.
 
 This is a v1 feature, not necessary for the first product build.
 
 ### Admin Defaults
 
-If multiple teams use this, company-level defaults help:
+Shared defaults can help groups that use Kapi often:
 
-- Office locations.
+- Delivery locations.
 - Common organisers.
 - Allowed restaurants/favourites.
 - Default cutoff duration.
