@@ -8,23 +8,6 @@ Kapi does not place or pay for the final order. The organizer completes checkout
 
 ![Kapi.run group-order flow](apps/web/public/og-image.png)
 
-## Why this version is different
-
-The original version scraped private Swiggy APIs. Swiggy later blocked those requests.
-
-The original version also used hard-coded restaurant IDs. It requested a location to find the nearest outlet for a restaurant chain.
-
-The current version uses Swiggy OAuth and MCP tools:
-
-- The organizer connects a Swiggy account through OAuth.
-- Kapi loads saved delivery addresses from the connected account.
-- Kapi searches current restaurants for the selected address.
-- Restaurant IDs come from current Swiggy search results.
-- Menus, customizations, availability, and cart data come from Swiggy MCP.
-- Participants do not need a Swiggy account.
-
-This design removes the blocked scraping path. Restaurant or outlet changes do not require source-code changes.
-
 ## Group-order flow
 
 1. The organizer connects a Swiggy account.
