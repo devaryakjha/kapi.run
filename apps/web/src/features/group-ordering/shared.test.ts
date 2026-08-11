@@ -21,6 +21,7 @@ import {
   changeDraftLineQuantity,
   defaultSetupCutoffTime,
   draftCartFromSubmittedItems,
+  formatRemainingTime,
   groupCartLinesByParticipant,
   hasOrganizerCapability,
   hashOrganizerSecret,
@@ -254,6 +255,35 @@ describe('isSessionLockedForParticipants', () => {
     expect(
       isSessionLockedForParticipants(session('open', 'not-a-date'), now),
     ).toBe(false)
+  })
+})
+
+describe('formatRemainingTime', () => {
+  it('formats a live countdown with seconds', () => {
+    expect(
+      formatRemainingTime(
+        session('open', '2026-08-11T12:40:32.000Z'),
+        new Date('2026-08-11T11:00:00.000Z'),
+      ),
+    ).toBe('1:40:32')
+  })
+
+  it('keeps long countdowns compact', () => {
+    expect(
+      formatRemainingTime(
+        session('open', '2026-08-13T14:04:05.000Z'),
+        new Date('2026-08-11T11:00:00.000Z'),
+      ),
+    ).toBe('2d 03:04:05')
+  })
+
+  it('stops at zero', () => {
+    expect(
+      formatRemainingTime(
+        session('open', '2026-08-11T11:00:00.000Z'),
+        new Date('2026-08-11T11:00:01.000Z'),
+      ),
+    ).toBe('0:00:00')
   })
 })
 

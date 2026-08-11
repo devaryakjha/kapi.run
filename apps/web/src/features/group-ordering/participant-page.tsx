@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import type {
   CartCustomization,
@@ -10,16 +10,19 @@ import type {
 } from '@kapi/spec'
 import {
   AlertTriangle,
+  ClipboardList,
   Loader2,
   Minus,
   Plus,
   Search,
   Send,
+  ShoppingCart,
   Trash2,
   Utensils,
+  X,
 } from 'lucide-react'
 
-import { Avatar, AvatarFallback } from '#/components/ui/avatar'
+import { AppHeader } from '#/components/app-header'
 import { Alert, AlertDescription } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
 import {
@@ -30,6 +33,16 @@ import {
   DialogTitle,
 } from '#/components/ui/dialog'
 import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '#/components/ui/drawer'
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -39,16 +52,15 @@ import {
 import { Field, FieldLabel } from '#/components/ui/field'
 import { Input } from '#/components/ui/input'
 import { Separator } from '#/components/ui/separator'
+import { useIsMobile } from '#/hooks/use-mobile'
 import { cn } from '#/lib/utils'
 
 import type { DraftCart, DraftCartLine } from './shared'
-import {
-  ErrorAlert,
-  TimerPill,
-  formatRemainingTime,
-  isSessionLockedForParticipants,
-} from './shared'
+import { AccountMenu } from './account-menu'
+import { ErrorAlert } from './error-alert'
+import { isSessionLockedForParticipants } from './shared'
 import { SummaryRow } from './summary-row'
+import { TimerPill } from './timer-pill'
 
 export function ParticipantMenuPage({
   draft,
@@ -89,7 +101,11 @@ export function ParticipantMenuPage({
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
   const [customizing, setCustomizing] = useState<MenuItem | null>(null)
+  const [cartOpen, setCartOpen] = useState(false)
+  const [cartPulse, setCartPulse] = useState(0)
   const [now, setNow] = useState(() => new Date())
+  const previousCartCount = useRef(0)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000)
@@ -110,10 +126,14 @@ export function ParticipantMenuPage({
     ],
     [menu],
   )
+  const visibleMenu = useMemo(
+    () => [...new Map(menu.map((item) => [item.id, item])).values()],
+    [menu],
+  )
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase()
-    return menu.filter((item) => {
+    return visibleMenu.filter((item) => {
       const matchesCategory =
         activeCategory === 'All' || item.category === activeCategory
       const matchesQuery =
@@ -123,209 +143,205 @@ export function ParticipantMenuPage({
         item.description.toLowerCase().includes(normalized)
       return matchesCategory && matchesQuery
     })
-  }, [menu, query, activeCategory])
+  }, [visibleMenu, query, activeCategory])
+  const showCategoryFilters = categories.length > 2
   const draftItemIndex = useMemo(() => indexDraftItems(draft), [draft])
+  const cartItemCount = useMemo(
+    () =>
+      [...Object.values(draft), ...Object.values(submittedDraft)].reduce(
+        (total, line) => total + line.quantity,
+        0,
+      ),
+    [draft, submittedDraft],
+  )
+
+  useEffect(() => {
+    if (cartItemCount > previousCartCount.current) {
+      setCartPulse((value) => value + 1)
+    }
+    previousCartCount.current = cartItemCount
+  }, [cartItemCount])
 
   const locked = isSessionLockedForParticipants(session, now)
-  const remainingTime = formatRemainingTime(session, now)
-
   return (
-    <main className="flex h-svh flex-col bg-background text-foreground">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur-sm md:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="font-heading text-lg font-bold tracking-[-0.03em] text-primary">
-            kapi.run
-          </span>
-          <span className="hidden h-4 w-px bg-border md:block" />
-          <span className="hidden max-w-56 truncate text-sm font-medium text-foreground md:block">
-            {session.restaurant.name}
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          {organizerReviewPath ? (
-            <div className="hidden items-center rounded-lg border border-border p-0.5 sm:flex">
-              <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">
-                Menu
-              </span>
-              <Button
-                onClick={() => {
-                  router.history.push(organizerReviewPath)
-                }}
-                variant="ghost"
-                size="sm"
-                className="h-7 rounded-md px-2.5 text-xs"
-              >
-                Review
-              </Button>
-            </div>
-          ) : null}
-          <TimerPill remainingTime={remainingTime} locked={locked} />
-          {organizerReviewPath ? (
-            <Button
-              onClick={() => {
-                router.history.push(organizerReviewPath)
-              }}
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-lg px-2.5 text-xs transition-[colors,scale] active:scale-[0.96] sm:hidden"
-            >
-              Review
-            </Button>
-          ) : null}
-          <Avatar className="size-8">
-            <AvatarFallback className="text-xs font-semibold">
-              {participantName.slice(0, 1).toUpperCase() || 'A'}
-            </AvatarFallback>
-          </Avatar>
-        </div>
-      </header>
-
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <section className="flex-1 overflow-y-auto">
-          <div className="sticky top-0 z-5 border-b border-border bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm md:px-6">
-            <div className="mx-auto max-w-3xl">
-              <div className="relative">
-                <label htmlFor="menu-search" className="sr-only">
-                  Search menu
-                </label>
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  id="menu-search"
-                  value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value)
-                    if (e.target.value) setActiveCategory('All')
+    <Drawer
+      open={cartOpen}
+      onOpenChange={setCartOpen}
+      showSwipeHandle={isMobile}
+      swipeDirection={isMobile ? 'down' : 'right'}
+    >
+      <main className="flex h-svh flex-col bg-background text-foreground">
+        <AppHeader
+          context={session.restaurant.name}
+          actions={
+            <>
+              {organizerReviewPath ? (
+                <Button
+                  onClick={() => {
+                    router.history.push(organizerReviewPath)
                   }}
-                  placeholder={`Search ${session.restaurant.name} menu…`}
-                  className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-4 text-sm outline-none ring-primary/30 transition-shadow placeholder:text-muted-foreground focus:ring-2"
-                />
-              </div>
-              <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5">
-                {categories.map((cat) => (
-                  <button
-                    type="button"
-                    key={cat}
-                    onClick={() => {
-                      setActiveCategory(cat)
-                      setQuery('')
-                    }}
-                    className={cn(
-                      'shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-[colors,scale] duration-150 active:scale-[0.96]',
-                      activeCategory === cat && !query
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground',
-                    )}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="px-4 py-4 pb-28 md:px-6 lg:pb-6">
-            <div className="mx-auto max-w-3xl">
-              {stale ? (
-                <Alert className="mb-4">
-                  <AlertTriangle />
-                  <AlertDescription>
-                    Showing a saved copy. Refresh before changing this order.
-                  </AlertDescription>
-                </Alert>
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-20 rounded-lg px-2.5 text-xs"
+                >
+                  <ClipboardList className="size-3.5" />
+                  Review
+                </Button>
               ) : null}
-
-              <div className="mb-4 md:hidden">
-                <Field className="gap-1.5">
-                  <FieldLabel
-                    htmlFor="participant-name"
-                    className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground"
-                  >
-                    Your name
-                  </FieldLabel>
-                  <Input
-                    id="participant-name"
-                    value={participantName}
-                    onChange={(e) => onNameChange(e.target.value)}
-                    placeholder="Enter your name"
-                    className="h-9 text-sm"
+              <TimerPill session={session} />
+              <DrawerTrigger
+                aria-label={`Open cart, ${cartItemCount} ${cartItemCount === 1 ? 'item' : 'items'}`}
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="relative rounded-lg"
                   />
-                </Field>
-              </div>
+                }
+              >
+                <ShoppingCart />
+                {cartItemCount > 0 ? (
+                  <span
+                    key={cartPulse}
+                    className="cart-count-pop absolute -right-1.5 -top-1.5 flex min-w-4.5 items-center justify-center rounded-full bg-primary px-1 font-mono text-[9px] font-bold leading-4 text-primary-foreground"
+                  >
+                    {cartItemCount > 99 ? '99+' : cartItemCount}
+                  </span>
+                ) : null}
+              </DrawerTrigger>
+              <AccountMenu
+                addressDetail={session.address.detail}
+                addressLabel={session.address.label}
+                connected={Boolean(organizerReviewPath)}
+                name={participantName || session.organiserName}
+              />
+            </>
+          }
+        />
 
-              {!filtered.length ? (
-                <Empty className="border border-border">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <Search />
-                    </EmptyMedia>
-                    <EmptyTitle>No items found</EmptyTitle>
-                    <EmptyDescription>
-                      Try a different search or category.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              ) : (
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                  {filtered.map((item) => (
-                    <MenuCard
-                      key={item.id}
-                      item={item}
-                      quantity={draftItemIndex.get(item.id)?.quantity ?? 0}
-                      locked={locked}
-                      onAdd={() =>
-                        item.hasVariants || item.hasAddons
-                          ? setCustomizing(item)
-                          : onAddPlainItem(item.id)
-                      }
-                      onRemove={() => {
-                        const lineId = draftItemIndex.get(item.id)?.firstLineId
-                        if (lineId) onQuantityChange(lineId, -1)
-                      }}
-                      onView={() => setCustomizing(item)}
-                    />
-                  ))}
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <section className="flex-1 overflow-y-auto">
+            <div className="sticky top-0 z-5 border-b border-border bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm md:px-6">
+              <div className="mx-auto max-w-5xl">
+                <div className="relative">
+                  <label htmlFor="menu-search" className="sr-only">
+                    Search menu
+                  </label>
+                  <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    id="menu-search"
+                    value={query}
+                    onChange={(e) => {
+                      setQuery(e.target.value)
+                      if (e.target.value) setActiveCategory('All')
+                    }}
+                    placeholder={`Search ${session.restaurant.name} menu…`}
+                    className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-4 text-sm outline-none ring-primary/30 transition-shadow placeholder:text-muted-foreground focus:ring-2"
+                  />
                 </div>
-              )}
+                {showCategoryFilters ? (
+                  <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5">
+                    {categories.map((cat) => (
+                      <button
+                        type="button"
+                        key={cat}
+                        onClick={() => {
+                          setActiveCategory(cat)
+                          setQuery('')
+                        }}
+                        className={cn(
+                          'shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-[colors,scale] duration-150 active:scale-[0.96]',
+                          activeCategory === cat && !query
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-border bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground',
+                        )}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </div>
-          </div>
-        </section>
 
-        <CartSidebar
+            <div className="px-4 py-4 pb-28 md:px-6 lg:pb-6">
+              <div className="mx-auto max-w-5xl">
+                {stale ? (
+                  <Alert className="mb-4">
+                    <AlertTriangle />
+                    <AlertDescription>
+                      Showing a saved copy. Refresh before changing this order.
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+
+                {!filtered.length ? (
+                  <Empty className="border border-border">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <Search />
+                      </EmptyMedia>
+                      <EmptyTitle>No items found</EmptyTitle>
+                      <EmptyDescription>
+                        Try a different search or category.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                    {filtered.map((item) => (
+                      <MenuCard
+                        key={item.id}
+                        item={item}
+                        quantity={draftItemIndex.get(item.id)?.quantity ?? 0}
+                        locked={locked}
+                        onAdd={() =>
+                          item.hasVariants || item.hasAddons
+                            ? setCustomizing(item)
+                            : onAddPlainItem(item.id)
+                        }
+                        onRemove={() => {
+                          const lineId = draftItemIndex.get(
+                            item.id,
+                          )?.firstLineId
+                          if (lineId) onQuantityChange(lineId, -1)
+                        }}
+                        onView={() => setCustomizing(item)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <CartDrawerContent
           draft={draft}
           error={error}
           locked={locked}
           menu={menu}
           participantName={participantName}
           pending={pending}
+          submittedDraft={submittedDraft}
           onNameChange={onNameChange}
           onQuantityChange={onQuantityChange}
           onSubmittedQuantityChange={onSubmittedQuantityChange}
           onSubmit={onSubmit}
-          submittedDraft={submittedDraft}
         />
-      </div>
 
-      <MobileCartBar
-        draft={draft}
-        error={error}
-        locked={locked}
-        menu={menu}
-        pending={pending}
-        submittedDraft={submittedDraft}
-        onSubmit={onSubmit}
-      />
-
-      {customizing ? (
-        <ItemDetailDialog
-          item={customizing}
-          locked={locked}
-          onAddCustomItem={onAddCustomItem}
-          onAddPlainItem={onAddPlainItem}
-          onClose={() => setCustomizing(null)}
-          onLoadCustomization={onLoadCustomization}
-        />
-      ) : null}
-    </main>
+        {customizing ? (
+          <ItemDetailDialog
+            item={customizing}
+            locked={locked}
+            onAddCustomItem={onAddCustomItem}
+            onAddPlainItem={onAddPlainItem}
+            onClose={() => setCustomizing(null)}
+            onLoadCustomization={onLoadCustomization}
+          />
+        ) : null}
+      </main>
+    </Drawer>
   )
 }
 
@@ -445,15 +461,6 @@ function MenuCard({
             </Button>
           )}
         </div>
-        {item.hasVariants || item.hasAddons ? (
-          <button
-            type="button"
-            onClick={onView}
-            className="mt-1 w-fit text-[11px] font-medium text-primary transition-[scale,opacity] duration-150 hover:opacity-70 active:scale-[0.96]"
-          >
-            Customizable
-          </button>
-        ) : null}
       </div>
     </article>
   )
@@ -945,7 +952,7 @@ function formatRating(value: string) {
   return Number.isFinite(rating) ? rating.toFixed(1) : value
 }
 
-function CartSidebar({
+function CartDrawerContent({
   draft,
   error,
   locked,
@@ -984,34 +991,45 @@ function CartSidebar({
   const hasSubmitted = submittedItemCount > 0
 
   return (
-    <aside className="hidden w-72 shrink-0 flex-col border-l border-border lg:flex">
-      <div className="border-b border-border px-5 py-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Your cart</h3>
-          {itemCount > 0 ? (
-            <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold tabular-nums text-primary-foreground">
-              {itemCount}
-            </span>
-          ) : null}
+    <DrawerContent>
+      <DrawerHeader className="border-b border-border p-5 pb-4 text-left">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <DrawerTitle>Your cart</DrawerTitle>
+            <DrawerDescription>
+              <span className="tabular-nums">
+                {itemCount + submittedItemCount}{' '}
+                {itemCount + submittedItemCount === 1 ? 'item' : 'items'}
+              </span>
+            </DrawerDescription>
+          </div>
+          <DrawerClose
+            render={
+              <Button variant="ghost" size="icon-sm" className="rounded-full" />
+            }
+          >
+            <X />
+            <span className="sr-only">Close cart</span>
+          </DrawerClose>
         </div>
-        <div className="mt-3">
-          <label
+        <Field className="mt-3 gap-1.5">
+          <FieldLabel
             htmlFor="cart-participant-name"
             className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground"
           >
             Your name
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             id="cart-participant-name"
             value={participantName}
-            onChange={(e) => onNameChange(e.target.value)}
+            onChange={(event) => onNameChange(event.target.value)}
             placeholder="Enter your name"
-            className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none ring-primary/30 transition-shadow placeholder:text-muted-foreground focus:ring-2"
+            className="h-9 text-sm"
           />
-        </div>
-      </div>
+        </Field>
+      </DrawerHeader>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         {submittedLines.length ? (
           <div className="mb-5">
             <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -1026,15 +1044,17 @@ function CartSidebar({
         ) : null}
 
         {lines.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
-              <Utensils className="size-4 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">Nothing here yet.</p>
-            <p className="text-xs text-muted-foreground">
-              Add items from the menu to your draft.
-            </p>
-          </div>
+          <Empty className="border-0 py-8">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Utensils />
+              </EmptyMedia>
+              <EmptyTitle>Your cart is empty</EmptyTitle>
+              <EmptyDescription>
+                Add an item to build your order.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <>
             <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -1049,29 +1069,31 @@ function CartSidebar({
         )}
       </div>
 
-      <div className="border-t border-border px-5 py-4">
-        <ErrorAlert message={error} className="mb-3" />
-        <div className="mb-4 flex flex-col gap-1.5">
-          <SummaryRow label="Items" value={`₹${total}`} />
-          <Separator className="my-1" />
-          <div className="flex justify-between text-sm font-semibold">
-            <span>Draft subtotal</span>
-            <span className="font-mono tabular-nums">₹{total}</span>
+      {lines.length || hasSubmitted || error ? (
+        <DrawerFooter className="border-t border-border pt-4">
+          <ErrorAlert message={error} />
+          <div className="flex flex-col gap-1.5">
+            <SummaryRow label="Items" value={`₹${total}`} />
+            <Separator className="my-1" />
+            <div className="flex justify-between text-sm font-semibold">
+              <span>Draft subtotal</span>
+              <span className="font-mono tabular-nums">₹{total}</span>
+            </div>
           </div>
-        </div>
-        <Button
-          onClick={onSubmit}
-          disabled={locked || pending || (!lines.length && !hasSubmitted)}
-          className="h-10 w-full rounded-xl text-sm font-semibold"
-        >
-          {pending ? (
-            <Loader2 className="animate-spin" data-icon="inline-start" />
-          ) : null}
-          {hasSubmitted ? 'Update my items' : 'Submit items'}
-          <Send className="size-3.5" data-icon="inline-end" />
-        </Button>
-      </div>
-    </aside>
+          <Button
+            onClick={onSubmit}
+            disabled={locked || pending || (!lines.length && !hasSubmitted)}
+            className="h-10 w-full rounded-xl text-sm font-semibold"
+          >
+            {pending ? (
+              <Loader2 className="animate-spin" data-icon="inline-start" />
+            ) : null}
+            {hasSubmitted ? 'Update my items' : 'Submit items'}
+            <Send data-icon="inline-end" />
+          </Button>
+        </DrawerFooter>
+      ) : null}
+    </DrawerContent>
   )
 }
 
@@ -1143,71 +1165,6 @@ function CartLineList({
           </div>
         </div>
       ))}
-    </div>
-  )
-}
-
-function MobileCartBar({
-  draft,
-  error,
-  locked,
-  menu,
-  pending,
-  submittedDraft,
-  onSubmit,
-}: {
-  draft: DraftCart
-  error: string | null
-  locked: boolean
-  menu: MenuItem[]
-  pending: boolean
-  submittedDraft: DraftCart
-  onSubmit: () => void
-}) {
-  const lines = draftLinesWithItems(draft, menu)
-  const submittedLines = draftLinesWithItems(submittedDraft, menu)
-  const total = lines.reduce(
-    (sum, l) => sum + (l.line.unitPrice ?? l.item.price) * l.line.quantity,
-    0,
-  )
-  const itemCount = lines.reduce((sum, l) => sum + l.line.quantity, 0)
-  const submittedItemCount = submittedLines.reduce(
-    (sum, l) => sum + l.line.quantity,
-    0,
-  )
-  const hasSubmitted = submittedItemCount > 0
-
-  if (itemCount === 0 && !hasSubmitted && !error) return null
-
-  return (
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm lg:hidden">
-      <ErrorAlert message={error} className="mb-2" />
-      <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold leading-4 tabular-nums">
-            {itemCount} {itemCount === 1 ? 'item' : 'items'}
-          </p>
-          <p className="font-mono text-sm font-bold tabular-nums leading-5">
-            ₹{total}
-          </p>
-          {hasSubmitted ? (
-            <p className="text-[11px] tabular-nums leading-4 text-muted-foreground">
-              {submittedItemCount} submitted
-            </p>
-          ) : null}
-        </div>
-        <Button
-          onClick={onSubmit}
-          disabled={locked || pending || (!lines.length && !hasSubmitted)}
-          className="h-10 rounded-xl px-5 text-sm font-semibold"
-        >
-          {pending ? (
-            <Loader2 className="animate-spin" data-icon="inline-start" />
-          ) : null}
-          {hasSubmitted ? 'Update' : 'Submit'}
-          <Send className="size-3.5" data-icon="inline-end" />
-        </Button>
-      </div>
     </div>
   )
 }

@@ -11,10 +11,6 @@ import type {
   Restaurant,
   SessionInvite,
 } from '@kapi/spec'
-import { AlertTriangle } from 'lucide-react'
-
-import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
-import { cn } from '#/lib/utils'
 
 export type DraftCartLine = {
   id: string
@@ -908,43 +904,13 @@ export function formatRemainingTime(session: KapiSession, now = new Date()) {
   if (session.status !== 'open') return 'Locked'
   const time = cutoffTime(session)
   if (time === null) return `${session.cutoffTime} cutoff`
-  const minutes = Math.ceil((time - now.getTime()) / 60_000)
-  if (minutes <= 0) return 'Cutoff reached'
-  if (minutes >= 60 * 24) return `${Math.ceil(minutes / (60 * 24))}d remaining`
-  if (minutes >= 60) {
-    const hours = Math.floor(minutes / 60)
-    return `${hours}h ${String(minutes % 60).padStart(2, '0')}m remaining`
-  }
-  return `${minutes}m remaining`
-}
-
-export function TimerPill({
-  remainingTime,
-  locked,
-}: {
-  remainingTime: string
-  locked: boolean
-}) {
-  return (
-    <div
-      className={cn(
-        'flex items-center gap-2 rounded-full border px-3 py-1.5',
-        locked
-          ? 'border-destructive/30 bg-destructive/10 text-destructive'
-          : 'border-border bg-(--kapi-subtle) text-foreground',
-      )}
-    >
-      {!locked && (
-        <span className="relative flex size-1.5 shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
-          <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
-        </span>
-      )}
-      <span className="font-mono text-xs font-semibold tabular-nums">
-        {remainingTime}
-      </span>
-    </div>
-  )
+  const totalSeconds = Math.max(0, Math.floor((time - now.getTime()) / 1_000))
+  const days = Math.floor(totalSeconds / 86_400)
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600)
+  const minutes = Math.floor((totalSeconds % 3_600) / 60)
+  const seconds = totalSeconds % 60
+  const clock = `${days ? String(hours).padStart(2, '0') : hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  return days ? `${days}d ${clock}` : clock
 }
 
 export function formatAddressOption(address: Address) {
@@ -970,21 +936,4 @@ export function formatRestaurantValueMeta(restaurant: Restaurant) {
   ]
     .filter(Boolean)
     .join(' · ')
-}
-
-export function ErrorAlert({
-  message,
-  className,
-}: {
-  message: string | null
-  className?: string
-}) {
-  if (!message) return null
-  return (
-    <Alert variant="destructive" className={className}>
-      <AlertTriangle />
-      <AlertTitle>Something went wrong</AlertTitle>
-      <AlertDescription>{message}</AlertDescription>
-    </Alert>
-  )
 }

@@ -1,13 +1,10 @@
 import { useEffect, useReducer, useRef } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { toast } from 'sonner'
-import type {
-  KapiSession,
-  ManualFallbackSummary,
-  MenuItem,
-  SwiggyCartSummary,
-} from '@kapi/spec'
+import type { KapiSession, MenuItem, SwiggyCartSummary } from '@kapi/spec'
 
+import { AppHeader } from '#/components/app-header'
+import { ErrorAlert } from '#/features/group-ordering/error-alert'
 import { buildOrganizerMenuPath } from '#/features/group-ordering/join-target'
 import { OrganizerReviewPage } from '#/features/group-ordering/review-page'
 import { useLiveSessionRecord } from '#/features/group-ordering/use-live-session'
@@ -18,7 +15,6 @@ import {
 } from '#/features/group-ordering/workspace-cache'
 import {
   ApiError,
-  ErrorAlert,
   applyOrderItemQuantityUpdates,
   api,
   audit,
@@ -27,7 +23,6 @@ import {
   loadEncryptedSessionRecord,
   localOrganizerKeyKey,
   makeCartPayload,
-  makeManualFallback,
   publishSession,
   resolveSessionLinkParts,
   safeLocalStorageSet,
@@ -42,7 +37,6 @@ export const Route = createFileRoute('/review')({
 
 type ReviewState = {
   session: KapiSession | null
-  fallback: ManualFallbackSummary | null
   isOrganizer: boolean
   pending: boolean
   error: string | null
@@ -59,7 +53,6 @@ function initialReviewRoute() {
     parts,
     state: {
       session: cached?.loaded.session ?? null,
-      fallback: null,
       isOrganizer: cached?.isOrganizer ?? false,
       pending: false,
       error:
@@ -393,23 +386,6 @@ function RouteComponent() {
     }
   }
 
-  async function loadManualFallback() {
-    if (!state.session || !state.isOrganizer) return
-    setState({ pending: true, error: null })
-    try {
-      setState({ fallback: makeManualFallback(state.session) })
-    } catch (caught) {
-      setState({
-        error:
-          caught instanceof Error
-            ? caught.message
-            : 'Could not build manual fallback.',
-      })
-    } finally {
-      setState({ pending: false })
-    }
-  }
-
   function openMenuMode() {
     if (
       !state.session ||
@@ -430,8 +406,11 @@ function RouteComponent() {
 
   if (!state.session) {
     return state.error ? (
-      <main className="min-h-svh bg-background p-6 text-foreground">
-        <ErrorAlert message={state.error} />
+      <main className="min-h-svh bg-background text-foreground">
+        <AppHeader />
+        <div className="mx-auto max-w-6xl p-6">
+          <ErrorAlert message={state.error} />
+        </div>
       </main>
     ) : (
       <WorkspaceLoading label="Loading review" />
@@ -441,7 +420,6 @@ function RouteComponent() {
   return (
     <OrganizerReviewPage
       error={state.error}
-      fallback={state.fallback}
       isOrganizer={state.isOrganizer}
       pending={state.pending}
       session={state.session}
@@ -449,7 +427,6 @@ function RouteComponent() {
       swiggyCart={state.swiggyCart}
       onCancelSync={() => setState({ swiggyCart: null })}
       onConfirmSync={confirmSyncCart}
-      onFallback={loadManualFallback}
       onOpenMenuMode={openMenuMode}
       onLock={lockSession}
       onRemoveItem={removeSubmittedItem}

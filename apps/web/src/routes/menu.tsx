@@ -3,6 +3,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import type { KapiSession, MenuItem } from '@kapi/spec'
 
+import { AppHeader } from '#/components/app-header'
+import { ErrorAlert } from '#/features/group-ordering/error-alert'
 import { ParticipantMenuPage } from '#/features/group-ordering/participant-page'
 import { useLiveSessionRecord } from '#/features/group-ordering/use-live-session'
 import { WorkspaceLoading } from '#/features/group-ordering/workspace-loading'
@@ -18,7 +20,6 @@ import {
 } from '#/features/group-ordering/workspace-cache'
 import {
   ApiError,
-  ErrorAlert,
   addPlainDraftItem,
   applyParticipantSubmission,
   api,
@@ -386,8 +387,11 @@ function RouteComponent() {
 
   if (!state.session) {
     return state.error ? (
-      <main className="min-h-svh bg-background p-6 text-foreground">
-        <ErrorAlert message={state.error} />
+      <main className="min-h-svh bg-background text-foreground">
+        <AppHeader />
+        <div className="mx-auto max-w-6xl p-6">
+          <ErrorAlert message={state.error} />
+        </div>
       </main>
     ) : (
       <WorkspaceLoading />

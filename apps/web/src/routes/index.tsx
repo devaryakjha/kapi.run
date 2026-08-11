@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { ArrowRight, LinkIcon, Plus } from 'lucide-react'
 
+import { AppHeader } from '#/components/app-header'
 import { Alert, AlertDescription } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
 import {
@@ -36,16 +37,7 @@ function Home() {
 
   return (
     <main className="flex min-h-svh flex-col overflow-hidden bg-background text-foreground">
-      <nav className="border-b border-border/80">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 md:px-6">
-          <span className="font-heading text-lg font-bold tracking-[-0.03em] text-primary">
-            kapi.run
-          </span>
-          <span className="text-xs font-semibold text-muted-foreground">
-            Built for Swiggy group orders
-          </span>
-        </div>
-      </nav>
+      <AppHeader />
 
       <div className="flex flex-1 items-center px-4 py-8 md:px-6 md:py-12">
         <div className="mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:gap-24">

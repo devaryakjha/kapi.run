@@ -1,23 +1,32 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { toast } from 'sonner'
-import type {
-  CartLine,
-  KapiSession,
-  ManualFallbackSummary,
-  SwiggyCartSummary,
-} from '@kapi/spec'
+import type { CartLine, KapiSession, SwiggyCartSummary } from '@kapi/spec'
 import {
   AlertTriangle,
-  Check,
-  ClipboardList,
+  Link2,
   Loader2,
   LockKeyhole,
   Minus,
   Plus,
+  RefreshCw,
   ShoppingCart,
   Trash2,
+  Utensils,
+  UsersRound,
 } from 'lucide-react'
 
+import { AppHeader } from '#/components/app-header'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '#/components/ui/alert-dialog'
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import { Avatar, AvatarFallback } from '#/components/ui/avatar'
 import { Badge } from '#/components/ui/badge'
@@ -42,19 +51,17 @@ import { Separator } from '#/components/ui/separator'
 import { cn } from '#/lib/utils'
 
 import {
-  ErrorAlert,
-  TimerPill,
-  formatRemainingTime,
   groupCartLinesByParticipant,
   getOrderQuantity,
   getOrderSubtotal,
-  isSessionLockedForParticipants,
 } from './shared'
+import { AccountMenu } from './account-menu'
+import { ErrorAlert } from './error-alert'
 import { SummaryRow } from './summary-row'
+import { TimerPill } from './timer-pill'
 
 type OrganizerReviewPageProps = {
   error: string | null
-  fallback: ManualFallbackSummary | null
   isOrganizer: boolean
   pending: boolean
   session: KapiSession
@@ -62,7 +69,6 @@ type OrganizerReviewPageProps = {
   swiggyCart: SwiggyCartSummary | null
   onCancelSync: () => void
   onConfirmSync: () => void
-  onFallback: () => void
   onLock: () => void
   onOpenMenuMode: () => void
   onRemoveItem: (itemId: string) => void
@@ -79,7 +85,6 @@ type ReviewGroup = {
 
 export function OrganizerReviewPage({
   error,
-  fallback,
   isOrganizer,
   pending,
   session,
@@ -87,7 +92,6 @@ export function OrganizerReviewPage({
   swiggyCart,
   onCancelSync,
   onConfirmSync,
-  onFallback,
   onLock,
   onOpenMenuMode,
   onRemoveItem,
@@ -108,17 +112,19 @@ export function OrganizerReviewPage({
     <main className="min-h-svh bg-background text-foreground">
       <ReviewPageHeader
         isOrganizer={isOrganizer}
-        pending={pending}
         session={session}
-        onLock={onLock}
         onOpenMenuMode={onOpenMenuMode}
       />
 
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
-        <ReviewPageIntro session={session} />
+        <ReviewPageIntro
+          isOrganizer={isOrganizer}
+          pending={pending}
+          session={session}
+          onLock={onLock}
+        />
         <OrderReviewContent
           error={error}
-          fallback={fallback}
           groups={groups}
           isOrganizer={isOrganizer}
           pending={pending}
@@ -127,7 +133,6 @@ export function OrganizerReviewPage({
           subtotal={subtotal}
           totalQty={totalQty}
           unavailable={unavailable}
-          onFallback={onFallback}
           onRefresh={onRefresh}
           onRemoveItem={onRemoveItem}
           onSync={onSync}
@@ -146,101 +151,105 @@ export function OrganizerReviewPage({
 
 function ReviewPageHeader({
   isOrganizer,
+  session,
+  onOpenMenuMode,
+}: {
+  isOrganizer: boolean
+  session: KapiSession
+  onOpenMenuMode: () => void
+}) {
+  return (
+    <AppHeader
+      context={session.restaurant.name}
+      actions={
+        <>
+          <Button
+            onClick={onOpenMenuMode}
+            variant="outline"
+            size="sm"
+            className="h-8 w-20 rounded-lg px-2.5 text-xs"
+          >
+            <Utensils className="size-3.5" />
+            Menu
+          </Button>
+          <TimerPill session={session} />
+          <AccountMenu
+            addressDetail={session.address.detail}
+            addressLabel={session.address.label}
+            connected={isOrganizer}
+            name={session.organiserName}
+          />
+        </>
+      }
+    />
+  )
+}
+
+function ReviewPageIntro({
+  isOrganizer,
   pending,
   session,
   onLock,
-  onOpenMenuMode,
 }: {
   isOrganizer: boolean
   pending: boolean
   session: KapiSession
   onLock: () => void
-  onOpenMenuMode: () => void
 }) {
-  const [now, setNow] = useState(() => new Date())
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 30_000)
-    return () => window.clearInterval(timer)
-  }, [])
-
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur-sm md:px-6">
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="font-heading text-lg font-bold tracking-[-0.03em] text-primary">
-          kapi.run
-        </span>
-        <span className="hidden h-4 w-px bg-border sm:block" />
-        <span className="hidden max-w-48 truncate text-sm font-medium sm:block">
-          {session.restaurant.name}
-        </span>
+    <div className="mb-5 flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold tracking-tight">Review order</h1>
+        <p className="mt-1 truncate text-sm text-muted-foreground">
+          {session.restaurant.name} · {session.address.label}
+        </p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {isOrganizer ? (
-          <ReviewModeSwitch onOpenMenuMode={onOpenMenuMode} />
-        ) : null}
-        <TimerPill
-          remainingTime={formatRemainingTime(session, now)}
-          locked={isSessionLockedForParticipants(session, now)}
-        />
-        <Badge
-          variant={session.status === 'open' ? 'secondary' : 'default'}
-          className="hidden rounded-full text-[11px] md:inline-flex"
-        >
-          {statusLabel(session.status)}
-        </Badge>
-        {isOrganizer ? (
-          <Button
-            onClick={onLock}
-            disabled={pending || session.status !== 'open'}
-            variant="outline"
-            size="sm"
-            className="hidden h-8 gap-1.5 rounded-lg text-xs lg:inline-flex"
+      {isOrganizer && session.status === 'open' ? (
+        <AlertDialog>
+          <AlertDialogTrigger
+            disabled={pending}
+            render={
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 rounded-lg text-xs"
+              />
+            }
           >
-            <LockKeyhole className="size-3" />
-            Lock session
-          </Button>
-        ) : null}
-      </div>
-    </header>
-  )
-}
-
-function ReviewModeSwitch({ onOpenMenuMode }: { onOpenMenuMode: () => void }) {
-  return (
-    <div className="flex items-center rounded-lg border border-border p-0.5">
-      <span className="hidden rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground sm:inline-flex">
-        Review
-      </span>
-      <Button
-        onClick={onOpenMenuMode}
-        variant="ghost"
-        size="sm"
-        className="h-7 rounded-md px-2.5 text-xs"
-      >
-        Menu
-      </Button>
-    </div>
-  )
-}
-
-function ReviewPageIntro({ session }: { session: KapiSession }) {
-  return (
-    <div className="mb-6">
-      <h1 className="text-xl font-semibold tracking-tight">
-        Review group order
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {session.address.label} ·{' '}
-        <span className="font-mono text-[11px]">{session.id.slice(0, 8)}</span>
-      </p>
+            <LockKeyhole data-icon="inline-start" />
+            Lock order
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Lock this group order?</AlertDialogTitle>
+              <AlertDialogDescription>
+                No one can change their items after you lock the order.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep open</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={onLock}
+                disabled={pending}
+                variant="destructive"
+              >
+                {pending ? (
+                  <Loader2 className="animate-spin" data-icon="inline-start" />
+                ) : (
+                  <LockKeyhole data-icon="inline-start" />
+                )}
+                Lock order
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
     </div>
   )
 }
 
 function OrderReviewContent({
   error,
-  fallback,
   groups,
   isOrganizer,
   pending,
@@ -249,14 +258,12 @@ function OrderReviewContent({
   subtotal,
   totalQty,
   unavailable,
-  onFallback,
   onRefresh,
   onRemoveItem,
   onSync,
   onUpdateItem,
 }: {
   error: string | null
-  fallback: ManualFallbackSummary | null
   groups: ReviewGroup[]
   isOrganizer: boolean
   pending: boolean
@@ -265,40 +272,69 @@ function OrderReviewContent({
   subtotal: number
   totalQty: number
   unavailable: CartLine[]
-  onFallback: () => void
   onRefresh: () => void
   onRemoveItem: (itemId: string) => void
   onSync: () => void
   onUpdateItem: (itemId: string, quantity: number) => void
 }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_280px]">
-      <div className="flex flex-col gap-4">
-        {stale ? <StaleSessionAlert /> : null}
-        {isOrganizer ? (
-          <ShareActionsPanel session={session} onRefresh={onRefresh} />
-        ) : null}
-        <OrderGroups
+    <div className="flex flex-col gap-5">
+      {stale ? <StaleSessionAlert /> : null}
+      {isOrganizer ? <ShareActionsPanel session={session} /> : null}
+
+      <div
+        className={cn(
+          'grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_18rem]',
+          !groups.length && 'md:items-stretch',
+        )}
+      >
+        <section
+          className="flex min-w-0 flex-col"
+          aria-labelledby="orders-heading"
+        >
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <h2 id="orders-heading" className="text-base font-semibold">
+                Orders
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {groups.length} {groups.length === 1 ? 'person' : 'people'} ·{' '}
+                {totalQty} {totalQty === 1 ? 'item' : 'items'}
+              </p>
+            </div>
+            {isOrganizer ? (
+              <Button
+                onClick={onRefresh}
+                variant="ghost"
+                size="sm"
+                className="h-8 rounded-lg text-xs"
+              >
+                <RefreshCw data-icon="inline-start" />
+                Refresh
+              </Button>
+            ) : null}
+          </div>
+          <OrderGroups
+            groups={groups}
+            isOrganizer={isOrganizer}
+            onRemoveItem={onRemoveItem}
+            onUpdateItem={onUpdateItem}
+          />
+        </section>
+
+        <OrderSummarySidebar
+          error={error}
           groups={groups}
           isOrganizer={isOrganizer}
-          onRemoveItem={onRemoveItem}
-          onUpdateItem={onUpdateItem}
+          pending={pending}
+          session={session}
+          subtotal={subtotal}
+          totalQty={totalQty}
+          unavailable={unavailable}
+          fillHeight={!groups.length}
+          onSync={onSync}
         />
       </div>
-
-      <OrderSummarySidebar
-        error={error}
-        fallback={fallback}
-        groups={groups}
-        isOrganizer={isOrganizer}
-        pending={pending}
-        session={session}
-        subtotal={subtotal}
-        totalQty={totalQty}
-        unavailable={unavailable}
-        onFallback={onFallback}
-        onSync={onSync}
-      />
     </div>
   )
 }
@@ -314,22 +350,27 @@ function StaleSessionAlert() {
   )
 }
 
-function ShareActionsPanel({
-  session,
-  onRefresh,
-}: {
-  session: KapiSession
-  onRefresh: () => void
-}) {
+function ShareActionsPanel({ session }: { session: KapiSession }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-border p-4 sm:flex-row sm:items-center">
-      <Input
-        aria-label="Share link"
-        readOnly
-        value={session.shareUrl}
-        className="min-w-0 flex-1 font-mono text-xs"
-      />
-      <div className="flex gap-2">
+    <section className="rounded-2xl border border-border bg-card p-4 shadow-sm shadow-primary/5">
+      <div className="mb-3 flex items-start gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <UsersRound className="size-5" aria-hidden="true" />
+        </div>
+        <div>
+          <h2 className="text-base font-semibold">Invite your group</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Share the link. New orders appear below after submission.
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          aria-label="Invite link"
+          readOnly
+          value={session.shareUrl}
+          className="min-w-0 flex-1 bg-muted/60 font-mono text-xs"
+        />
         <Button
           onClick={() => {
             navigator.clipboard
@@ -337,22 +378,14 @@ function ShareActionsPanel({
               .then(() => toast.success('Invite link copied'))
               .catch(() => toast.error('Could not copy the link'))
           }}
-          variant="outline"
           size="sm"
-          className="h-8 rounded-lg text-xs"
+          className="h-9 shrink-0 rounded-lg text-xs"
         >
-          Copy link
-        </Button>
-        <Button
-          onClick={onRefresh}
-          variant="outline"
-          size="sm"
-          className="h-8 rounded-lg text-xs"
-        >
-          Refresh
+          <Link2 data-icon="inline-start" />
+          Copy invite link
         </Button>
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -369,14 +402,14 @@ function OrderGroups({
 }) {
   if (!groups.length) {
     return (
-      <Empty className="rounded-xl border border-border">
+      <Empty className="min-h-72 rounded-2xl border border-solid border-border bg-card p-8">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <ShoppingCart />
           </EmptyMedia>
-          <EmptyTitle>Waiting for orders</EmptyTitle>
+          <EmptyTitle>No orders yet</EmptyTitle>
           <EmptyDescription>
-            Participants will appear here after they submit.
+            Share the invite link. Submitted orders will appear here.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -397,7 +430,6 @@ function OrderGroups({
 
 function OrderSummarySidebar({
   error,
-  fallback,
   groups,
   isOrganizer,
   pending,
@@ -405,11 +437,10 @@ function OrderSummarySidebar({
   subtotal,
   totalQty,
   unavailable,
-  onFallback,
+  fillHeight,
   onSync,
 }: {
   error: string | null
-  fallback: ManualFallbackSummary | null
   groups: ReviewGroup[]
   isOrganizer: boolean
   pending: boolean
@@ -417,11 +448,22 @@ function OrderSummarySidebar({
   subtotal: number
   totalQty: number
   unavailable: CartLine[]
-  onFallback: () => void
+  fillHeight: boolean
   onSync: () => void
 }) {
   return (
-    <div className="lg:sticky lg:top-20">
+    <aside
+      className={cn('md:sticky md:top-20', fillHeight && 'md:flex md:flex-col')}
+      aria-labelledby="summary-heading"
+    >
+      <div className="mb-3">
+        <h2 id="summary-heading" className="text-base font-semibold">
+          Order summary
+        </h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {totalQty} {totalQty === 1 ? 'item' : 'items'}
+        </p>
+      </div>
       <OrderSummaryCard
         error={error}
         groups={groups}
@@ -431,14 +473,10 @@ function OrderSummarySidebar({
         subtotal={subtotal}
         totalQty={totalQty}
         unavailable={unavailable}
-        onFallback={onFallback}
+        fillHeight={fillHeight}
         onSync={onSync}
       />
-      {isOrganizer ? <NextStepCard /> : null}
-      {isOrganizer && fallback ? (
-        <FallbackChecklist fallback={fallback} />
-      ) : null}
-    </div>
+    </aside>
   )
 }
 
@@ -451,7 +489,7 @@ function OrderSummaryCard({
   subtotal,
   totalQty,
   unavailable,
-  onFallback,
+  fillHeight,
   onSync,
 }: {
   error: string | null
@@ -462,31 +500,27 @@ function OrderSummaryCard({
   subtotal: number
   totalQty: number
   unavailable: CartLine[]
-  onFallback: () => void
+  fillHeight: boolean
   onSync: () => void
 }) {
   return (
-    <div className="rounded-xl border border-border bg-(--kapi-subtle) p-5">
-      <h2 className="mb-4 text-sm font-semibold">Order summary</h2>
-      <div className="flex flex-col gap-2">
-        <SummaryRow label="Participants" value={String(groups.length)} strong />
-        <SummaryRow label="Total items" value={String(totalQty)} strong />
-        <SummaryRow label="Item subtotal" value={`₹${subtotal}`} strong />
-        <Separator className="my-1" />
+    <div
+      className={cn(
+        'flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm shadow-primary/5',
+        fillHeight && 'md:flex-1',
+      )}
+    >
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
+          <SummaryRow label="People" value={String(groups.length)} strong />
+          <SummaryRow label="Items" value={String(totalQty)} strong />
+          <SummaryRow label="Subtotal" value={`₹${subtotal}`} strong />
+        </div>
+        <Separator />
         <p className="text-[11px] leading-5 text-muted-foreground">
-          Taxes, delivery fees, coupons, and final charges are handled in
-          Swiggy.
+          Swiggy adds taxes, fees, coupons, and the final total.
         </p>
       </div>
-
-      {isOrganizer ? (
-        <OrderSummaryActions
-          pending={pending}
-          session={session}
-          onFallback={onFallback}
-          onSync={onSync}
-        />
-      ) : null}
 
       <ErrorAlert message={error} className="mt-4" />
 
@@ -506,6 +540,14 @@ function OrderSummaryCard({
           {session.sync.message}
         </p>
       ) : null}
+
+      {isOrganizer ? (
+        <OrderSummaryActions
+          pending={pending}
+          session={session}
+          onSync={onSync}
+        />
+      ) : null}
     </div>
   )
 }
@@ -513,16 +555,14 @@ function OrderSummaryCard({
 function OrderSummaryActions({
   pending,
   session,
-  onFallback,
   onSync,
 }: {
   pending: boolean
   session: KapiSession
-  onFallback: () => void
   onSync: () => void
 }) {
   return (
-    <div className="mt-5 flex flex-col gap-2">
+    <div className="mt-auto flex flex-col gap-2 pt-5">
       <Button
         onClick={onSync}
         disabled={pending || !session.items.length}
@@ -535,61 +575,8 @@ function OrderSummaryActions({
         )}
         {session.status === 'synced' ? 'Cart synced' : 'Sync to Swiggy cart'}
       </Button>
-      <Button
-        onClick={onFallback}
-        variant="outline"
-        className="h-9 w-full rounded-xl text-sm"
-      >
-        <ClipboardList className="size-3.5" data-icon="inline-start" />
-        Manual checklist
-      </Button>
     </div>
   )
-}
-
-function NextStepCard() {
-  return (
-    <div className="mt-4 rounded-xl border border-primary/20 bg-primary/2.5 p-4">
-      <p className="mb-1 text-xs font-semibold text-primary">Next step</p>
-      <p className="text-sm font-semibold">Open Swiggy cart</p>
-      <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-        Apply coupons or payment details in Swiggy, then place the order.
-      </p>
-    </div>
-  )
-}
-
-function FallbackChecklist({ fallback }: { fallback: ManualFallbackSummary }) {
-  return (
-    <div className="mt-4 rounded-xl border border-border p-4">
-      <p className="mb-1 text-xs font-semibold">Manual checklist</p>
-      <p className="mb-3 text-[11px] text-muted-foreground">
-        {fallback.restaurantName} · {fallback.addressLabel} · ₹{fallback.total}
-      </p>
-      <div className="flex flex-col gap-1.5">
-        {fallback.checklist.map((line, index) => (
-          <div
-            key={`${line}:${index}`}
-            className="flex items-start gap-2 text-[11px] leading-5"
-          >
-            <Check className="mt-0.5 size-3 shrink-0 text-primary" />
-            <span className="font-mono">{line}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function statusLabel(status: KapiSession['status']) {
-  return {
-    open: 'Open',
-    locked: 'Locked',
-    syncing: 'Syncing',
-    synced: 'Synced',
-    sync_failed: 'Sync failed',
-    closed: 'Closed',
-  }[status]
 }
 
 function SwiggySyncDialog({

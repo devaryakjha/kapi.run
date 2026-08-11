@@ -1,5 +1,6 @@
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
+import { TooltipProvider } from '#/components/ui/tooltip'
 import { routeTree } from './routeTree.gen'
 
 const router = createRouter({
@@ -18,5 +19,9 @@ const rootElement = document.getElementById('app')!
 
 if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement)
-  root.render(<RouterProvider router={router} />)
+  root.render(
+    <TooltipProvider>
+      <RouterProvider router={router} />
+    </TooltipProvider>,
+  )
 }

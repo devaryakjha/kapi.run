@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 
 import { Button } from '#/components/ui/button'
+import { AppHeader } from '#/components/app-header'
 import { buttonVariants } from '#/components/ui/button-variants'
 import {
   Command,
@@ -46,12 +47,11 @@ import {
 import { cn } from '#/lib/utils'
 
 import {
-  ErrorAlert,
   formatAddressOption,
   formatRestaurantLocationMeta,
   formatRestaurantValueMeta,
-  setupCutoffTimeAfter,
 } from './shared'
+import { ErrorAlert } from './error-alert'
 import { IconTile } from './icon-tile'
 
 type AddressItem = {
@@ -104,11 +104,7 @@ export function OrganizerSetupPage({
 
   return (
     <main className="flex min-h-svh flex-col bg-background text-foreground">
-      <nav className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
-        <span className="font-heading text-lg font-bold tracking-[-0.03em] text-primary">
-          kapi.run
-        </span>
-      </nav>
+      <AppHeader />
 
       <div className="flex flex-1 flex-col items-center px-4 py-10 md:py-16">
         <div className="w-full max-w-110">
@@ -225,26 +221,6 @@ export function OrganizerSetupPage({
                     value={cutoffTime}
                     onChange={(e) => onCutoffTimeChange(e.target.value)}
                   />
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      ['+30m', 30],
-                      ['+1h', 60],
-                      ['+2h', 120],
-                    ].map(([label, minutes]) => (
-                      <button
-                        type="button"
-                        key={label}
-                        onClick={() =>
-                          onCutoffTimeChange(
-                            setupCutoffTimeAfter(Number(minutes)),
-                          )
-                        }
-                        className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
                   {cutoffError ? (
                     <p className="text-xs leading-5 text-destructive">
                       {cutoffError}

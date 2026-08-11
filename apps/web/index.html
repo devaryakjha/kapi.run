@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
     <meta
       name="description"
       content="Shared Swiggy group orders without the back-and-forth. Join the order, add your items, and you are done."
@@ -16,13 +17,6 @@
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary" />
     <meta name="theme-color" content="#0f7a5a" />
-    <script>
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-      const applySystemTheme = () =>
-        document.documentElement.classList.toggle('dark', systemTheme.matches)
-      applySystemTheme()
-      systemTheme.addEventListener('change', applySystemTheme)
-    </script>
     <link rel="icon" href="/kapi-mark.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="apple-touch-icon" href="/logo192.png" />

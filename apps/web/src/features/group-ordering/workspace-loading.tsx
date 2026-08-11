@@ -1,3 +1,5 @@
+import { AppHeader } from '#/components/app-header'
+
 export function WorkspaceLoading({
   label = 'Loading order',
 }: {
@@ -9,12 +11,9 @@ export function WorkspaceLoading({
       aria-busy="true"
       aria-label={label}
     >
-      <header className="flex h-14 items-center justify-between border-b border-border px-4 md:px-6">
-        <span className="font-heading text-lg font-bold tracking-[-0.03em] text-primary">
-          kapi.run
-        </span>
-        <div className="h-7 w-24 animate-pulse rounded-lg bg-muted" />
-      </header>
+      <AppHeader
+        actions={<div className="h-7 w-24 animate-pulse rounded-lg bg-muted" />}
+      />
       <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 md:px-6 lg:grid-cols-[1fr_18rem]">
         <div className="space-y-4">
           <div className="h-7 w-48 animate-pulse rounded-md bg-muted" />
