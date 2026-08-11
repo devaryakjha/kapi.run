@@ -33,6 +33,10 @@
     --accent: oklch(0.94 0.018 155);
     --danger: oklch(0.577 0.245 27.325);
     --danger-foreground: oklch(0.985 0.008 155);
+    --success: var(--primary);
+    --success-foreground: var(--primary-foreground);
+    --warning: oklch(0.59 0.12 75);
+    --warning-foreground: oklch(0.19 0.018 155);
     --border: oklch(0.895 0.012 155);
     --input: oklch(0.895 0.012 155);
     --ring: oklch(0.55 0.075 159);

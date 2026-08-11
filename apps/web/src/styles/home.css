@@ -222,10 +222,6 @@
     flex-direction: column;
   }
 
-  .join-form input {
-    margin-top: var(--space-1);
-  }
-
   .join-form__submit {
     width: 100%;
   }

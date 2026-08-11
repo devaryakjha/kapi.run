@@ -11,7 +11,7 @@
   .menu-toolbar__inner,.menu-content__inner { max-width:64rem; margin-inline:auto; }
   .menu-search { position:relative; display:block; margin:0; }
   .menu-search svg { position:absolute; top:50%; left:.75rem; width:1rem; height:1rem; transform:translateY(-50%); color:var(--muted-foreground); }
-  .menu-search input { width:100%; height:2.25rem; margin:0; padding:0 1rem 0 2.25rem; border:1px solid var(--border); border-radius:.625rem; background:var(--background); font-size:.875rem; }
+  .menu-search input { padding-inline-start:2.25rem; }
   .category-list { display:flex; gap:.375rem; margin-top:.625rem; padding-bottom:.125rem; overflow-x:auto; }
   .category-list button { flex:none; padding:.25rem .75rem; border:1px solid var(--border); border-radius:999px; background:var(--background); color:var(--muted-foreground); font-size:.75rem; font-weight:500; line-height:1rem; }
   .category-list button[data-active='true'] { border-color:var(--primary); background:var(--primary); color:var(--primary-foreground); }
@@ -71,7 +71,6 @@
   .cart-close svg,.item-dialog__close svg { width:1rem; height:1rem; }
   .cart-name { grid-column:1/-1; margin:.75rem 0 0; }
   .cart-name span { display:block; margin-bottom:.375rem; color:var(--muted-foreground); font-size:.6875rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
-  .cart-name input { width:100%; height:2.25rem; margin:0; }
   .cart-dialog>.cart-body { flex:1; padding:1rem 1.25rem; overflow-y:auto; }
   .cart-empty { display:flex; min-height:12rem; flex-direction:column; align-items:center; justify-content:center; gap:.5rem; padding-block:2rem; text-align:center; }
   .cart-empty strong,.cart-empty span { display:block; }
@@ -112,7 +111,6 @@
   .item-option-list { display:grid; gap:.5rem; }
   .item-option { display:flex; min-height:2.5rem; cursor:pointer; align-items:center; gap:.75rem; padding:.5rem .75rem; border:1px solid var(--border); border-radius:.5rem; font-size:.875rem; }
   .item-option:has(input:checked) { border-color:color-mix(in oklch,var(--primary) 40%,var(--border)); background:color-mix(in oklch,var(--primary) 5%,transparent); }
-  .item-option input { width:1rem; height:1rem; margin:0; accent-color:var(--primary); }
   .item-option span { min-width:0; flex:1; }
   .item-option small { flex:none; color:var(--muted-foreground); font-family:ui-monospace,monospace; }
   .item-dialog__error { margin:1.25rem 0; }
