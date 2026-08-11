@@ -32,8 +32,8 @@
             <p>Connect Swiggy, pick a spot, share the link.</p>
           </header>
 
-          <div class="setup-steps">
-            <section class="setup-step" data-step="account">
+          <ol class="setup-steps">
+            <li class="card setup-step" data-step="account">
               <header class="setup-step__heading">
                 <span class="setup-step__number" data-step-number>1</span>
                 <h2>Swiggy account</h2>
@@ -63,11 +63,11 @@
 
               <div class="account-state account-state--connected" data-account-state="connected" hidden>
                 <p>Your Swiggy addresses are ready to use.</p>
-                <button class="ghost account-reconnect" type="button">Reconnect</button>
+                <button class="ghost small account-reconnect" type="button">Reconnect</button>
               </div>
-            </section>
+            </li>
 
-            <section class="setup-step" data-step="address">
+            <li class="card setup-step" data-step="address">
               <header class="setup-step__heading">
                 <span class="setup-step__number">2</span>
                 <h2>Address &amp; cutoff</h2>
@@ -92,9 +92,9 @@
                   <small class="setup-field__error" data-cutoff-error hidden></small>
                 </label>
               </div>
-            </section>
+            </li>
 
-            <section class="setup-step" data-step="restaurant">
+            <li class="card setup-step" data-step="restaurant">
               <header class="setup-step__heading">
                 <span class="setup-step__number">3</span>
                 <h2>Restaurant</h2>
@@ -107,11 +107,11 @@
                 </svg>
                 <span data-restaurant-trigger-label>Search restaurants or cuisine…</span>
               </button>
-            </section>
-          </div>
+            </li>
+          </ol>
 
           <div class="setup-actions">
-            <div class="setup-error" role="alert" hidden>
+            <div class="setup-error" role="alert" data-variant="error" hidden>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
                 <path d="M12 9v4"></path>
@@ -123,7 +123,7 @@
               </span>
             </div>
 
-            <button class="create-session" type="button" disabled>
+            <button class="large create-session" type="button" disabled>
               <svg class="spinner" data-create-spinner viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M21 12a9 9 0 1 1-6.22-8.56"></path>
               </svg>
@@ -159,13 +159,13 @@
         </div>
         <section class="restaurant-results" data-restaurant-results hidden>
           <h3>Restaurants</h3>
-          <div data-restaurant-list></div>
+          <div role="listbox" aria-label="Restaurants" data-restaurant-list></div>
         </section>
       </section>
     </dialog>
 
     <template id="restaurant-option-template">
-      <button class="restaurant-option" type="button">
+      <button class="ghost restaurant-option" role="option" type="button">
         <span class="restaurant-option__image" aria-hidden="true">
           <svg viewBox="0 0 24 24">
             <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path>

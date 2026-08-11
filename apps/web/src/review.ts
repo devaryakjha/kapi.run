@@ -265,7 +265,7 @@ function renderOrders() {
 }
 
 function createGroup(name: string, items: CartLine[]) {
-  const group = document.createElement('section'); group.className = 'order-group'
+  const group = document.createElement('article'); group.className = 'card order-group'
   const header = document.createElement('header')
   const identity = document.createElement('span'); identity.className = 'order-group__identity'
   const initial = document.createElement('i'); initial.textContent = name.slice(0,1).toUpperCase()

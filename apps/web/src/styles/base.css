@@ -3,6 +3,10 @@
 @import '@knadh/oat/css/animations.css';
 @import '@knadh/oat/css/button.css';
 @import '@knadh/oat/css/form.css';
+@import '@knadh/oat/css/alert.css';
+@import '@knadh/oat/css/avatar.css';
+@import '@knadh/oat/css/badge.css';
+@import '@knadh/oat/css/card.css';
 @import '@knadh/oat/css/dialog.css';
 @import '@knadh/oat/css/dropdown.css';
 @import '@knadh/oat/css/skeleton.css';
@@ -77,12 +81,6 @@
     inset:auto;
     width:16rem;
     margin:0;
-    padding:.625rem;
-    border:1px solid var(--border);
-    border-radius:.75rem;
-    background:var(--popover,var(--background));
-    color:var(--foreground);
-    box-shadow:var(--shadow-large);
   }
 
   .account-popover header { display:flex; align-items:center; gap:.625rem; }
@@ -93,7 +91,7 @@
   .account-popover header small { display:flex; align-items:center; gap:.375rem; }
   .account-popover header small::before { color:var(--primary); content:'✓'; font-weight:700; }
   .account-popover[data-connected='false'] header small::before { color:var(--muted-foreground); content:'○'; }
-  .account-popover__avatar { display:grid; width:2rem; height:2rem; flex:none; place-items:center; border-radius:50%; background:var(--primary); color:var(--primary-foreground); font-size:.75rem; font-weight:600; }
+  .account-popover__avatar { flex:none; margin:0; font-size:.75rem; }
   .account-popover__address { display:flex; align-items:flex-start; gap:.625rem; margin-top:.625rem; padding-top:.625rem; border-top:1px solid var(--border); }
   .account-popover__address svg { width:1rem; height:1rem; flex:none; margin-top:.125rem; color:var(--muted-foreground); }
   .account-popover__address strong { font-size:.75rem; font-weight:500; }

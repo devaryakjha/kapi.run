@@ -398,7 +398,7 @@ function createMenuCard(item: MenuItem) {
       item.id,
       '',
     )
-    add.className = 'add-control'
+    add.className = 'outline small add-control'
     add.disabled = !item.available
     setLockedInteraction(add, isSessionLockedForParticipants(session!))
     controls.append(add)
@@ -620,8 +620,8 @@ function addonGroup(group: MenuAddonGroup) {
 }
 
 function optionGroup(name: string, rule = '') {
-  const root = document.createElement('section'); root.className = 'item-option-group'
-  const title = document.createElement('p'); title.textContent = name; root.append(title)
+  const root = document.createElement('fieldset'); root.className = 'item-option-group'
+  const title = document.createElement('legend'); title.textContent = name; root.append(title)
   if (rule) { const detail = document.createElement('small'); detail.textContent = rule; root.append(detail) }
   const list = document.createElement('div'); list.className = 'item-option-list'; root.append(list)
   return root

@@ -58,7 +58,7 @@
             <span class="order-ticket__notch order-ticket__notch--start" aria-hidden="true"></span>
             <span class="order-ticket__notch order-ticket__notch--end" aria-hidden="true"></span>
 
-            <article class="order-card">
+            <article class="card order-card">
               <header class="order-card__header">
                 <div>
                   <h2 id="group-order-title">Group order</h2>
@@ -102,17 +102,17 @@
                   </div>
 
                   <form class="join-form" novalidate>
-                    <div class="join-form__field">
-                      <label for="session-info">Invite link or code</label>
+                    <label class="join-form__field" for="session-info">
+                      <span>Invite link or code</span>
                       <input
                         id="session-info"
                         name="session-info"
                         autocomplete="off"
                         placeholder="Paste the invite link or code"
                       />
-                    </div>
-                    <div class="join-form__error" role="alert" hidden></div>
-                    <button class="outline join-form__submit" type="submit">
+                    </label>
+                    <div class="join-form__error" role="alert" data-variant="error" hidden></div>
+                    <button class="outline large join-form__submit" type="submit">
                       Join order
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M5 12h14"></path>
