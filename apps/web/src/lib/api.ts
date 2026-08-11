@@ -1,5 +1,6 @@
 export const API_URL =
-  import.meta.env.VITE_KAPI_API_URL ?? 'http://localhost:3001'
+  import.meta.env.VITE_KAPI_API_URL ??
+  (import.meta.env.DEV ? 'http://localhost:3001' : '')
 
 export class ApiError extends Error {
   constructor(

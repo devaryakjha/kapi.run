@@ -11,7 +11,9 @@
     "dev:web": "bun run --cwd apps/web dev",
     "dev:api": "bun run --cwd apps/api dev",
     "build": "bun run --filter '@kapi/web' build",
-    "check": "bun run --cwd apps/web typecheck && bun run --cwd apps/api typecheck",
+    "check": "bun run --cwd apps/web typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/worker typecheck",
+    "deploy": "bun run build && wrangler deploy",
+    "deploy:dry": "bun run build && wrangler deploy --dry-run",
     "test": "bun run --filter '@kapi/web' test",
     "test:routing": "bun run --cwd apps/web test:routing"
   },
@@ -22,5 +24,9 @@
     "undici": "^8.5.0",
     "vite": "8.0.16",
     "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260811.1",
+    "wrangler": "^4.120.1"
   }
 }

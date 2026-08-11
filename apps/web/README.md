@@ -15,8 +15,7 @@ bun run --cwd apps/web test:routing
 The development server uses `http://localhost:3000`.
 
 Application routes use canonical directory URLs such as `/new/`. Clean paths
-redirect to their canonical URL in development, preview, and the standalone
-Nginx image built from `Dockerfile.web`.
+redirect to their canonical URL in development, preview, and Cloudflare Workers.
 
 ## Rules
 

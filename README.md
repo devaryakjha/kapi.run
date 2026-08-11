@@ -25,16 +25,17 @@ The repository uses Bun workspaces.
 
 - `apps/web` contains the framework-free HTML, CSS, JavaScript, and Oat web app.
 - `apps/api` contains the Elysia API, Swiggy OAuth proxy, MCP client, and session relay.
+- `apps/worker` connects the API and static assets to Cloudflare Workers.
 - `packages/spec` contains the shared TypeScript contracts.
 
-The browser app connects to the API through a configured base URL. Each deployment can choose its own host and proxy layout.
+Production serves the web app and API from one Cloudflare Worker and one origin.
 
 ## Session and privacy model
 
 - Participant draft carts stay in the participant's browser until submission.
 - The browser encrypts shared group data before it sends the data to the relay.
 - Session links contain the information that participants need to join the session.
-- The API stores the Swiggy OAuth token in the configured data directory.
+- A Durable Object stores the Swiggy OAuth token and encrypted relay records.
 - Swiggy keeps payment details and final checkout data.
 - Kapi does not use order data for advertising or participant profiles.
 
@@ -76,14 +77,12 @@ Run these commands from the repository root:
 | `bun run check`       | Check formatting and TypeScript. |
 | `bun run test`        | Run the web tests.               |
 | `bun run test:routing` | Verify static route handling.    |
+| `bun run deploy:dry`  | Validate the Worker deployment.  |
+| `bun run deploy`      | Deploy the Worker to Cloudflare. |
 
 ## Deployment
 
-The repository includes Dockerfiles and a Compose file for container deployments.
-
-Configure the public web URL, API URL, OAuth redirect URL, and persistent data directory for your environment.
-
-Keep OAuth tokens and session data out of source control. Store API data on persistent storage.
+Wrangler deploys the web build, API, and Durable Object together. Cloudflare stores runtime data outside source control.
 
 Read [docs/deployment.md](docs/deployment.md) for the required environment variables and deployment requirements.
 

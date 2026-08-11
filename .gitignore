@@ -12,3 +12,6 @@ build
 plans/
 
 .playwright-mcp
+.wrangler
+worker-startup.cpuprofile
+worker-configuration.d.ts

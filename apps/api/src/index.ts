@@ -1,5 +1,6 @@
 import { cors } from "@elysiajs/cors";
 import { Elysia, t } from "elysia";
+import { CloudflareAdapter } from "elysia/adapter/cloudflare-worker";
 import { chmod, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type {
@@ -39,7 +40,7 @@ type BunRuntime = {
   file(path: string): { json(): Promise<unknown> };
   write(path: string, value: string): Promise<unknown>;
 };
-const bunRuntime = (globalThis as typeof globalThis & { Bun: BunRuntime }).Bun;
+const bunRuntime = (globalThis as typeof globalThis & { Bun?: BunRuntime }).Bun;
 const allowedOrigins = new Set([
   publicWebOrigin,
   "http://127.0.0.1:3000",
@@ -65,6 +66,11 @@ export type RelayRecord = Omit<RelaySessionRecord, "participantSubmissions"> & {
 };
 type RelayStore = Record<string, RelayRecord>;
 type InviteStore = Record<string, SessionInvite>;
+type DurableStorage = {
+  get<T>(key: string): Promise<T | undefined>;
+  put(key: string, value: unknown): Promise<void>;
+  delete(key: string): Promise<boolean>;
+};
 type RelayWrite = RelayWritePayload;
 type StatusSetter = { status?: number | string };
 type RequestContext = { request: Request };
@@ -114,6 +120,7 @@ type InviteReadContext = RequestContext & {
 const authStates = new Map<string, { codeVerifier: string; next: string }>();
 const relay: RelayStore = await readJson<RelayStore>(relayFile, {});
 const invites: InviteStore = await readJson<InviteStore>(inviteFile, {});
+let durableStorage: DurableStorage | null = null;
 const relaySubscribers = new Map<string, Set<RelaySubscriber>>();
 const relayEventEncoder = new TextEncoder();
 const maxRelaySubscribersPerSession = 64;
@@ -138,6 +145,7 @@ let token: Token | null = process.env.SWIGGY_MCP_ACCESS_TOKEN
   : await readTokenFromFile(tokenFile);
 
 async function readJson<T>(path: string, fallback: T): Promise<T> {
+  if (!bunRuntime) return fallback;
   try {
     return (await bunRuntime.file(path).json()) as T;
   } catch {
@@ -146,7 +154,31 @@ async function readJson<T>(path: string, fallback: T): Promise<T> {
 }
 
 async function writeJson(path: string, value: unknown) {
+  if (durableStorage) {
+    const key = path === relayFile ? "relay" : path === inviteFile ? "invites" : path;
+    await durableStorage.put(key, value);
+    return;
+  }
+  if (!bunRuntime) throw new Error("Persistent storage is unavailable.");
   await bunRuntime.write(path, JSON.stringify(value));
+}
+
+export async function hydrateDurableState(storage: DurableStorage) {
+  durableStorage = storage;
+  const [storedRelay, storedInvites, storedToken] = await Promise.all([
+    storage.get<RelayStore>("relay"),
+    storage.get<InviteStore>("invites"),
+    storage.get<Token>("token"),
+  ]);
+  if (storedRelay) {
+    for (const key of Object.keys(relay)) delete relay[key];
+    Object.assign(relay, storedRelay);
+  }
+  if (storedInvites) {
+    for (const key of Object.keys(invites)) delete invites[key];
+    Object.assign(invites, storedInvites);
+  }
+  if (storedToken) token = storedToken;
 }
 
 export async function readTokenFromFile(path: string) {
@@ -164,6 +196,11 @@ export async function saveTokenToFile(path: string, nextToken: Token | null) {
 
 async function saveToken(nextToken: Token | null) {
   token = nextToken;
+  if (durableStorage) {
+    if (nextToken) await durableStorage.put("token", nextToken);
+    else await durableStorage.delete("token");
+    return;
+  }
   await saveTokenToFile(tokenFile, nextToken);
 }
 
@@ -1000,7 +1037,9 @@ function normalizeCustomization(raw: unknown): MenuCustomization {
   };
 }
 
-export const app = new Elysia()
+export const app = new Elysia(
+  bunRuntime ? {} : { adapter: CloudflareAdapter },
+)
   .use(
     cors({
       origin: (request: Request) => isAllowedOrigin(request),
@@ -1039,7 +1078,9 @@ export const app = new Elysia()
       const client = await getOAuthClient();
       const state = randomBase64Url(24);
       const codeVerifier = randomBase64Url(64);
-      authStates.set(state, { codeVerifier, next: safeReturnUrl(query.next) });
+      const authState = { codeVerifier, next: safeReturnUrl(query.next) };
+      authStates.set(state, authState);
+      await durableStorage?.put(`oauth:${state}`, authState);
       const url = new URL(`${swiggyBase}/auth/authorize`);
       url.searchParams.set("response_type", "code");
       url.searchParams.set("client_id", client.client_id);
@@ -1063,12 +1104,17 @@ export const app = new Elysia()
         set.status = 400;
         return "Swiggy connection failed.";
       }
-      const state = authStates.get(stateKey);
+      const state =
+        authStates.get(stateKey) ??
+        (await durableStorage?.get<{ codeVerifier: string; next: string }>(
+          `oauth:${stateKey}`,
+        ));
       if (!state) {
         set.status = 400;
         return "Swiggy connection failed.";
       }
       authStates.delete(stateKey);
+      await durableStorage?.delete(`oauth:${stateKey}`);
       const client = await getOAuthClient();
       const response = await fetch(`${swiggyBase}/auth/token`, {
         method: "POST",
@@ -1096,12 +1142,13 @@ export const app = new Elysia()
         expires_at: Date.now() + expiresIn * 1000,
         ownerSecretHash: await sha256Base64Url(ownerSecret),
       });
-      const redirect = Response.redirect(state.next, 302);
-      redirect.headers.append(
-        "set-cookie",
-        swiggyOwnerCookie(ownerSecret, expiresIn),
-      );
-      return redirect;
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: state.next,
+          "set-cookie": swiggyOwnerCookie(ownerSecret, expiresIn),
+        },
+      });
     },
     {
       query: t.Object({
@@ -1431,8 +1478,9 @@ export const app = new Elysia()
         ),
       }),
     },
-  );
-if (import.meta.main) {
+  )
+  .compile();
+if ((import.meta as ImportMeta & { main?: boolean }).main) {
   app.listen(port);
   console.log(
     `Kapi API running at http://${app.server?.hostname}:${app.server?.port}`,
