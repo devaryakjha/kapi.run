@@ -4,12 +4,18 @@ import { toast } from 'sonner'
 import type {
   KapiSession,
   ManualFallbackSummary,
+  MenuItem,
   SwiggyCartSummary,
 } from '@kapi/spec'
 
 import { buildOrganizerMenuPath } from '#/features/group-ordering/join-target'
 import { OrganizerReviewPage } from '#/features/group-ordering/review-page'
 import { useLiveSessionRecord } from '#/features/group-ordering/use-live-session'
+import { WorkspaceLoading } from '#/features/group-ordering/workspace-loading'
+import {
+  readWorkspaceCache,
+  writeWorkspaceCache,
+} from '#/features/group-ordering/workspace-cache'
 import {
   ApiError,
   ErrorAlert,
@@ -44,17 +50,23 @@ type ReviewState = {
   swiggyCart: SwiggyCartSummary | null
 }
 
-function initialReviewState(): ReviewState {
-  const { inviteId, key, sessionId } = getSessionLinkParts()
+function initialReviewRoute() {
+  const requestedParts = getSessionLinkParts()
+  const cached = readWorkspaceCache(requestedParts)
+  const parts = cached?.parts ?? requestedParts
+  const { inviteId, key, sessionId } = parts
   return {
-    session: null,
-    fallback: null,
-    isOrganizer: false,
-    pending: false,
-    error:
-      !inviteId && (!sessionId || !key) ? 'Session link is invalid.' : null,
-    stale: false,
-    swiggyCart: null,
+    parts,
+    state: {
+      session: cached?.loaded.session ?? null,
+      fallback: null,
+      isOrganizer: cached?.isOrganizer ?? false,
+      pending: false,
+      error:
+        !inviteId && (!sessionId || !key) ? 'Session link is invalid.' : null,
+      stale: cached?.loaded.relayUpdatedAt === null,
+      swiggyCart: null,
+    } satisfies ReviewState,
   }
 }
 
@@ -64,17 +76,28 @@ function patchReviewState(state: ReviewState, patch: Partial<ReviewState>) {
 
 function RouteComponent() {
   const router = useRouter()
+  const initialRef = useRef<ReturnType<typeof initialReviewRoute> | null>(null)
+  if (!initialRef.current) initialRef.current = initialReviewRoute()
   const [state, setState] = useReducer(
     patchReviewState,
-    undefined,
-    initialReviewState,
+    initialRef.current.state,
   )
-  const sessionKeyRef = useRef('')
-  const inviteIdRef = useRef<string | null>(null)
-  const organizerSecretRef = useRef<string | null>(null)
-  const relayUpdatedAtRef = useRef<string | null>(null)
+  const partsRef = useRef(initialRef.current.parts)
+  const sessionKeyRef = useRef(initialRef.current.parts.key ?? '')
+  const inviteIdRef = useRef(initialRef.current.parts.inviteId)
+  const organizerSecretRef = useRef(initialRef.current.parts.organizerSecret)
+  const relayUpdatedAtRef = useRef<string | null>(
+    initialRef.current.state.session
+      ? (readWorkspaceCache(initialRef.current.parts)?.loaded.relayUpdatedAt ??
+          null)
+      : null,
+  )
   const pendingQuantityUpdatesRef = useRef(new Map<string, number>())
   const quantitySaveTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    void router.preloadRoute({ to: '/menu' }).catch(() => undefined)
+  }, [router])
 
   async function saveSession(
     mutate: (session: KapiSession) => KapiSession,
@@ -90,6 +113,11 @@ function RouteComponent() {
         organizerSecret: organizerSecretRef.current,
       })
       relayUpdatedAtRef.current = saved.relayUpdatedAt
+      writeWorkspaceCache({
+        parts: partsRef.current,
+        loaded: saved,
+        isOrganizer: state.isOrganizer,
+      })
       setState({ session: saved.session, stale: false })
       return saved.session
     } catch (caught) {
@@ -103,6 +131,11 @@ function RouteComponent() {
         organizerSecret: organizerSecretRef.current,
       })
       relayUpdatedAtRef.current = saved.relayUpdatedAt
+      writeWorkspaceCache({
+        parts: partsRef.current,
+        loaded: saved,
+        isOrganizer: state.isOrganizer,
+      })
       setState({ session: saved.session, stale: false })
       return saved.session
     }
@@ -115,6 +148,11 @@ function RouteComponent() {
       sessionKeyRef.current,
     )
     relayUpdatedAtRef.current = loaded.relayUpdatedAt
+    writeWorkspaceCache({
+      parts: partsRef.current,
+      loaded,
+      isOrganizer: state.isOrganizer,
+    })
     setState({
       session: loaded.session,
       stale: loaded.relayUpdatedAt === null,
@@ -123,7 +161,7 @@ function RouteComponent() {
   }
 
   useEffect(() => {
-    const initialParts = getSessionLinkParts()
+    const initialParts = initialRef.current!.parts
     const loadSession = async () => {
       const { inviteId, key, organizerSecret, owner, sessionId } =
         await resolveSessionLinkParts(initialParts)
@@ -132,6 +170,13 @@ function RouteComponent() {
         return
       }
 
+      partsRef.current = {
+        inviteId,
+        key,
+        organizerSecret,
+        owner,
+        sessionId,
+      }
       sessionKeyRef.current = key
       inviteIdRef.current = inviteId
       organizerSecretRef.current = organizerSecret
@@ -142,6 +187,27 @@ function RouteComponent() {
         owner && (await hasOrganizerCapability(session, organizerSecret))
       if (isOrganizer && organizerSecret) {
         safeLocalStorageSet(localOrganizerKeyKey(sessionId), organizerSecret)
+      }
+      writeWorkspaceCache({
+        parts: partsRef.current,
+        loaded,
+        isOrganizer,
+      })
+      if (isOrganizer) {
+        void api<MenuItem[]>(
+          `/food/restaurants/${session.restaurant.id}/menu?addressId=${encodeURIComponent(session.address.id)}&sessionId=${encodeURIComponent(sessionId)}`,
+          { headers: { 'x-kapi-session-key': key } },
+        )
+          .then((menu) => {
+            const current = readWorkspaceCache(partsRef.current)
+            writeWorkspaceCache({
+              parts: partsRef.current,
+              loaded: current?.loaded ?? loaded,
+              isOrganizer,
+              menu,
+            })
+          })
+          .catch(() => undefined)
       }
       setState({
         isOrganizer,
@@ -171,6 +237,11 @@ function RouteComponent() {
     getRelayUpdatedAt: () => relayUpdatedAtRef.current,
     onLoaded: (loaded) => {
       relayUpdatedAtRef.current = loaded.relayUpdatedAt
+      writeWorkspaceCache({
+        parts: partsRef.current,
+        loaded,
+        isOrganizer: state.isOrganizer,
+      })
       setState({
         session: loaded.session,
         stale: loaded.relayUpdatedAt === null,
@@ -358,13 +429,12 @@ function RouteComponent() {
   }
 
   if (!state.session) {
-    return (
+    return state.error ? (
       <main className="min-h-svh bg-background p-6 text-foreground">
         <ErrorAlert message={state.error} />
-        {!state.error ? (
-          <p className="text-sm text-muted-foreground">Loading order...</p>
-        ) : null}
       </main>
+    ) : (
+      <WorkspaceLoading label="Loading review" />
     )
   }
 

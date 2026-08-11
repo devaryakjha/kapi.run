@@ -1,7 +1,8 @@
 # Deployment
 
-Use `kapi.run` for the landing page, `app.kapi.run` for the user app, and
-`api.kapi.run` for the API.
+Use `kapi.run` for the web app and its public API routes.
+
+Keep the web and API as separate containers. Route them through one origin.
 
 ## Dokploy
 
@@ -9,19 +10,21 @@ Deploy `compose.dokploy.yml` as one compose app.
 
 Domains in Dokploy:
 
-| Host | Service | Port |
-| --- | --- | --- |
-| `app.kapi.run` | `web` | `80` |
-| `api.kapi.run` | `api` | `3001` |
-| `app-kapi.jha.sh` | `web` | `80` |
-| `api-kapi.jha.sh` | `api` | `3001` |
+Add these routes in order. Do not strip the path.
+
+| Host | Path | Service | Port |
+| --- | --- | --- | --- |
+| `kapi.run` | `/auth` | `api` | `3001` |
+| `kapi.run` | `/food` | `api` | `3001` |
+| `kapi.run` | `/relay` | `api` | `3001` |
+| `kapi.run` | `/` | `web` | `80` |
 
 Environment:
 
 ```env
-VITE_KAPI_API_URL=https://api.kapi.run
-KAPI_WEB_URL=https://app.kapi.run
-SWIGGY_REDIRECT_URI=https://api.kapi.run/auth/callback
+VITE_KAPI_API_URL=https://kapi.run
+KAPI_WEB_URL=https://kapi.run
+SWIGGY_REDIRECT_URI=https://kapi.run/auth/callback
 ```
 
 The API persists Swiggy OAuth and encrypted relay files in the
@@ -29,10 +32,15 @@ The API persists Swiggy OAuth and encrypted relay files in the
 
 ## Cloudflare
 
-`kapi.run` already maps to the existing `kapi-run` Cloudflare Pages landing
-project.
+Map `kapi.run` to the existing Cloudflare Tunnel.
 
-`app.kapi.run` and `api.kapi.run` are proxied by
-`infra/cloudflare/kapi-edge-proxy`. The worker forwards them to
-`app-kapi.jha.sh` and `api-kapi.jha.sh`, which are covered by the existing OVH
-Cloudflare Tunnel wildcard for `*.jha.sh`.
+The tunnel fallback sends traffic to the Dokploy proxy on port `80`:
+
+```yaml
+ingress:
+  - hostname: code.karya.run
+    service: http://100.112.94.100:8080
+  - service: http://127.0.0.1:80
+```
+
+Do not attach `kapi.run` to Cloudflare Pages or the old edge proxy Worker.

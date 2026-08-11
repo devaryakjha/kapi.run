@@ -5,12 +5,17 @@ import type { KapiSession, MenuItem } from '@kapi/spec'
 
 import { ParticipantMenuPage } from '#/features/group-ordering/participant-page'
 import { useLiveSessionRecord } from '#/features/group-ordering/use-live-session'
+import { WorkspaceLoading } from '#/features/group-ordering/workspace-loading'
 import type {
   DraftCart,
   DraftCartLine,
   LoadedSessionRecord,
 } from '#/features/group-ordering/shared'
 import { buildOrganizerReviewPath } from '#/features/group-ordering/join-target'
+import {
+  readWorkspaceCache,
+  writeWorkspaceCache,
+} from '#/features/group-ordering/workspace-cache'
 import {
   ApiError,
   ErrorAlert,
@@ -55,23 +60,48 @@ type MenuState = {
   stale: boolean
 }
 
-function initialMenuState(): MenuState {
-  const { inviteId, key, sessionId } = getSessionLinkParts()
+function initialMenuRoute() {
+  const requestedParts = getSessionLinkParts()
+  const cached = readWorkspaceCache(requestedParts)
+  const parts = cached?.parts ?? requestedParts
+  const { inviteId, key, sessionId } = parts
   const search = new URLSearchParams(window.location.search)
   const name =
     search.get('name') ??
     (sessionId ? safeLocalStorageGet(localParticipantNameKey(sessionId)) : '')
+  const session = cached?.loaded.session ?? null
+  const participantId = sessionId
+    ? getOrCreateLocalParticipantId(sessionId)
+    : ''
   return {
-    menu: [],
-    session: null,
-    draft: {},
-    submittedDraft: {},
-    participantName: name ?? '',
-    pending: false,
-    error:
-      !inviteId && (!sessionId || !key) ? 'Session link is invalid.' : null,
-    organizerReviewPath: null,
-    stale: false,
+    parts,
+    state: {
+      menu: cached?.menu ?? [],
+      session,
+      draft: sessionId ? loadStoredDraft(sessionId) : {},
+      submittedDraft: session
+        ? draftCartFromSubmittedItems(
+            session.items.filter(
+              (item) => item.participantId === participantId,
+            ),
+          )
+        : {},
+      participantName:
+        cached?.isOrganizer && session ? session.organiserName : (name ?? ''),
+      pending: false,
+      error:
+        !inviteId && (!sessionId || !key) ? 'Session link is invalid.' : null,
+      organizerReviewPath:
+        cached?.isOrganizer && parts.organizerSecret
+          ? buildOrganizerReviewPath({
+              inviteId: parts.inviteId ?? undefined,
+              sessionId: parts.sessionId ?? undefined,
+              key: parts.key,
+              ownerKey: parts.organizerSecret,
+            })
+          : null,
+      stale: cached?.loaded.relayUpdatedAt === null,
+    } satisfies MenuState,
   }
 }
 
@@ -80,15 +110,27 @@ function patchMenuState(state: MenuState, patch: Partial<MenuState>) {
 }
 
 function RouteComponent() {
-  const [state, setState] = useReducer(
-    patchMenuState,
-    undefined,
-    initialMenuState,
+  const initialRef = useRef<ReturnType<typeof initialMenuRoute> | null>(null)
+  if (!initialRef.current) initialRef.current = initialMenuRoute()
+  const [state, setState] = useReducer(patchMenuState, initialRef.current.state)
+  const partsRef = useRef(initialRef.current.parts)
+  const sessionKeyRef = useRef(initialRef.current.parts.key ?? '')
+  const participantIdRef = useRef(
+    initialRef.current.parts.sessionId
+      ? getOrCreateLocalParticipantId(initialRef.current.parts.sessionId)
+      : '',
   )
-  const sessionKeyRef = useRef('')
-  const participantIdRef = useRef('')
-  const participantSecretRef = useRef('')
-  const relayUpdatedAtRef = useRef<string | null>(null)
+  const participantSecretRef = useRef(
+    initialRef.current.parts.sessionId
+      ? getOrCreateLocalParticipantSecret(initialRef.current.parts.sessionId)
+      : '',
+  )
+  const relayUpdatedAtRef = useRef<string | null>(
+    initialRef.current.state.session
+      ? (readWorkspaceCache(initialRef.current.parts)?.loaded.relayUpdatedAt ??
+          null)
+      : null,
+  )
 
   async function refreshSessionFromRelay(): Promise<LoadedSessionRecord | null> {
     if (!state.session || !sessionKeyRef.current) return null
@@ -97,6 +139,12 @@ function RouteComponent() {
       sessionKeyRef.current,
     )
     relayUpdatedAtRef.current = loaded.relayUpdatedAt
+    writeWorkspaceCache({
+      parts: partsRef.current,
+      loaded,
+      isOrganizer: Boolean(state.organizerReviewPath),
+      menu: state.menu,
+    })
     setState({
       session: loaded.session,
       stale: loaded.relayUpdatedAt === null,
@@ -105,7 +153,7 @@ function RouteComponent() {
   }
 
   useEffect(() => {
-    const initialParts = getSessionLinkParts()
+    const initialParts = initialRef.current!.parts
     const loadSession = async () => {
       const resolvedParts = await resolveSessionLinkParts(initialParts)
       const { key, organizerSecret, sessionId } = resolvedParts
@@ -114,6 +162,7 @@ function RouteComponent() {
         return
       }
 
+      partsRef.current = resolvedParts
       sessionKeyRef.current = key
       participantIdRef.current = getOrCreateLocalParticipantId(sessionId)
       participantSecretRef.current =
@@ -138,6 +187,12 @@ function RouteComponent() {
         : (search.get('name') ??
           safeLocalStorageGet(localParticipantNameKey(sessionId)) ??
           '')
+      writeWorkspaceCache({
+        parts: resolvedParts,
+        loaded: loadedRecord,
+        isOrganizer: isOrganizerMode,
+        menu: loadedMenu,
+      })
       setState({
         session: loaded,
         menu: loadedMenu,
@@ -173,6 +228,12 @@ function RouteComponent() {
     getRelayUpdatedAt: () => relayUpdatedAtRef.current,
     onLoaded: (loaded) => {
       relayUpdatedAtRef.current = loaded.relayUpdatedAt
+      writeWorkspaceCache({
+        parts: partsRef.current,
+        loaded,
+        isOrganizer: Boolean(state.organizerReviewPath),
+        menu: state.menu,
+      })
       setState({
         session: loaded.session,
         stale: loaded.relayUpdatedAt === null,
@@ -324,13 +385,12 @@ function RouteComponent() {
   }
 
   if (!state.session) {
-    return (
+    return state.error ? (
       <main className="min-h-svh bg-background p-6 text-foreground">
         <ErrorAlert message={state.error} />
-        {!state.error ? (
-          <p className="text-sm text-muted-foreground">Loading order...</p>
-        ) : null}
       </main>
+    ) : (
+      <WorkspaceLoading />
     )
   }
 

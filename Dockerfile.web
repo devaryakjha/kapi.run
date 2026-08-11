@@ -2,7 +2,7 @@ FROM oven/bun:1.3.3-alpine AS build
 
 WORKDIR /app
 
-ARG VITE_KAPI_API_URL=https://api.kapi.run
+ARG VITE_KAPI_API_URL=https://kapi.run
 ENV VITE_KAPI_API_URL=$VITE_KAPI_API_URL
 
 COPY package.json bun.lock ./

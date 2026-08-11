@@ -105,7 +105,7 @@ export function OrganizerSetupPage({
   return (
     <main className="flex min-h-svh flex-col bg-background text-foreground">
       <nav className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
-        <span className="text-base font-bold tracking-tight text-primary">
+        <span className="font-heading text-lg font-bold tracking-[-0.03em] text-primary">
           kapi.run
         </span>
       </nav>
@@ -140,6 +140,11 @@ export function OrganizerSetupPage({
                   >
                     Reconnect
                   </button>
+                </div>
+              ) : pending ? (
+                <div className="flex items-center gap-3 py-1 text-[13px] text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Checking your Swiggy connection…
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-3">
@@ -451,7 +456,7 @@ function RestaurantCommand({
 }) {
   return (
     <DialogContent
-      className="top-1/3 translate-y-0 overflow-hidden rounded-4xl! p-0"
+      className="top-1/3 translate-y-0 overflow-hidden rounded-2xl! p-0"
       showCloseButton={false}
     >
       <DialogHeader className="sr-only">
@@ -475,9 +480,9 @@ function RestaurantCommand({
           </CommandEmpty>
           {restaurants.length ? (
             <CommandGroup heading="Restaurants">
-              {restaurants.map((restaurant, index) => (
+              {restaurants.map((restaurant) => (
                 <CommandItem
-                  key={`${restaurant.id}:${index}`}
+                  key={restaurant.id}
                   value={`${restaurant.name} ${restaurant.area} ${restaurant.availabilityStatus}`}
                   disabled={restaurant.availabilityStatus !== 'OPEN'}
                   onSelect={() => onRestaurantChange(restaurant.id)}

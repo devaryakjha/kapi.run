@@ -9,6 +9,7 @@ import type {
 } from '@kapi/spec'
 
 import { OrganizerSetupPage } from '#/features/group-ordering/setup-page'
+import { writeWorkspaceCache } from '#/features/group-ordering/workspace-cache'
 import {
   API_URL,
   api,
@@ -55,7 +56,7 @@ function initialSetupState(): SetupState {
     selectedRestaurantId: '',
     cutoffTime: defaultSetupCutoffTime(),
     restaurantQuery: '',
-    pending: false,
+    pending: true,
     error: null,
   }
 }
@@ -84,6 +85,7 @@ function RouteComponent() {
   const cutoffError = 'error' in setupCutoff ? setupCutoff.error : null
 
   useEffect(() => {
+    const controller = new AbortController()
     const { owner, sessionId } = getSessionLinkParts()
     if (sessionId) {
       router.history.replace(
@@ -92,20 +94,29 @@ function RouteComponent() {
       return
     }
 
-    api<AuthStatus>('/auth/status')
+    api<AuthStatus>('/auth/status', { signal: controller.signal })
       .then(async (status) => {
         if (!status.connected) {
           setState({ authStatus: status })
           return
         }
-        const nextAddresses = await api<Address[]>('/food/addresses')
+        const nextAddresses = await api<Address[]>('/food/addresses', {
+          signal: controller.signal,
+        })
         setState({
           authStatus: status,
           addresses: nextAddresses,
         })
       })
-      .catch((caught: Error) => setState({ error: caught.message }))
-  }, [])
+      .catch((caught: Error) => {
+        if (!controller.signal.aborted) setState({ error: caught.message })
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setState({ pending: false })
+      })
+
+    return () => controller.abort()
+  }, [router])
 
   useEffect(() => {
     const query = state.restaurantQuery.trim()
@@ -191,9 +202,21 @@ function RouteComponent() {
       }
       safeLocalStorageSet(localKeyKey(id), key)
       safeLocalStorageSet(localOrganizerKeyKey(id), organizerSecret)
-      await publishSession(nextSession, key, {
+      const saved = await publishSession(nextSession, key, {
         role: 'organizer',
         organizerSecret,
+      })
+      writeWorkspaceCache({
+        parts: {
+          inviteId: invite.id,
+          key,
+          organizerSecret,
+          owner: true,
+          sessionId: id,
+        },
+        loaded: saved,
+        isOrganizer: true,
+        menu: await menuPromise,
       })
       router.history.push(`/review?i=${invite.id}&owner=1`)
     } catch (caught) {

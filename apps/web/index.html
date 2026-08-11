@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="kapi.run — shared Swiggy lunch runs without the back-and-forth. Join the group order, add your items, done."
+      content="Shared Swiggy group orders without the back-and-forth. Join the order, add your items, and you are done."
     />
     <meta property="og:site_name" content="kapi.run" />
-    <meta property="og:title" content="kapi.run — group food orders" />
+    <meta property="og:title" content="kapi.run group food orders" />
     <meta
       property="og:description"
       content="Join the group order, add your items, done. Shared Swiggy lunch runs without the back-and-forth."
@@ -16,6 +16,13 @@
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary" />
     <meta name="theme-color" content="#0f7a5a" />
+    <script>
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+      const applySystemTheme = () =>
+        document.documentElement.classList.toggle('dark', systemTheme.matches)
+      applySystemTheme()
+      systemTheme.addEventListener('change', applySystemTheme)
+    </script>
     <link rel="icon" href="/kapi-mark.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="apple-touch-icon" href="/logo192.png" />

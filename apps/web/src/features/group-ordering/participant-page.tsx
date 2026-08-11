@@ -96,6 +96,11 @@ export function ParticipantMenuPage({
     return () => window.clearInterval(timer)
   }, [])
 
+  useEffect(() => {
+    if (!organizerReviewPath) return
+    void router.preloadRoute({ to: '/review' }).catch(() => undefined)
+  }, [organizerReviewPath, router])
+
   const categories = useMemo(
     () => [
       'All',
@@ -128,11 +133,11 @@ export function ParticipantMenuPage({
     <main className="flex h-svh flex-col bg-background text-foreground">
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur-sm md:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="text-base font-bold tracking-tight text-primary">
+          <span className="font-heading text-lg font-bold tracking-[-0.03em] text-primary">
             kapi.run
           </span>
           <span className="hidden h-4 w-px bg-border md:block" />
-          <span className="hidden truncate text-sm font-medium text-foreground md:block">
+          <span className="hidden max-w-56 truncate text-sm font-medium text-foreground md:block">
             {session.restaurant.name}
           </span>
         </div>
@@ -261,9 +266,9 @@ export function ParticipantMenuPage({
                 </Empty>
               ) : (
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                  {filtered.map((item, index) => (
+                  {filtered.map((item) => (
                     <MenuCard
-                      key={`${item.id}:${index}`}
+                      key={item.id}
                       item={item}
                       quantity={draftItemIndex.get(item.id)?.quantity ?? 0}
                       locked={locked}
@@ -354,9 +359,9 @@ function MenuCard({
   return (
     <article
       className={cn(
-        'flex gap-3 rounded-4xl border border-border bg-background p-3 transition-colors',
+        'flex gap-3 rounded-xl border border-border bg-background p-3 transition-[border-color,background-color,box-shadow]',
         !item.available && 'opacity-50',
-        quantity > 0 && 'border-primary/30 bg-primary/2',
+        quantity > 0 && 'border-primary/35 bg-primary/3 shadow-sm',
       )}
     >
       <button
@@ -779,6 +784,7 @@ function AddonGroupControl({
 }) {
   const max =
     group.maxAddons && group.maxAddons > 0 ? group.maxAddons : Infinity
+  const selectedChoiceIds = new Set(value)
 
   function toggle(choiceId: string) {
     if (value.includes(choiceId)) {
@@ -807,14 +813,14 @@ function AddonGroupControl({
             key={`${group.groupId}:${choice.id}`}
             className={cn(
               'flex min-h-10 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-[colors,scale] duration-150 active:scale-[0.96]',
-              value.includes(choice.id)
+              selectedChoiceIds.has(choice.id)
                 ? 'border-primary/40 bg-primary/5'
                 : 'border-border hover:border-primary/30 hover:bg-primary/2',
             )}
           >
             <input
               type="checkbox"
-              checked={value.includes(choice.id)}
+              checked={selectedChoiceIds.has(choice.id)}
               onChange={() => toggle(choice.id)}
               className="size-4 accent-primary"
             />

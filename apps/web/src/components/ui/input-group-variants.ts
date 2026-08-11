@@ -20,7 +20,7 @@ const inputGroupAddonVariants = cva(
 )
 
 const inputGroupButtonVariants = cva(
-  'flex items-center gap-2 rounded-4xl text-sm shadow-none',
+  'flex items-center gap-2 rounded-xl text-sm shadow-none',
   {
     variants: {
       size: {

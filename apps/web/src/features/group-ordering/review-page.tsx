@@ -128,7 +128,6 @@ export function OrganizerReviewPage({
           totalQty={totalQty}
           unavailable={unavailable}
           onFallback={onFallback}
-          onOpenMenuMode={onOpenMenuMode}
           onRefresh={onRefresh}
           onRemoveItem={onRemoveItem}
           onSync={onSync}
@@ -166,15 +165,17 @@ function ReviewPageHeader({
   }, [])
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur-sm md:px-6">
-      <div className="flex items-center gap-3">
-        <span className="text-base font-bold tracking-tight text-primary">
+    <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur-sm md:px-6">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="font-heading text-lg font-bold tracking-[-0.03em] text-primary">
           kapi.run
         </span>
-        <span className="h-4 w-px bg-border" />
-        <span className="text-sm font-medium">{session.restaurant.name}</span>
+        <span className="hidden h-4 w-px bg-border sm:block" />
+        <span className="hidden max-w-48 truncate text-sm font-medium sm:block">
+          {session.restaurant.name}
+        </span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         {isOrganizer ? (
           <ReviewModeSwitch onOpenMenuMode={onOpenMenuMode} />
         ) : null}
@@ -184,7 +185,7 @@ function ReviewPageHeader({
         />
         <Badge
           variant={session.status === 'open' ? 'secondary' : 'default'}
-          className="rounded-full text-[11px]"
+          className="hidden rounded-full text-[11px] md:inline-flex"
         >
           {statusLabel(session.status)}
         </Badge>
@@ -194,7 +195,7 @@ function ReviewPageHeader({
             disabled={pending || session.status !== 'open'}
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 rounded-lg text-xs"
+            className="hidden h-8 gap-1.5 rounded-lg text-xs lg:inline-flex"
           >
             <LockKeyhole className="size-3" />
             Lock session
@@ -207,8 +208,8 @@ function ReviewPageHeader({
 
 function ReviewModeSwitch({ onOpenMenuMode }: { onOpenMenuMode: () => void }) {
   return (
-    <div className="hidden items-center rounded-lg border border-border p-0.5 sm:flex">
-      <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">
+    <div className="flex items-center rounded-lg border border-border p-0.5">
+      <span className="hidden rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground sm:inline-flex">
         Review
       </span>
       <Button
@@ -227,7 +228,7 @@ function ReviewPageIntro({ session }: { session: KapiSession }) {
   return (
     <div className="mb-6">
       <h1 className="text-xl font-semibold tracking-tight">
-        Group Order Review
+        Review group order
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
         {session.address.label} ·{' '}
@@ -249,7 +250,6 @@ function OrderReviewContent({
   totalQty,
   unavailable,
   onFallback,
-  onOpenMenuMode,
   onRefresh,
   onRemoveItem,
   onSync,
@@ -266,7 +266,6 @@ function OrderReviewContent({
   totalQty: number
   unavailable: CartLine[]
   onFallback: () => void
-  onOpenMenuMode: () => void
   onRefresh: () => void
   onRemoveItem: (itemId: string) => void
   onSync: () => void
@@ -277,11 +276,7 @@ function OrderReviewContent({
       <div className="flex flex-col gap-4">
         {stale ? <StaleSessionAlert /> : null}
         {isOrganizer ? (
-          <ShareActionsPanel
-            session={session}
-            onOpenMenuMode={onOpenMenuMode}
-            onRefresh={onRefresh}
-          />
+          <ShareActionsPanel session={session} onRefresh={onRefresh} />
         ) : null}
         <OrderGroups
           groups={groups}
@@ -321,11 +316,9 @@ function StaleSessionAlert() {
 
 function ShareActionsPanel({
   session,
-  onOpenMenuMode,
   onRefresh,
 }: {
   session: KapiSession
-  onOpenMenuMode: () => void
   onRefresh: () => void
 }) {
   return (
@@ -337,19 +330,6 @@ function ShareActionsPanel({
         className="min-w-0 flex-1 font-mono text-xs"
       />
       <div className="flex gap-2">
-        <div className="flex items-center rounded-lg border border-border p-0.5 sm:hidden">
-          <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">
-            Review
-          </span>
-          <Button
-            onClick={onOpenMenuMode}
-            variant="ghost"
-            size="sm"
-            className="h-7 rounded-md px-2.5 text-xs"
-          >
-            Menu
-          </Button>
-        </div>
         <Button
           onClick={() => {
             navigator.clipboard
@@ -570,9 +550,7 @@ function OrderSummaryActions({
 function NextStepCard() {
   return (
     <div className="mt-4 rounded-xl border border-primary/20 bg-primary/2.5 p-4">
-      <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-primary">
-        Next step
-      </p>
+      <p className="mb-1 text-xs font-semibold text-primary">Next step</p>
       <p className="text-sm font-semibold">Open Swiggy cart</p>
       <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
         Apply coupons or payment details in Swiggy, then place the order.
