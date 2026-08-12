@@ -10,13 +10,15 @@
     <title>Join the group order · kapi.run</title>
   </head>
   <body>
-    <main class="join-page" aria-busy="true">
+    <main class="app-page join-page">
       <header class="app-header">
-        <a class="app-header__brand" href="/" aria-label="kapi.run home"><img src="/kapi-icon.png" alt="" /><span>kapi.run</span></a>
+        <div class="app-header__inner">
+          <a class="app-header__brand" href="/" aria-label="kapi.run home"><img src="/kapi-icon.png" alt="" /><span>kapi.run</span></a>
+        </div>
       </header>
 
       <div class="join-page__content">
-        <article class="card join-card">
+        <section class="card join-card" aria-labelledby="join-title">
           <header class="join-intro">
             <span class="join-intro__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24">
@@ -26,18 +28,15 @@
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
               </svg>
             </span>
-            <span>
-              <strong>Join this order</strong>
-              <span class="join-intro__description" data-session-description>
+            <hgroup>
+              <h1 id="join-title">Join this order</h1>
+              <p class="join-intro__description" data-session-description>
                 Confirm your name before adding items.
-              </span>
-            </span>
+              </p>
+            </hgroup>
           </header>
 
-          <output class="join-loading" aria-live="polite" data-join-loading>
-            <svg class="spinner" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M21 12a9 9 0 1 1-6.22-8.56"></path>
-            </svg>
+          <output class="join-loading" aria-live="polite" aria-busy="true" data-spinner="small" data-join-loading>
             <span>Loading order</span>
           </output>
 
@@ -76,7 +75,7 @@
               </svg>
             </button>
           </form>
-        </article>
+        </section>
       </div>
     </main>
 

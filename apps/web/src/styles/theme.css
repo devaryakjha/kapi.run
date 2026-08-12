@@ -55,14 +55,13 @@
 @layer base {
   html {
     min-height: 100%;
-    font-family: var(--font-sans);
     text-rendering: optimizeLegibility;
   }
 
-  body {
-    min-height: 100%;
-    background: var(--background);
-    color: var(--foreground);
+  body { min-height: 100%; }
+
+  main {
+    padding-block-start: 0;
   }
 
   :where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']), textarea, select) {

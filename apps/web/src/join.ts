@@ -37,7 +37,6 @@ const state: JoinState = {
   session: null,
 }
 
-const page = required<HTMLElement>('.join-page')
 const description = required<HTMLElement>('[data-session-description]')
 const loading = required<HTMLElement>('[data-join-loading]')
 const form = required<HTMLFormElement>('.join-form')
@@ -124,7 +123,6 @@ function patch(next: Partial<JoinState>) {
 }
 
 function render() {
-  page.setAttribute('aria-busy', String(state.pending))
   loading.hidden = !state.pending
   form.hidden = state.pending
   description.textContent = state.session

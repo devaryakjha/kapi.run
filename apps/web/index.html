@@ -25,21 +25,19 @@
     <title>kapi.run</title>
   </head>
   <body>
-    <main class="home-page">
+    <main class="app-page home-page">
       <header class="app-header" data-app-header>
         <div class="app-header__inner">
           <a class="app-header__brand" href="/" aria-label="kapi.run home">
             <img src="/kapi-icon.png" alt="" />
             <span>kapi.run</span>
           </a>
-          <span aria-hidden="true"></span>
-          <span aria-hidden="true"></span>
         </div>
       </header>
 
       <div class="home-page__content">
         <div class="home-layout">
-          <section class="home-intro">
+          <hgroup class="home-intro">
             <h1 class="home-intro__title">
               <span>Pick together.</span>
               <span>Pay once.</span>
@@ -52,7 +50,7 @@
               Participants join in the browser. Only the organiser connects
               Swiggy.
             </p>
-          </section>
+          </hgroup>
 
           <section class="order-ticket" aria-labelledby="group-order-title">
             <span class="order-ticket__notch order-ticket__notch--start" aria-hidden="true"></span>
@@ -60,10 +58,10 @@
 
             <article class="card order-card">
               <header class="order-card__header">
-                <div>
+                <hgroup>
                   <h2 id="group-order-title">Group order</h2>
                   <p>Create one or join one</p>
-                </div>
+                </hgroup>
                 <span class="order-card__mark" aria-hidden="true">
                   <svg viewBox="0 0 24 24">
                     <path d="M5 12h14"></path>
@@ -74,10 +72,10 @@
 
               <div class="order-card__body">
                 <section class="start-order">
-                  <div>
+                  <hgroup>
                     <h3>Start a new order</h3>
                     <p>Choose the address, restaurant, and cutoff.</p>
-                  </div>
+                  </hgroup>
                   <a class="button start-order__action" href="/new/">
                     Start order
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -95,10 +93,10 @@
                         <path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.15-1.15"></path>
                       </svg>
                     </span>
-                    <div>
+                    <hgroup>
                       <h3>Join an order</h3>
                       <p>Use the invite link or code from the organiser.</p>
-                    </div>
+                    </hgroup>
                   </div>
 
                   <form class="join-form" novalidate>

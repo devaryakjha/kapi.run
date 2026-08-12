@@ -30,6 +30,12 @@
 }
 
 @layer components {
+  .app-page {
+    display: flex;
+    min-height: 100svh;
+    flex-direction: column;
+  }
+
   .app-header {
     position: sticky;
     z-index: 20;
@@ -73,14 +79,12 @@
 
   .app-header__brand:hover {
     color: var(--primary);
-    text-decoration: none;
   }
 
   .account-popover {
     position:fixed;
     inset:auto;
     width:16rem;
-    margin:0;
   }
 
   .account-popover header { display:flex; align-items:center; gap:.625rem; }
@@ -91,11 +95,24 @@
   .account-popover header small { display:flex; align-items:center; gap:.375rem; }
   .account-popover header small::before { color:var(--primary); content:'✓'; font-weight:700; }
   .account-popover[data-connected='false'] header small::before { color:var(--muted-foreground); content:'○'; }
-  .account-popover__avatar { flex:none; margin:0; font-size:.75rem; }
+  .account-popover__avatar { flex:none; font-size:.75rem; }
   .account-popover__address { display:flex; align-items:flex-start; gap:.625rem; margin-top:.625rem; padding-top:.625rem; border-top:1px solid var(--border); }
   .account-popover__address svg { width:1rem; height:1rem; flex:none; margin-top:.125rem; color:var(--muted-foreground); }
   .account-popover__address strong { font-size:.75rem; font-weight:500; }
   .account-popover__address small { display:-webkit-box; margin-top:.125rem; overflow:hidden; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp: 2 }
+
+  .empty-state {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    text-align: center;
+  }
+
+  .empty-state:not([hidden]) { display:flex; }
+  .empty-state > :is(strong, span) { display:block; }
+  .empty-state > strong { font-family:var(--font-heading); font-size:var(--text-5); font-weight:var(--font-medium); letter-spacing:-.025em; }
+  .empty-state > span:last-child { color:var(--muted-foreground); font-size:var(--text-7); }
 }
 
 @media (min-width: 48rem) {

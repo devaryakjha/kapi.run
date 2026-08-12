@@ -53,7 +53,7 @@ const state: SetupState = {
   selectedRestaurantId: '',
 }
 
-const page = required<HTMLElement>('.setup-page')
+const setupForm = required<HTMLFormElement>('.setup-shell')
 const accountStep = required<HTMLElement>('[data-step="account"]')
 const accountNumber = required<HTMLElement>('[data-step-number]')
 const accountDoneLabel = required<HTMLElement>('.setup-step__done-label')
@@ -76,7 +76,6 @@ const restaurantTemplate = required<HTMLTemplateElement>('#restaurant-option-tem
 const setupError = required<HTMLElement>('.setup-error')
 const errorMessage = required<HTMLElement>('[data-error-message]')
 const createButton = required<HTMLButtonElement>('.create-session')
-const createSpinner = required<SVGElement>('[data-create-spinner]')
 
 let restaurantTimer: number | undefined
 let restaurantRequest: AbortController | undefined
@@ -179,7 +178,10 @@ function bindEvents() {
     restaurantDialog.close()
   })
 
-  createButton.addEventListener('click', () => void createSession())
+  setupForm.addEventListener('submit', (event) => {
+    event.preventDefault()
+    void createSession()
+  })
 }
 
 function connectSwiggy() {
@@ -298,8 +300,6 @@ async function createSession() {
 }
 
 function render() {
-  page.ariaBusy = String(state.pending)
-
   const accountState = state.authStatus.connected
     ? 'connected'
     : state.pending
@@ -319,7 +319,7 @@ function render() {
     cutoffInput.value = state.cutoffTime
   }
   const cutoff = resolveSetupCutoffAt(state.cutoffTime)
-  cutoffError.hidden = !('error' in cutoff)
+  cutoffInput.setAttribute('aria-invalid', String('error' in cutoff))
   cutoffError.textContent = 'error' in cutoff ? cutoff.error : ''
 
   const selectedRestaurant = state.restaurants.find(
@@ -343,9 +343,9 @@ function render() {
     !('error' in cutoff) &&
     Boolean(state.selectedRestaurantId)
   createButton.disabled = !canCreate
-  createSpinner.toggleAttribute(
-    'hidden',
-    !(state.pending && Boolean(state.selectedRestaurantId)),
+  createButton.setAttribute(
+    'aria-busy',
+    String(state.pending && Boolean(state.selectedRestaurantId)),
   )
 
   setupError.hidden = !state.error
@@ -370,7 +370,9 @@ function renderAddresses() {
     button.dataset.addressId = address.id
     button.setAttribute('popovertarget', 'address-menu')
     button.setAttribute('popovertargetaction', 'hide')
-    button.ariaChecked = String(address.id === state.selectedAddressId)
+    if (address.id === state.selectedAddressId) {
+      button.setAttribute('aria-current', 'true')
+    }
     const label = document.createElement('strong')
     label.textContent = address.label
     const detail = document.createElement('small')
@@ -394,9 +396,13 @@ function renderRestaurantPicker() {
   for (const restaurant of state.restaurants) {
     const button = createRestaurantTile(restaurant)
     button.dataset.restaurantId = restaurant.id
-    button.ariaSelected = String(restaurant.id === state.selectedRestaurantId)
+    if (restaurant.id === state.selectedRestaurantId) {
+      button.setAttribute('aria-current', 'true')
+    }
     button.disabled = restaurant.availabilityStatus !== 'OPEN'
-    restaurantList.append(button)
+    const item = document.createElement('li')
+    item.append(button)
+    restaurantList.append(item)
   }
 }
 

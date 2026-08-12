@@ -13,39 +13,35 @@
     <title>Start a group order · kapi.run</title>
   </head>
   <body>
-    <main class="setup-page" aria-busy="true">
+    <main class="app-page setup-page">
       <header class="app-header" data-app-header>
         <div class="app-header__inner">
           <a class="app-header__brand" href="/" aria-label="kapi.run home">
             <img src="/kapi-icon.png" alt="" />
             <span>kapi.run</span>
           </a>
-          <span aria-hidden="true"></span>
-          <span aria-hidden="true"></span>
         </div>
       </header>
 
       <div class="setup-page__content">
-        <section class="setup-shell" aria-labelledby="setup-title">
-          <header class="setup-intro">
+        <form class="setup-shell" aria-labelledby="setup-title" novalidate>
+          <hgroup class="setup-intro">
             <h1 id="setup-title">Start a group order</h1>
             <p>Connect Swiggy, pick a spot, share the link.</p>
-          </header>
+          </hgroup>
 
           <ol class="setup-steps">
-            <li class="card setup-step" data-step="account">
+            <li>
+              <article class="card setup-step" data-step="account">
               <header class="setup-step__heading">
                 <span class="setup-step__number" data-step-number>1</span>
                 <h2>Swiggy account</h2>
                 <span class="setup-step__done-label" hidden>✓ Connected</span>
               </header>
 
-              <div class="account-state account-state--loading" data-account-state="loading">
-                <svg class="spinner" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M21 12a9 9 0 1 1-6.22-8.56"></path>
-                </svg>
+              <output class="account-state account-state--loading" data-account-state="loading" aria-busy="true" data-spinner="small">
                 <span>Checking your Swiggy connection…</span>
-              </div>
+              </output>
 
               <div class="account-state account-state--disconnected" data-account-state="disconnected" hidden>
                 <div class="account-state__message">
@@ -65,9 +61,11 @@
                 <p>Your Swiggy addresses are ready to use.</p>
                 <button class="ghost small account-reconnect" type="button">Reconnect</button>
               </div>
+              </article>
             </li>
 
-            <li class="card setup-step" data-step="address">
+            <li>
+              <article class="card setup-step" data-step="address">
               <header class="setup-step__heading">
                 <span class="setup-step__number">2</span>
                 <h2>Address &amp; cutoff</h2>
@@ -75,38 +73,41 @@
 
               <div class="setup-fields">
                 <div class="setup-field">
-                  <span>Delivery address</span>
+                  <span id="address-field-label">Delivery address</span>
                   <ot-dropdown class="address-dropdown">
-                    <button class="address-trigger outline" type="button" popovertarget="address-menu" disabled>
+                    <button class="address-trigger outline" type="button" popovertarget="address-menu" aria-labelledby="address-field-label address-trigger-label" disabled>
                       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                      <span data-address-trigger-label>Connect first</span>
+                      <span id="address-trigger-label" data-address-trigger-label>Connect first</span>
                       <svg class="address-trigger__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
                     </button>
-                    <menu id="address-menu" popover data-address-menu></menu>
+                    <div id="address-menu" role="menu" popover data-address-menu></div>
                   </ot-dropdown>
                 </div>
 
-                <label class="setup-field" for="cutoff-time">
+                <label class="setup-field" data-field for="cutoff-time">
                   <span>Order cutoff</span>
-                  <input id="cutoff-time" type="time" step="60" />
-                  <small class="setup-field__error" data-cutoff-error hidden></small>
+                  <input id="cutoff-time" type="time" step="60" aria-describedby="cutoff-error" />
+                  <small class="error" id="cutoff-error" data-cutoff-error></small>
                 </label>
               </div>
+              </article>
             </li>
 
-            <li class="card setup-step" data-step="restaurant">
+            <li>
+              <article class="card setup-step" data-step="restaurant">
               <header class="setup-step__heading">
                 <span class="setup-step__number">3</span>
-                <h2>Restaurant</h2>
+                <h2 id="restaurant-field-label">Restaurant</h2>
               </header>
 
-              <button class="outline restaurant-trigger" type="button" disabled>
+              <button class="outline restaurant-trigger" type="button" aria-labelledby="restaurant-field-label restaurant-trigger-label" disabled>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <circle cx="11" cy="11" r="8"></circle>
                   <path d="m21 21-4.3-4.3"></path>
                 </svg>
-                <span data-restaurant-trigger-label>Search restaurants or cuisine…</span>
+                <span id="restaurant-trigger-label" data-restaurant-trigger-label>Search restaurants or cuisine…</span>
               </button>
+              </article>
             </li>
           </ol>
 
@@ -123,10 +124,7 @@
               </span>
             </div>
 
-            <button class="large create-session" type="button" disabled>
-              <svg class="spinner" data-create-spinner viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M21 12a9 9 0 1 1-6.22-8.56"></path>
-              </svg>
+            <button class="large create-session" type="submit" data-spinner="small" disabled>
               <span>Create session</span>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 12h14"></path>
@@ -135,13 +133,13 @@
             </button>
             <p>The invite link is generated instantly.</p>
           </div>
-        </section>
+        </form>
       </div>
     </main>
 
-    <dialog id="restaurant-dialog" class="restaurant-dialog" closedby="any">
+    <dialog id="restaurant-dialog" class="restaurant-dialog" closedby="any" aria-labelledby="restaurant-dialog-title">
       <section class="restaurant-picker">
-        <h2 class="sr-only">Choose Restaurant</h2>
+        <h2 class="sr-only" id="restaurant-dialog-title">Choose Restaurant</h2>
         <p class="sr-only">Search restaurants or cuisine</p>
         <label class="restaurant-search" for="restaurant-search">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -159,13 +157,13 @@
         </div>
         <section class="restaurant-results" data-restaurant-results hidden>
           <h3>Restaurants</h3>
-          <div role="listbox" aria-label="Restaurants" data-restaurant-list></div>
+          <ul aria-label="Restaurants" data-restaurant-list></ul>
         </section>
       </section>
     </dialog>
 
     <template id="restaurant-option-template">
-      <button class="ghost restaurant-option" role="option" type="button">
+      <button class="ghost restaurant-option" type="button">
         <span class="restaurant-option__image" aria-hidden="true">
           <svg viewBox="0 0 24 24">
             <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path>

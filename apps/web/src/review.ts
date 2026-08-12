@@ -26,7 +26,6 @@ function required<T extends Element>(selector: string) {
   return element
 }
 
-const page = required<HTMLElement>('.review-page')
 const loading = required<HTMLElement>('.review-loading')
 const loadError = required<HTMLElement>('.review-load-error')
 const loadErrorMessage = required<HTMLElement>('[data-review-load-error]')
@@ -35,6 +34,7 @@ const restaurant = required<HTMLElement>('[data-review-restaurant]')
 const subtitle = required<HTMLElement>('[data-review-subtitle]')
 const timer = required<HTMLElement>('[data-review-timer]')
 const avatar = required<HTMLElement>('[data-review-avatar]')
+const avatarTrigger = required<HTMLElement>('[data-review-avatar-trigger]')
 const staleAlert = required<HTMLElement>('.review-stale')
 const invitePanel = required<HTMLElement>('.invite-panel')
 const inviteLink = required<HTMLInputElement>('[data-invite-link]')
@@ -208,7 +208,6 @@ function showActionError(caught: unknown) {
 }
 
 function render() {
-  page.setAttribute('aria-busy', String(pending))
   loading.hidden = true
   loadError.hidden = Boolean(session) || !error
   loadErrorMessage.textContent = error ?? ''
@@ -224,7 +223,7 @@ function render() {
     connected: isOrganizer,
     name: session.organiserName,
     popover: accountPopover,
-    trigger: avatar,
+    trigger: avatarTrigger,
   })
   staleAlert.hidden = !stale
   invitePanel.hidden = !isOrganizer
@@ -268,29 +267,30 @@ function renderOrders() {
 function createGroup(name: string, items: CartLine[]) {
   const group = document.createElement('article'); group.className = 'card order-group'
   const header = document.createElement('header')
-  const identity = document.createElement('span'); identity.className = 'order-group__identity'
-  const initial = document.createElement('i'); initial.textContent = name.slice(0,1).toUpperCase()
-  const title = document.createElement('strong'); title.textContent = name
+  const identity = document.createElement('div'); identity.className = 'order-group__identity'
+  const initial = document.createElement('figure'); initial.className = 'participant-avatar'; initial.dataset.variant = 'avatar'; initial.ariaHidden = 'true'; initial.textContent = name.slice(0,1).toUpperCase()
+  const title = document.createElement('h3'); title.textContent = name
   const count = document.createElement('small'); count.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`
   identity.append(initial,title,count)
   const total = document.createElement('strong'); total.textContent = `₹${items.reduce((sum,item)=>sum+item.price*item.quantity,0)}`
-  header.append(identity,total); group.append(header)
-  for (const item of items) group.append(createReviewItem(item))
+  const list = document.createElement('ul'); list.className = 'review-items'
+  header.append(identity,total); group.append(header, list)
+  for (const item of items) list.append(createReviewItem(item))
   return group
 }
 
 function createReviewItem(item: CartLine) {
-  const row = document.createElement('div'); row.className = 'review-item'
+  const row = document.createElement('li'); row.className = 'review-item'
   const name = document.createElement('span'); name.textContent = item.name
   const actions = document.createElement('span'); actions.className = 'review-item__actions'
   const value = document.createElement('strong'); value.textContent = `₹${item.price} ×${item.quantity}`
   actions.append(value)
   if (isOrganizer) {
-    actions.append(itemButton('−','decrease',item.id), Object.assign(document.createElement('b'),{textContent:String(item.quantity)}), itemButton('+','increase',item.id), itemButton('×','remove',item.id))
+    actions.append(itemButton('−','decrease',item.id,`Decrease ${item.name}`), Object.assign(document.createElement('b'),{textContent:String(item.quantity)}), itemButton('+','increase',item.id,`Increase ${item.name}`), itemButton('×','remove',item.id,`Remove ${item.name}`))
   }
   row.append(name,actions); return row
 }
 
-function itemButton(text: string, action: string, itemId: string) {
-  const button = document.createElement('button'); button.type='button'; button.textContent=text; button.dataset.action=action; button.dataset.itemId=itemId; return button
+function itemButton(text: string, action: string, itemId: string, label: string) {
+  const button = document.createElement('button'); button.type='button'; button.textContent=text; button.dataset.action=action; button.dataset.itemId=itemId; button.setAttribute('aria-label',label); return button
 }

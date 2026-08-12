@@ -42,7 +42,6 @@ function required<T extends Element>(selector: string) {
   return element
 }
 
-const page = required<HTMLElement>('.menu-page')
 const workspace = required<HTMLElement>('.menu-workspace')
 const workspaceLoading = required<HTMLElement>('.workspace-loading')
 const workspaceError = required<HTMLElement>('.workspace-error')
@@ -51,6 +50,7 @@ const restaurantName = required<HTMLElement>('[data-restaurant-name]')
 const timer = required<HTMLElement>('[data-timer]')
 const reviewLink = required<HTMLAnchorElement>('[data-review-link]')
 const avatar = required<HTMLElement>('[data-avatar]')
+const avatarTrigger = required<HTMLElement>('[data-avatar-trigger]')
 const searchInput = required<HTMLInputElement>('#menu-search')
 const categoryList = required<HTMLElement>('.category-list')
 const savedCopy = required<HTMLElement>('.saved-copy')
@@ -63,10 +63,12 @@ const cartSummary = required<HTMLElement>('[data-cart-summary]')
 const cartName = required<HTMLInputElement>('#cart-participant-name')
 const cartEmpty = required<HTMLElement>('.cart-empty')
 const cartLines = required<HTMLElement>('.cart-lines')
+const cartLineList = required<HTMLUListElement>('[data-cart-line-list]')
 const cartFooter = required<HTMLElement>('.cart-footer')
 const cartTotal = required<HTMLElement>('[data-cart-total]')
 const cartItemsTotal = required<HTMLElement>('[data-cart-items-total]')
 const itemDialog = required<HTMLDialogElement>('.item-dialog')
+const itemForm = required<HTMLFormElement>('.item-dialog__form')
 const itemOptions = required<HTMLElement>('[data-item-options]')
 const accountPopover = required<HTMLElement>('#menu-account')
 const lockFeedback = required<HTMLElement>('.lock-feedback')
@@ -218,7 +220,8 @@ function bindEvents() {
     changeQuantity(button.dataset.lineId ?? '', Number(button.dataset.delta))
   })
   required<HTMLButtonElement>('.item-dialog__close').addEventListener('click', () => itemDialog.close())
-  required<HTMLButtonElement>('.item-dialog__add').addEventListener('click', () => {
+  itemForm.addEventListener('submit', (event) => {
+    event.preventDefault()
     if (!activeItem) return
     if (session && isSessionLockedForParticipants(session)) { announceLocked(); return }
     if (customization) addCustomizedItem(activeItem)
@@ -304,7 +307,6 @@ function changeQuantity(lineId: string, delta: number) {
 }
 
 function render() {
-  page.setAttribute('aria-busy', 'false')
   workspaceLoading.hidden = true
   workspaceError.hidden = !error
   workspaceErrorMessage.textContent = error ?? ''
@@ -323,7 +325,7 @@ function render() {
     connected: isOrganizer,
     name: participantName || session.organiserName,
     popover: accountPopover,
-    trigger: avatar,
+    trigger: avatarTrigger,
   })
   cartName.value = participantName
   savedCopy.hidden = !stale
@@ -340,6 +342,7 @@ function renderCategories() {
   for (const category of categories) {
     const button = document.createElement('button')
     button.type = 'button'
+    button.className = 'badge outline'
     button.dataset.category = category
     button.dataset.active = String(activeCategory === category && !query)
     button.textContent = category
@@ -431,14 +434,11 @@ function renderCart() {
   cartEmpty.hidden = lines.length > 0
   cartLines.hidden = lines.length === 0
   cartFooter.hidden = lines.length === 0
-  cartLines.replaceChildren()
-  const heading = document.createElement('h4')
-  heading.textContent = 'Your draft'
-  cartLines.append(heading)
+  cartLineList.replaceChildren()
   let total = 0
   for (const { item, line } of lines) {
     total += (line.unitPrice ?? item.price) * line.quantity
-    const row = document.createElement('div'); row.className = 'cart-line'
+    const row = document.createElement('li'); row.className = 'cart-line'
     const copy = document.createElement('span'); copy.className = 'cart-line__copy'
     const title = document.createElement('strong'); title.textContent = item.name
     const value = document.createElement('small'); value.textContent = `₹${line.unitPrice ?? item.price} × ${line.quantity}`
@@ -455,7 +455,7 @@ function renderCart() {
       Object.assign(document.createElement('b'), { textContent: String(line.quantity) }),
       cartLineButton('+', line.id, 1, `Increase ${item.name}`),
     )
-    row.append(copy, controls); cartLines.append(row)
+    row.append(copy, controls); cartLineList.append(row)
   }
   cartTotal.textContent = `₹${total}`
   cartItemsTotal.textContent = `₹${total}`
