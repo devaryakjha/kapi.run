@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  addonSelectionStatus,
   initialAddonSelections,
   toggleAddonSelection,
 } from './addon-selection.ts'
@@ -31,5 +32,27 @@ describe('add-on selection', () => {
       limitReached: false,
       selection: ['b'],
     })
+  })
+
+  it('shows selection progress without repeating the choice rule', () => {
+    expect(addonSelectionStatus({ minAddons: 1, maxAddons: 1 }, 0)).toBe(
+      '0 of 1 selected.',
+    )
+    expect(addonSelectionStatus({ maxAddons: 4 }, 2)).toBe(
+      '2 of 4 selected.',
+    )
+  })
+
+  it('shows a count when an add-on group has no maximum', () => {
+    expect(addonSelectionStatus({}, 2)).toBe('2 selected.')
+  })
+
+  it('shows a distinct minimum when the maximum does not explain it', () => {
+    expect(addonSelectionStatus({ minAddons: 2, maxAddons: 4 }, 0)).toBe(
+      '0 of 4 selected. 2 required.',
+    )
+    expect(addonSelectionStatus({ minAddons: 2 }, 0)).toBe(
+      '0 selected. 2 required.',
+    )
   })
 })

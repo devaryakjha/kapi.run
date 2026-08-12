@@ -8,7 +8,7 @@
   .menu-icon-button { position:relative; }
   .cart-count { position:absolute; top:-.375rem; right:-.375rem; min-width:1.125rem; padding:0 .25rem; font-family:ui-monospace,monospace; font-size:.5625rem; font-weight:700; line-height:1rem; }
   .menu-workspace { min-height:0; flex:1; overflow:hidden; }
-  .menu-toolbar { position:sticky; z-index:5; top:0; padding:.75rem 1rem; border-bottom:1px solid var(--border); background:color-mix(in oklch,var(--background) 95%,transparent); backdrop-filter:blur(8px); }
+  .menu-toolbar { position:sticky; z-index:5; top:0; flex:none; padding:.75rem 1rem; border-bottom:1px solid var(--border); background:color-mix(in oklch,var(--background) 95%,transparent); backdrop-filter:blur(8px); }
   .menu-toolbar__inner,.menu-content__inner { max-width:64rem; margin-inline:auto; }
   .menu-search { position:relative; display:block; margin:0; }
   .menu-search svg { position:absolute; top:50%; left:.75rem; transform:translateY(-50%); }
@@ -17,7 +17,7 @@
   .category-list>li { margin:0; }
   .category-list .badge { flex:none; padding:.25rem .75rem; color:var(--muted-foreground); line-height:1rem; }
   .category-list button[data-active='true'] { border-color:var(--primary); background:var(--primary); color:var(--primary-foreground); }
-  .menu-content { height:calc(100% - 1px); overflow-y:auto; padding:1rem 1rem 7rem; }
+  .menu-content { min-height:0; flex:1; overflow-y:auto; padding:1rem 1rem 7rem; }
   .saved-copy { min-height:3rem; margin-bottom:1rem; }
   .saved-copy svg { flex:none; color:var(--foreground); }
   .menu-grid { display:grid; grid-template-columns:1fr; gap:.625rem; }
@@ -98,6 +98,7 @@
   .item-options { margin:1.25rem 0; }
   .item-option-group { margin:0; padding:0; border:0; }
   .item-option-group>legend { padding:0; font-size:.75rem; font-weight:600; line-height:1rem; letter-spacing:.06em; text-transform:uppercase; }
+  .item-option-group__optional { font-weight:400; letter-spacing:0; text-transform:none; }
   .item-option-group>legend small { font-size:.75rem; font-weight:400; line-height:1rem; letter-spacing:0; text-transform:none; }
   .item-option-list { display:grid; gap:.5rem; margin-top:.5rem; }
   .item-option { min-height:2.5rem; gap:.75rem; padding:.5rem .75rem; border:1px solid var(--border); border-radius:.5rem; font-size:.875rem; }

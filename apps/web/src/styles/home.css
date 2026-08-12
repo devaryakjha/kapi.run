@@ -104,6 +104,8 @@
     border: 1px solid color-mix(in oklch, var(--primary-foreground) 20%, transparent);
     border-radius: 0.875rem;
     background: color-mix(in oklch, var(--primary-foreground) 10%, transparent);
+    color: inherit;
+    text-decoration: none;
   }
 
   .order-card__mark svg {

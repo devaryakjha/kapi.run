@@ -350,6 +350,129 @@ describe("Swiggy read proxy authorization", () => {
   });
 });
 
+describe("Swiggy tool errors", () => {
+  it("returns actionable feedback for an invalid saved add-on", async () => {
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = (async (_input, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        params?: { name?: string };
+      };
+      if (body.params?.name === "update_food_cart") {
+        return Response.json({
+          result: {
+            structuredContent: {
+              statusCode: 1,
+              statusMessage:
+                "Restaurant may have removed the item(s) from their menu.",
+              titleMessage:
+                "Apologies! one or more items in your cart are no longer available",
+              successful: false,
+              errorCodes: ["INVALID_ADDON"],
+              data: null,
+            },
+          },
+        });
+      }
+      return Response.json({
+        result: {
+          structuredContent: {
+            success: true,
+            data: { itemCount: 0 },
+          },
+        },
+      });
+    }) as typeof fetch;
+
+    try {
+      const response = await app.handle(
+        new Request("http://api.test/food/cart/sync", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: publicWebUrl,
+            "x-kapi-organizer-secret": "organizer-secret",
+          },
+          body: JSON.stringify({
+            sessionId: "session-1",
+            restaurantId: "restaurant-1",
+            addressId: "addr-1",
+            cartItems: [
+              {
+                menu_item_id: "item-1",
+                quantity: 1,
+                addons: [{ group_id: "group-1", choice_id: "choice-1" }],
+              },
+            ],
+          }),
+        }),
+      );
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({
+        error:
+          "One or more selected add-ons are no longer available. Edit the affected items and try again.",
+      });
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+
+  it("uses a bounded status message for unknown Swiggy failures", () => {
+    expect(
+      api.swiggyToolErrorMessage({
+        successful: false,
+        errorCodes: ["UNKNOWN_CART_ERROR"],
+        statusMessage: "  Please retry this cart update.\n",
+        titleMessage: "Cart update failed",
+      }),
+    ).toBe("Please retry this cart update.");
+    expect(
+      api.swiggyToolErrorMessage({
+        successful: false,
+        titleMessage: "Cart update failed",
+      }),
+    ).toBe("Cart update failed");
+    expect(
+      api.swiggyToolErrorMessage({
+        successful: false,
+        statusMessage: "x".repeat(241),
+      }),
+    ).toBe("Swiggy request failed.");
+  });
+
+  it("keeps safe details from a non-2xx Swiggy response", async () => {
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = (async (_input, _init) =>
+      Response.json(
+        {
+          result: {
+            structuredContent: {
+              successful: false,
+              statusMessage: "The selected item is unavailable.",
+            },
+          },
+        },
+        { status: 422 },
+      )) as typeof fetch;
+
+    try {
+      const response = await app.handle(
+        new Request(
+          "http://api.test/food/cart?addressId=addr-1&sessionId=session-1",
+          { headers: { "x-kapi-organizer-secret": "organizer-secret" } },
+        ),
+      );
+
+      expect(response.status).toBe(422);
+      expect(await response.json()).toEqual({
+        error: "The selected item is unavailable.",
+      });
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+});
+
 describe("relay session events", () => {
   it("404s unknown sessions without opening a stream", async () => {
     const response = await app.handle(

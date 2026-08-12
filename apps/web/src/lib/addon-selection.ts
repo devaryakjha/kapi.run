@@ -2,6 +2,11 @@ type AddonGroup = {
   groupId: string
 }
 
+type AddonSelectionRule = {
+  minAddons?: number
+  maxAddons?: number
+}
+
 export function initialAddonSelections(groups: readonly AddonGroup[]) {
   return Object.fromEntries(groups.map(({ groupId }) => [groupId, []])) as Record<
     string,
@@ -29,4 +34,18 @@ export function toggleAddonSelection(
     return { limitReached: true, selection: [...current] }
   }
   return { limitReached: false, selection: [...current, choiceId] }
+}
+
+export function addonSelectionStatus(
+  group: AddonSelectionRule,
+  selected: number,
+) {
+  const progress = group.maxAddons
+    ? `${selected} of ${group.maxAddons} selected.`
+    : `${selected} selected.`
+  const minimum = group.minAddons ?? 0
+
+  return minimum > 0 && minimum !== group.maxAddons
+    ? `${progress} ${minimum} required.`
+    : progress
 }

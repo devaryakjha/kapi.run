@@ -43,7 +43,7 @@
   .summary-card dl div { font-size:.75rem; }
   .summary-card dd { margin:0; font-family:ui-monospace,monospace; font-weight:600; }
   .summary-card>p { margin:.75rem 0 0; padding-top:.75rem; border-top:1px solid var(--border); font-size:.6875rem; line-height:1.25rem; }
-  .sync-cart { margin-top:auto; }
+  .sync-cart { margin-top:auto; font-size:var(--text-7); }
   .orders-empty { min-height:18rem; padding:var(--space-8); }
   .review-loading { min-height:calc(100svh - 3.5rem); font-size:.875rem; }
   .review-load-error { width:min(72rem,calc(100% - 3rem)); margin:1.5rem auto; }

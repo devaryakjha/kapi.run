@@ -10,6 +10,7 @@ import './styles/menu.css'
 import { api } from './lib/api.ts'
 import { renderAccountPopover } from './lib/account-popover.ts'
 import {
+  addonSelectionStatus,
   initialAddonSelections,
   toggleAddonSelection,
 } from './lib/addon-selection.ts'
@@ -275,14 +276,14 @@ async function submitDraft() {
     renderCart()
     button.textContent = 'Update my items'
     cartDialog.close()
-    toast('Your items are now visible to the group.', 'Items submitted', {
+    toast('Items submitted to the group.', undefined, {
       placement: 'bottom-center',
       variant: 'success',
     })
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : 'Could not submit items.'
     button.textContent = 'Submit items'
-    toast(message, 'Could not submit items', {
+    toast(message, undefined, {
       placement: 'bottom-center',
       variant: 'danger',
     })
@@ -502,7 +503,7 @@ function setLockedInteraction(element: HTMLElement, locked: boolean) {
 }
 
 function announceLocked() {
-  toast(lockedMessage, 'Order locked', {
+  toast(lockedMessage, undefined, {
     duration: 2600,
     placement: 'bottom-center',
     variant: 'warning',
@@ -626,7 +627,11 @@ function variantGroup(group: MenuVariantGroup) {
 }
 
 function addonGroup(group: MenuAddonGroup) {
-  const root = optionGroup(group.groupName, addonRuleText(group))
+  const root = optionGroup(
+    group.groupName,
+    addonSelectionStatus(group, 0),
+    !group.minAddons,
+  )
   root.dataset.field = ''
   const list = root.querySelector<HTMLElement>('.item-option-list')!
   const rule = root.querySelector<HTMLElement>('[data-option-rule]')
@@ -639,7 +644,7 @@ function addonGroup(group: MenuAddonGroup) {
 
   function updateGroupFeedback(limitReached = false) {
     const selected = selectedAddons[group.groupId] ?? []
-    if (rule) rule.textContent = addonRuleText(group, selected.length)
+    if (rule) rule.textContent = addonSelectionStatus(group, selected.length)
     error.textContent = limitReached
       ? `Maximum ${group.maxAddons} selected. Remove one to choose another.`
       : ''
@@ -668,11 +673,18 @@ function addonGroup(group: MenuAddonGroup) {
   return root
 }
 
-function optionGroup(name: string, rule = '') {
+function optionGroup(name: string, rule = '', optional = false) {
   const root = document.createElement('fieldset'); root.className = 'item-option-group'
   const title = document.createElement('legend'); title.className = 'flex flex-col w-100 text-light'
-  const label = document.createElement('span'); label.textContent = name; title.append(label)
-  if (rule) { const detail = document.createElement('small'); detail.className = 'text-light'; detail.dataset.optionRule = ''; detail.textContent = rule; title.append(detail) }
+  const label = document.createElement('span'); label.textContent = name
+  if (optional) {
+    const status = document.createElement('em')
+    status.className = 'item-option-group__optional text-light'
+    status.textContent = ' (optional)'
+    label.append(status)
+  }
+  title.append(label)
+  if (rule) { const detail = document.createElement('small'); detail.className = 'text-light'; detail.dataset.optionRule = ''; detail.ariaLive = 'polite'; detail.textContent = rule; title.append(detail) }
   root.append(title)
   const list = document.createElement('div'); list.className = 'item-option-list'; root.append(list)
   return root
@@ -719,21 +731,4 @@ function addCustomizedItem(item: MenuItem) {
   const id = `${item.id}:${crypto.randomUUID()}`
   draft = { ...draft, [id]: { id, menuItemId: item.id, quantity: 1, customization: selected.customization, customizationSummary: selected.summary, unitPrice: item.price + selected.addonTotal } }
   storeDraft(session.id, draft); renderMenu(); renderCart()
-}
-
-function addonRuleText(group: MenuAddonGroup, selected?: number) {
-  let rule = ''
-  if (group.minAddons && group.minAddons === group.maxAddons) {
-    rule = `Choose ${group.minAddons}`
-  } else if (group.minAddons && group.maxAddons) {
-    rule = `Choose ${group.minAddons}-${group.maxAddons}`
-  } else if (group.minAddons) {
-    rule = `Choose at least ${group.minAddons}`
-  } else if (group.maxAddons) {
-    rule = `Choose up to ${group.maxAddons}`
-  }
-  if (selected === undefined || !rule) return rule
-  return group.maxAddons
-    ? `${rule}. ${selected} of ${group.maxAddons} selected.`
-    : `${rule}. ${selected} selected.`
 }

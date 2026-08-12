@@ -59,6 +59,9 @@ type ToolEnvelope = {
   data?: unknown;
   message?: string;
   error?: { message?: string };
+  errorCodes?: unknown;
+  statusMessage?: string;
+  titleMessage?: string;
 };
 export type RelayRecord = Omit<RelaySessionRecord, "participantSubmissions"> & {
   legacyRevision?: boolean;
@@ -914,25 +917,65 @@ function unwrapToolPayload(json: unknown): ToolEnvelope {
   return (result ?? response) as ToolEnvelope;
 }
 
+function publicToolMessage(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const message = value
+    .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return message && message.length <= 240 ? message : undefined;
+}
+
+export function swiggyToolErrorMessage(payload: ToolEnvelope) {
+  const errorCodes = Array.isArray(payload.errorCodes)
+    ? payload.errorCodes.flatMap((value) => {
+        const code = publicToolMessage(value);
+        return code ? [code] : [];
+      })
+    : [];
+  if (errorCodes.includes("INVALID_ADDON")) {
+    return "One or more selected add-ons are no longer available. Edit the affected items and try again.";
+  }
+  return (
+    publicToolMessage(payload.statusMessage) ??
+    publicToolMessage(payload.titleMessage) ??
+    publicToolMessage(payload.error?.message) ??
+    publicToolMessage(payload.message) ??
+    "Swiggy request failed."
+  );
+}
+
 async function parseMcpResponse(response: Response): Promise<ToolEnvelope> {
   const body = await response.text();
-  if (!response.ok)
+  const payload = (() => {
+    try {
+      if (response.headers.get("content-type")?.includes("text/event-stream")) {
+        const line = body
+          .split("\n")
+          .find((candidate) => candidate.startsWith("data:"));
+        return line
+          ? unwrapToolPayload(JSON.parse(line.slice(5).trim()))
+          : undefined;
+      }
+      return unwrapToolPayload(JSON.parse(body));
+    } catch {
+      return undefined;
+    }
+  })();
+  if (!response.ok) {
     throw Object.assign(
       new Error(
         response.status === 401
           ? "Connect Swiggy to continue."
-          : "Swiggy request failed.",
+          : payload
+            ? swiggyToolErrorMessage(payload)
+            : "Swiggy request failed.",
       ),
       { status: response.status },
     );
-  if (response.headers.get("content-type")?.includes("text/event-stream")) {
-    const line = body
-      .split("\n")
-      .find((candidate) => candidate.startsWith("data:"));
-    if (!line) throw new Error("Swiggy returned an empty response.");
-    return unwrapToolPayload(JSON.parse(line.slice(5).trim()));
   }
-  return unwrapToolPayload(JSON.parse(body));
+  if (!payload) throw new Error("Swiggy returned an invalid response.");
+  return payload;
 }
 
 async function callSwiggyTool(
@@ -955,9 +998,7 @@ async function callSwiggyTool(
   });
   const payload = await parseMcpResponse(response);
   if (payload.success === false || payload.successful === false)
-    throw new Error(
-      payload.error?.message ?? payload.message ?? "Swiggy request failed.",
-    );
+    throw new Error(swiggyToolErrorMessage(payload));
   return payload.data ?? payload;
 }
 

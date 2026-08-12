@@ -28,6 +28,7 @@ import {
 } from './lib/session.ts'
 import { writeWorkspaceCache } from './lib/workspace-cache.ts'
 import { bindDismissibleDialog } from './lib/dialog.ts'
+import { orderRestaurantsByAvailability } from './lib/restaurant-order.ts'
 
 type SetupState = {
   addresses: Address[]
@@ -207,7 +208,10 @@ function scheduleRestaurantSearch() {
         `/food/restaurants?addressId=${encodeURIComponent(state.selectedAddressId)}&q=${encodeURIComponent(query)}`,
         { signal: restaurantRequest.signal },
       )
-      patch({ restaurants, selectedRestaurantId: '' })
+      patch({
+        restaurants: orderRestaurantsByAvailability(restaurants),
+        selectedRestaurantId: '',
+      })
     } catch (caught) {
       if (!restaurantRequest.signal.aborted) {
         patch({ error: errorText(caught) })

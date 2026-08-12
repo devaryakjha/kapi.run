@@ -7,8 +7,9 @@ import './styles/base.css'
 import './styles/session.css'
 import './styles/review.css'
 
-import { api } from './lib/api.ts'
+import { api, ApiError } from './lib/api.ts'
 import { renderAccountPopover } from './lib/account-popover.ts'
+import { toSwiggyCartItem } from './lib/cart-payload.ts'
 import { startLiveCountdown } from './lib/countdown.ts'
 import { bindDismissibleDialog } from './lib/dialog.ts'
 import { buildOrganizerMenuPath } from './lib/join-target.ts'
@@ -130,12 +131,12 @@ async function copyInvite() {
   if (!session) return
   try {
     await navigator.clipboard.writeText(session.shareUrl)
-    toast('The invite link is ready to share.', 'Link copied', {
+    toast('Invite link copied.', undefined, {
       placement: 'bottom-center',
       variant: 'success',
     })
   } catch {
-    toast('Copy the link from the field and try again.', 'Could not copy link', {
+    toast('Could not copy the invite link.', undefined, {
       placement: 'bottom-center',
       variant: 'danger',
     })
@@ -151,7 +152,7 @@ async function refresh() {
     const addedItems = loaded.session.items.filter(({ id }) => !currentItems.has(id)).length
     session = loaded.session; relayUpdatedAt = loaded.relayUpdatedAt; stale = loaded.relayUpdatedAt === null; error = null
     if (addedItems > 0) {
-      toast(`${addedItems} new ${addedItems === 1 ? 'item is' : 'items are'} ready to review.`, 'New group items', {
+      toast(`${addedItems} new ${addedItems === 1 ? 'item is' : 'items are'} ready to review.`, undefined, {
         placement: 'bottom-center',
         variant: 'success',
       })
@@ -188,7 +189,7 @@ async function lockOrder() {
   pending = true; render()
   try {
     await save({ ...session, status: 'locked', audit: [...session.audit, audit('Organiser', 'locked session')] })
-    toast('No one can change their items now.', 'Order locked', {
+    toast('Order locked. No one can change their items now.', undefined, {
       placement: 'bottom-center',
       variant: 'success',
     })
@@ -223,21 +224,49 @@ async function syncSwiggyCart() {
         restaurantName: session.restaurant.name,
         addressId: session.address.id,
         replaceExistingCart: !swiggyCart.empty,
-        cartItems: session.items.filter(({ available }) => available).map((item) => ({ menu_item_id: item.swiggyItemId, quantity: item.quantity })),
+        cartItems: session.items.filter(({ available }) => available).map(toSwiggyCartItem),
       }),
     })
-    await save({ ...session, status: result?.status === 'synced' ? 'synced' : 'sync_failed', sync: result })
+    const statusSaved = await saveSyncResult(result)
     toast(
       result?.status === 'synced'
-        ? 'The group items are now in your Swiggy cart.'
+        ? statusSaved
+          ? 'Cart synced to Swiggy.'
+          : 'Cart synced to Swiggy. Refresh to update the group status.'
         : 'Swiggy did not accept every item.',
-      result?.status === 'synced' ? 'Cart synced' : 'Cart sync incomplete',
+      undefined,
       {
         placement: 'bottom-center',
-        variant: result?.status === 'synced' ? 'success' : 'warning',
+        variant: result?.status === 'synced' && statusSaved ? 'success' : 'warning',
       },
     )
   } catch (caught) { showActionError(caught) } finally { pending = false; swiggyCart = null; render() }
+}
+
+async function saveSyncResult(result: KapiSession['sync']) {
+  if (!session) return false
+  const status = result?.status === 'synced' ? 'synced' : 'sync_failed'
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await save({ ...session, status, sync: result })
+      return true
+    } catch (caught) {
+      if (!(caught instanceof ApiError) || caught.status !== 409 || attempt === 2) {
+        session = { ...session, status, sync: result }
+        return false
+      }
+      try {
+        const loaded = await loadEncryptedSessionRecord(session.id, sessionKey)
+        session = loaded.session
+        relayUpdatedAt = loaded.relayUpdatedAt
+        stale = loaded.relayUpdatedAt === null
+      } catch {
+        session = { ...session, status, sync: result }
+        return false
+      }
+    }
+  }
+  return false
 }
 
 function showActionError(caught: unknown) {
