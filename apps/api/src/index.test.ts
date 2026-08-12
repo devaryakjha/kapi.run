@@ -9,7 +9,7 @@ import {
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { RelaySessionRecord } from "@kapi/spec";
+import type { RelaySessionRecord, RelayWritePayload } from "@kapi/spec";
 
 const publicWebUrl = "http://localhost:3000";
 let api: typeof import("./index.js");
@@ -176,6 +176,86 @@ async function readStreamUntil(
     output += decoder.decode(chunk.value, { stream: true });
   }
   return output;
+}
+
+async function waitFor<T>(read: () => T, predicate: (value: T) => boolean) {
+  const deadline = Date.now() + 1_000;
+  while (Date.now() < deadline) {
+    const value = read();
+    if (predicate(value)) return value;
+    await Bun.sleep(1);
+  }
+  throw new Error("Timed out waiting for test state.");
+}
+
+function putRelaySession(
+  sessionId: string,
+  body: RelayWritePayload,
+  secrets: { organizer?: string; participant?: string } = {},
+) {
+  return app.handle(
+    new Request(`http://api.test/relay/sessions/${sessionId}`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        origin: publicWebUrl,
+        ...(secrets.organizer
+          ? { "x-kapi-organizer-secret": secrets.organizer }
+          : {}),
+        ...(secrets.participant
+          ? { "x-kapi-participant-secret": secrets.participant }
+          : {}),
+      },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+async function createRelaySession(
+  sessionId: string,
+  organizerSecret: string,
+  ciphertext = "organizer-ciphertext",
+) {
+  const response = await putRelaySession(
+    sessionId,
+    {
+      ciphertext,
+      metadata: {
+        status: "open",
+        organizerSecretHash: await hash(organizerSecret),
+      },
+      role: "organizer",
+    },
+    { organizer: organizerSecret },
+  );
+  expect(response.status).toBe(200);
+  return (await response.json()) as RelaySessionRecord;
+}
+
+function submitRelayParticipant(
+  sessionId: string,
+  expectedUpdatedAt: string,
+  participantId: string,
+  participantSecret = `${participantId}-secret`,
+  ciphertext = `${participantId}-ciphertext`,
+) {
+  return putRelaySession(
+    sessionId,
+    {
+      ciphertext,
+      expectedUpdatedAt,
+      participantId,
+      role: "participant",
+    },
+    { participant: participantSecret },
+  );
+}
+
+async function getRelaySession(sessionId: string) {
+  const response = await app.handle(
+    new Request(`http://api.test/relay/sessions/${sessionId}`),
+  );
+  return (await response.json()) as RelaySessionRecord;
 }
 
 describe("OAuth return URLs", () => {
@@ -358,5 +438,371 @@ describe("relay session events", () => {
       await reader.cancel().catch(() => {});
     }
     expect(api.relaySubscriberCount(sessionId)).toBe(0);
+  });
+});
+
+describe("participant relay writes", () => {
+  it("preserves concurrent independent participant submissions", async () => {
+    const sessionId = `participant-race-${crypto.randomUUID()}`;
+    const organizerSecret = "participant-race-organizer-secret";
+    const created = await createRelaySession(sessionId, organizerSecret);
+    const responses = await Promise.all([
+      submitRelayParticipant(sessionId, created.updatedAt, "participant-one"),
+      submitRelayParticipant(sessionId, created.updatedAt, "participant-two"),
+    ]);
+    expect(responses.map(({ status }) => status)).toEqual([200, 200]);
+
+    const record = await getRelaySession(sessionId);
+    expect(record.participantSubmissions).toMatchObject({
+      "participant-one": { ciphertext: "participant-one-ciphertext" },
+      "participant-two": { ciphertext: "participant-two-ciphertext" },
+    });
+  });
+
+  it("accepts independent participant submissions from the same session revision", async () => {
+    const initial = {
+      ciphertext: "organizer-ciphertext",
+      updatedAt: "2026-08-12T10:00:00.000Z",
+      metadata: { status: "open" as const },
+    };
+    const firstBody = {
+      ciphertext: "participant-one-ciphertext",
+      expectedUpdatedAt: initial.updatedAt,
+      participantId: "participant-one",
+      role: "participant" as const,
+    };
+    const firstDecision = await api.decideRelayWrite(
+      initial,
+      firstBody,
+      null,
+      "participant-one-secret",
+    );
+    expect(firstDecision.ok).toBe(true);
+    if (!firstDecision.ok) return;
+
+    const afterFirst = api.applyRelayWrite(
+      initial,
+      firstBody,
+      firstDecision,
+    );
+    expect(new Date(afterFirst.updatedAt).getTime()).toBeGreaterThan(
+      new Date(initial.updatedAt).getTime(),
+    );
+    const secondDecision = await api.decideRelayWrite(
+      afterFirst,
+      {
+        ciphertext: "participant-two-ciphertext",
+        expectedUpdatedAt: initial.updatedAt,
+        participantId: "participant-two",
+        role: "participant",
+      },
+      null,
+      "participant-two-secret",
+    );
+
+    expect(secondDecision).toMatchObject({
+      ok: true,
+      role: "participant",
+    });
+    if (!secondDecision.ok) return;
+
+    const afterSecond = api.applyRelayWrite(
+      afterFirst,
+      {
+        ciphertext: "participant-two-ciphertext",
+        expectedUpdatedAt: initial.updatedAt,
+        participantId: "participant-two",
+        role: "participant",
+      },
+      secondDecision,
+      "2026-08-12T10:00:02.000Z",
+    );
+    expect(afterSecond.ciphertext).toBe(initial.ciphertext);
+    expect(afterSecond.participantSubmissions).toMatchObject({
+      "participant-one": { ciphertext: "participant-one-ciphertext" },
+      "participant-two": { ciphertext: "participant-two-ciphertext" },
+    });
+  });
+
+  it("still rejects a stale organizer write", async () => {
+    const current = {
+      ciphertext: "current-ciphertext",
+      updatedAt: "2026-08-12T10:00:01.000Z",
+      metadata: {
+        status: "open" as const,
+        organizerSecretHash: await hash("organizer-secret"),
+      },
+    };
+
+    const decision = await api.decideRelayWrite(
+      current,
+      {
+        ciphertext: "stale-organizer-ciphertext",
+        expectedUpdatedAt: "2026-08-12T10:00:00.000Z",
+        role: "organizer",
+      },
+      "organizer-secret",
+    );
+
+    expect(decision).toMatchObject({
+      ok: false,
+      status: 409,
+    });
+  });
+
+  it("still rejects a stale participant write after the order locks", async () => {
+    const decision = await api.decideRelayWrite(
+      {
+        ciphertext: "locked-ciphertext",
+        updatedAt: "2026-08-12T10:00:01.000Z",
+        metadata: { status: "locked" as const },
+      },
+      {
+        ciphertext: "participant-ciphertext",
+        expectedUpdatedAt: "2026-08-12T10:00:00.000Z",
+        participantId: "participant-one",
+        role: "participant",
+      },
+      null,
+      "participant-one-secret",
+    );
+
+    expect(decision).toMatchObject({
+      ok: false,
+      status: 423,
+    });
+  });
+
+  it("rejects a stale write from the same participant", async () => {
+    const initial = {
+      ciphertext: "organizer-ciphertext",
+      updatedAt: "2026-08-12T10:00:00.000Z",
+      metadata: { status: "open" as const },
+    };
+    const firstBody = {
+      ciphertext: "newer-participant-ciphertext",
+      expectedUpdatedAt: initial.updatedAt,
+      participantId: "participant-one",
+      role: "participant" as const,
+    };
+    const firstDecision = await api.decideRelayWrite(
+      initial,
+      firstBody,
+      null,
+      "participant-one-secret",
+    );
+    if (!firstDecision.ok) throw new Error("First participant write failed.");
+    const afterFirst = api.applyRelayWrite(
+      initial,
+      firstBody,
+      firstDecision,
+      "2026-08-12T10:00:01.000Z",
+    );
+
+    const staleDecision = await api.decideRelayWrite(
+      afterFirst,
+      {
+        ciphertext: "stale-participant-ciphertext",
+        expectedUpdatedAt: initial.updatedAt,
+        participantId: "participant-one",
+        role: "participant",
+      },
+      null,
+      "participant-one-secret",
+    );
+
+    expect(staleDecision).toMatchObject({ ok: false, status: 409 });
+  });
+
+  it("rejects a forged future participant revision", async () => {
+    const current = {
+      ciphertext: "organizer-ciphertext",
+      updatedAt: "2026-08-12T10:00:02.000Z",
+      organizerUpdatedAt: "2026-08-12T10:00:02.000Z",
+      metadata: { status: "open" as const },
+      participantSubmissions: {
+        "participant-one": {
+          ciphertext: "participant-ciphertext",
+          updatedAt: "2026-08-12T10:00:01.000Z",
+        },
+      },
+    };
+
+    const decision = await api.decideRelayWrite(
+      current,
+      {
+        ciphertext: "forged-participant-ciphertext",
+        expectedUpdatedAt: "2099-01-01T00:00:00.000Z",
+        participantId: "participant-one",
+        role: "participant",
+      },
+      null,
+      "participant-one-secret",
+    );
+
+    expect(decision).toMatchObject({ ok: false, status: 409 });
+  });
+
+  it("rejects a participant write older than an organizer edit", async () => {
+    const sessionId = `organizer-edit-${crypto.randomUUID()}`;
+    const organizerSecret = "organizer-edit-secret";
+    const created = await createRelaySession(
+      sessionId,
+      organizerSecret,
+      "initial-organizer-ciphertext",
+    );
+    const participant = await submitRelayParticipant(
+      sessionId,
+      created.updatedAt,
+      "participant-one",
+      "participant-secret",
+      "participant-ciphertext",
+    );
+    const submitted = (await participant.json()) as RelaySessionRecord;
+
+    const organizer = await putRelaySession(
+      sessionId,
+      {
+        ciphertext: "edited-organizer-ciphertext",
+        expectedUpdatedAt: submitted.updatedAt,
+        metadata: {
+          status: "open",
+          organizerSecretHash: await hash(organizerSecret),
+        },
+        role: "organizer",
+      },
+      { organizer: organizerSecret },
+    );
+    expect(organizer.status).toBe(200);
+
+    const staleParticipant = await submitRelayParticipant(
+      sessionId,
+      submitted.updatedAt,
+      "participant-one",
+      "participant-secret",
+      "stale-participant-ciphertext",
+    );
+    expect(staleParticipant.status).toBe(409);
+
+    expect(await getRelaySession(sessionId)).toMatchObject({
+      ciphertext: "edited-organizer-ciphertext",
+    });
+  });
+
+  it("preserves different sessions across delayed shared-store persistence", async () => {
+    const suffix = crypto.randomUUID();
+    const firstSessionId = `shared-store-one-${suffix}`;
+    const secondSessionId = `shared-store-two-${suffix}`;
+    const writes: Array<{
+      snapshot: Record<string, unknown>;
+      resolve: () => void;
+    }> = [];
+    const persisted: Record<string, unknown> = {};
+    await api.hydrateDurableState({
+      async get() {
+        return undefined;
+      },
+      async put(key, value) {
+        if (key !== "relay") return;
+        await new Promise<void>((resolve) => {
+          writes.push({
+            snapshot: structuredClone(value as Record<string, unknown>),
+            resolve,
+          });
+        });
+        persisted[key] = structuredClone(value);
+      },
+      async delete() {
+        return false;
+      },
+    });
+
+    try {
+      const create = async (sessionId: string) => {
+        const organizerSecret = `${sessionId}-secret`;
+        return app.handle(
+          new Request(`http://api.test/relay/sessions/${sessionId}`, {
+            method: "PUT",
+            headers: {
+              "content-type": "application/json",
+              origin: publicWebUrl,
+              "x-kapi-organizer-secret": organizerSecret,
+            },
+            body: JSON.stringify({
+              ciphertext: `${sessionId}-ciphertext`,
+              metadata: {
+                status: "open",
+                organizerSecretHash: await hash(organizerSecret),
+              },
+              role: "organizer",
+            }),
+          }),
+        );
+      };
+      const first = create(firstSessionId);
+      const second = create(secondSessionId);
+      await waitFor(() => writes.length, (length) => length === 1);
+      expect(writes).toHaveLength(1);
+      expect(writes[0]?.snapshot).toHaveProperty(firstSessionId);
+      expect(writes[0]?.snapshot).not.toHaveProperty(secondSessionId);
+      writes[0]?.resolve();
+      await waitFor(() => writes.length, (length) => length === 2);
+      expect(writes).toHaveLength(2);
+      expect(writes[1]?.snapshot).toHaveProperty(firstSessionId);
+      expect(writes[1]?.snapshot).toHaveProperty(secondSessionId);
+      writes[1]?.resolve();
+      expect((await Promise.all([first, second])).map(({ status }) => status)).toEqual([
+        200, 200,
+      ]);
+      expect(persisted.relay).toHaveProperty(
+        `${firstSessionId}.ciphertext`,
+        `${firstSessionId}-ciphertext`,
+      );
+      expect(persisted.relay).toHaveProperty(
+        `${secondSessionId}.ciphertext`,
+        `${secondSessionId}-ciphertext`,
+      );
+    } finally {
+      api.resetRuntimeStateForTests();
+    }
+  });
+
+  it("does not expose a relay write when persistence fails", async () => {
+    await api.hydrateDurableState({
+      async get() {
+        return undefined;
+      },
+      async put(key) {
+        if (key === "relay") throw new Error("storage failed");
+      },
+      async delete() {
+        return false;
+      },
+    });
+    const sessionId = `failed-write-${crypto.randomUUID()}`;
+    const organizerSecret = "failed-write-secret";
+
+    try {
+      const response = await putRelaySession(
+        sessionId,
+        {
+          ciphertext: "unpersisted-ciphertext",
+          metadata: {
+            status: "open",
+            organizerSecretHash: await hash(organizerSecret),
+          },
+          role: "organizer",
+        },
+        { organizer: organizerSecret },
+      );
+      expect(response.status).toBe(500);
+
+      const current = await app.handle(
+        new Request(`http://api.test/relay/sessions/${sessionId}`),
+      );
+      expect(current.status).toBe(404);
+    } finally {
+      api.resetRuntimeStateForTests();
+    }
   });
 });

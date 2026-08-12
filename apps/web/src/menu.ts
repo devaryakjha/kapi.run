@@ -8,6 +8,10 @@ import './styles/menu.css'
 
 import { api } from './lib/api.ts'
 import { renderAccountPopover } from './lib/account-popover.ts'
+import {
+  initialAddonSelections,
+  toggleAddonSelection,
+} from './lib/addon-selection.ts'
 import { startLiveCountdown } from './lib/countdown.ts'
 import {
   customizationCacheKey,
@@ -595,7 +599,7 @@ function applyCustomization(item: MenuItem, detail: MenuCustomization) {
     : ''
   required<HTMLElement>('[data-item-description]').textContent = detail.description || item.description
   selectedVariants = defaultVariantSelections(detail.variantsV2 ?? [])
-  selectedAddons = defaultAddonSelections(detail.addons ?? [])
+  selectedAddons = initialAddonSelections(detail.addons ?? [])
   renderItemOptions()
 }
 
@@ -623,19 +627,44 @@ function variantGroup(group: MenuVariantGroup) {
 
 function addonGroup(group: MenuAddonGroup) {
   const root = optionGroup(group.groupName, addonRuleText(group))
+  root.dataset.field = ''
   const list = root.querySelector<HTMLElement>('.item-option-list')!
+  const rule = root.querySelector<HTMLElement>('[data-option-rule]')
+  const error = document.createElement('small')
+  const errorId = `addon-error-${crypto.randomUUID()}`
+  error.className = 'error'
+  error.id = errorId
+  error.role = 'status'
+  root.insertBefore(error, list)
+
+  function updateGroupFeedback(limitReached = false) {
+    const selected = selectedAddons[group.groupId] ?? []
+    if (rule) rule.textContent = addonRuleText(group, selected.length)
+    error.textContent = limitReached
+      ? `Maximum ${group.maxAddons} selected. Remove one to choose another.`
+      : ''
+    if (limitReached) root.setAttribute('aria-invalid', 'true')
+    else root.removeAttribute('aria-invalid')
+  }
+
   for (const choice of group.choices) {
     const input = document.createElement('input')
     input.type = 'checkbox'; input.value = choice.id
+    input.setAttribute('aria-describedby', errorId)
     input.checked = selectedAddons[group.groupId]?.includes(choice.id) ?? false
     input.addEventListener('change', () => {
       const selected = selectedAddons[group.groupId] ?? []
-      if (input.checked && group.maxAddons && selected.length >= group.maxAddons) { input.checked = false; return }
-      selectedAddons[group.groupId] = input.checked ? [...selected, choice.id] : selected.filter((id) => id !== choice.id)
+      const result = toggleAddonSelection(selected, choice.id, group.maxAddons)
+      selectedAddons[group.groupId] = result.selection
+      for (const checkbox of list.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) {
+        checkbox.checked = result.selection.includes(checkbox.value)
+      }
+      updateGroupFeedback(result.limitReached)
       updateItemAddButton()
     })
     list.append(optionRow(input, choice.name, choice.price ? `₹${choice.price}` : 'Free'))
   }
+  updateGroupFeedback()
   return root
 }
 
@@ -643,7 +672,7 @@ function optionGroup(name: string, rule = '') {
   const root = document.createElement('fieldset'); root.className = 'item-option-group'
   const title = document.createElement('legend'); title.className = 'flex flex-col w-100 text-light'
   const label = document.createElement('span'); label.textContent = name; title.append(label)
-  if (rule) { const detail = document.createElement('small'); detail.className = 'text-light'; detail.textContent = rule; title.append(detail) }
+  if (rule) { const detail = document.createElement('small'); detail.className = 'text-light'; detail.dataset.optionRule = ''; detail.textContent = rule; title.append(detail) }
   root.append(title)
   const list = document.createElement('div'); list.className = 'item-option-list'; root.append(list)
   return root
@@ -658,10 +687,6 @@ function optionRow(input: HTMLInputElement, name: string, price: string) {
 
 function defaultVariantSelections(groups: MenuVariantGroup[]) {
   return Object.fromEntries(groups.map((group) => [group.groupId, (group.variations.find((choice) => choice.default && choice.inStock !== false) ?? group.variations.find((choice) => choice.inStock !== false) ?? group.variations[0])?.id ?? '']))
-}
-
-function defaultAddonSelections(groups: MenuAddonGroup[]) {
-  return Object.fromEntries(groups.map((group) => [group.groupId, group.choices.slice(0, Math.max(group.minAddons ?? 0, 0)).map((choice) => choice.id)]))
 }
 
 function selectedCustomization() {
@@ -696,9 +721,19 @@ function addCustomizedItem(item: MenuItem) {
   storeDraft(session.id, draft); renderMenu(); renderCart()
 }
 
-function addonRuleText(group: MenuAddonGroup) {
-  if (group.minAddons && group.maxAddons) return `Choose ${group.minAddons}-${group.maxAddons}`
-  if (group.minAddons) return `Choose at least ${group.minAddons}`
-  if (group.maxAddons) return `Choose up to ${group.maxAddons}`
-  return ''
+function addonRuleText(group: MenuAddonGroup, selected?: number) {
+  let rule = ''
+  if (group.minAddons && group.minAddons === group.maxAddons) {
+    rule = `Choose ${group.minAddons}`
+  } else if (group.minAddons && group.maxAddons) {
+    rule = `Choose ${group.minAddons}-${group.maxAddons}`
+  } else if (group.minAddons) {
+    rule = `Choose at least ${group.minAddons}`
+  } else if (group.maxAddons) {
+    rule = `Choose up to ${group.maxAddons}`
+  }
+  if (selected === undefined || !rule) return rule
+  return group.maxAddons
+    ? `${rule}. ${selected} of ${group.maxAddons} selected.`
+    : `${rule}. ${selected} selected.`
 }

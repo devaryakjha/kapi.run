@@ -46,6 +46,10 @@
     transform: translateY(0.0625rem);
   }
 
+  .timer-pill[data-status='expired']::before {
+    background: var(--danger);
+  }
+
   .timer-pill:is([data-status='locked'], [data-status='synced'], [data-status='sync_failed']) {
     border-color: color-mix(in oklch, var(--primary) 24%, var(--border));
     background: color-mix(in oklch, var(--primary) 8%, var(--background));

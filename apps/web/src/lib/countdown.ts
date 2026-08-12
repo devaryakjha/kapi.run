@@ -4,8 +4,22 @@ type CountdownSource = {
   status?: string
 }
 
-export function countdownShouldRun(source: CountdownSource | null) {
-  return !source || !source.status || source.status === 'open'
+export function countdownShouldRun(
+  source: CountdownSource | null,
+  now = new Date(),
+) {
+  return countdownStatus(source, now) === 'open'
+}
+
+export function countdownStatus(
+  source: CountdownSource | null,
+  now = new Date(),
+) {
+  const status = source?.status ?? 'open'
+  if (status !== 'open') return status
+
+  const target = source?.cutoffAt ? new Date(source.cutoffAt).getTime() : NaN
+  return Number.isFinite(target) && target <= now.getTime() ? 'expired' : 'open'
 }
 
 export function countdownLabel(source: CountdownSource, now = new Date()) {
@@ -36,9 +50,13 @@ export function startLiveCountdown(
   function paint() {
     const source = getSource()
     if (!source) return countdownShouldRun(source)
-    element.dataset.status = source.status ?? 'open'
-    value.textContent = countdownLabel(source)
-    return countdownShouldRun(source)
+    const now = new Date()
+    const status = countdownStatus(source, now)
+    element.dataset.status = status
+    if (status === 'expired') element.dataset.variant = 'danger'
+    else delete element.dataset.variant
+    value.textContent = countdownLabel(source, now)
+    return countdownShouldRun(source, now)
   }
 
   function schedule() {

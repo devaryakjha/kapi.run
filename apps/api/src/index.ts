@@ -61,6 +61,8 @@ type ToolEnvelope = {
   error?: { message?: string };
 };
 export type RelayRecord = Omit<RelaySessionRecord, "participantSubmissions"> & {
+  legacyRevision?: boolean;
+  organizerUpdatedAt?: string;
   participantSecretHashes?: Record<string, string>;
   participantSubmissions?: RelaySessionRecord["participantSubmissions"];
 };
@@ -119,9 +121,13 @@ type InviteReadContext = RequestContext & {
 
 const authStates = new Map<string, { codeVerifier: string; next: string }>();
 const relay: RelayStore = await readJson<RelayStore>(relayFile, {});
+for (const record of Object.values(relay)) {
+  if (!record.organizerUpdatedAt) record.legacyRevision = true;
+}
 const invites: InviteStore = await readJson<InviteStore>(inviteFile, {});
 let durableStorage: DurableStorage | null = null;
 const relaySubscribers = new Map<string, Set<RelaySubscriber>>();
+let relayWriteQueue = Promise.resolve();
 const relayEventEncoder = new TextEncoder();
 const maxRelaySubscribersPerSession = 64;
 type RelaySubscriber = {
@@ -173,12 +179,20 @@ export async function hydrateDurableState(storage: DurableStorage) {
   if (storedRelay) {
     for (const key of Object.keys(relay)) delete relay[key];
     Object.assign(relay, storedRelay);
+    for (const record of Object.values(relay)) {
+      if (!record.organizerUpdatedAt) record.legacyRevision = true;
+    }
   }
   if (storedInvites) {
     for (const key of Object.keys(invites)) delete invites[key];
     Object.assign(invites, storedInvites);
   }
   if (storedToken) token = storedToken;
+}
+
+export function resetRuntimeStateForTests() {
+  durableStorage = null;
+  relayWriteQueue = Promise.resolve();
 }
 
 export async function readTokenFromFile(path: string) {
@@ -348,6 +362,43 @@ async function hasOrganizerProof(
   );
 }
 
+function revisionIncludesSubmission(
+  expectedUpdatedAt: string | null | undefined,
+  submissionUpdatedAt: string,
+  currentUpdatedAt: string,
+) {
+  if (!expectedUpdatedAt) return false;
+  const expected = new Date(expectedUpdatedAt).getTime();
+  const submission = new Date(submissionUpdatedAt).getTime();
+  const current = new Date(currentUpdatedAt).getTime();
+  return (
+    Number.isFinite(expected) &&
+    Number.isFinite(submission) &&
+    Number.isFinite(current) &&
+    expected >= submission &&
+    expected <= current
+  );
+}
+
+async function serializeRelayWrite<T>(
+  write: () => Promise<T>,
+) {
+  const result = relayWriteQueue.then(write, write);
+  relayWriteQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
+function nextRelayUpdatedAt(current: RelayRecord | undefined) {
+  const now = Date.now();
+  const previous = current ? new Date(current.updatedAt).getTime() : NaN;
+  return new Date(
+    Number.isFinite(previous) && previous >= now ? previous + 1 : now,
+  ).toISOString();
+}
+
 export async function authorizeCartSync(
   sessions: RelayStore,
   sessionId: string,
@@ -503,7 +554,7 @@ export async function decideRelayWrite(
   const expectedUpdatedAt = body.expectedUpdatedAt;
   const role: RelayWriteRole =
     body.role === "organizer" ? "organizer" : "participant";
-  if (current && !expectedUpdatedAt) {
+  if (current && role === "organizer" && !expectedUpdatedAt) {
     return {
       ok: false,
       status: 409,
@@ -513,7 +564,11 @@ export async function decideRelayWrite(
       },
     } as const;
   }
-  if (current && expectedUpdatedAt !== current.updatedAt) {
+  if (
+    current &&
+    role === "organizer" &&
+    expectedUpdatedAt !== current.updatedAt
+  ) {
     return {
       ok: false,
       status: 409,
@@ -620,6 +675,33 @@ export async function decideRelayWrite(
       body: { error: "Participant proof is required." },
     } as const;
   }
+  const currentSubmission = current.participantSubmissions?.[participantId];
+  const organizerUpdatedAt = current.legacyRevision
+    ? current.updatedAt
+    : current.organizerUpdatedAt;
+  if (
+    (organizerUpdatedAt &&
+      !revisionIncludesSubmission(
+        expectedUpdatedAt,
+        organizerUpdatedAt,
+        current.updatedAt,
+      )) ||
+    (currentSubmission &&
+      !revisionIncludesSubmission(
+        expectedUpdatedAt,
+        currentSubmission.updatedAt,
+        current.updatedAt,
+      ))
+  ) {
+    return {
+      ok: false,
+      status: 409,
+      body: {
+        error: "Session has changed. Refresh and try again.",
+        updatedAt: current.updatedAt,
+      },
+    } as const;
+  }
   return {
     ok: true,
     role: "participant",
@@ -633,12 +715,13 @@ export function applyRelayWrite(
   current: RelayRecord | undefined,
   body: RelayWrite,
   decision: RelayWriteSuccess,
-  updatedAt = new Date().toISOString(),
+  updatedAt = nextRelayUpdatedAt(current),
 ): RelayRecord {
   if (decision.role === "organizer") {
     return {
       ciphertext: body.ciphertext,
       updatedAt,
+      organizerUpdatedAt: updatedAt,
       metadata: decision.metadata,
       ...(current?.participantSecretHashes
         ? { participantSecretHashes: current.participantSecretHashes }
@@ -647,9 +730,11 @@ export function applyRelayWrite(
   }
   if (!current)
     throw new Error("Participant write requires an existing session.");
+  const { legacyRevision: _, ...currentRecord } = current;
   return {
-    ...current,
+    ...currentRecord,
     updatedAt,
+    organizerUpdatedAt: current.organizerUpdatedAt ?? current.updatedAt,
     metadata: decision.metadata,
     participantSecretHashes: {
       ...current.participantSecretHashes,
@@ -1436,22 +1521,26 @@ export const app = new Elysia(
     "/relay/sessions/:sessionId",
     async ({ params, body, request, set }: RelayWriteContext) => {
       assertAllowedOrigin(request);
-      const current = relay[params.sessionId];
-      const decision = await decideRelayWrite(
-        current,
-        body,
-        request.headers.get("x-kapi-organizer-secret"),
-        request.headers.get("x-kapi-participant-secret"),
-      );
-      if (!decision.ok) {
-        set.status = decision.status;
-        return decision.body;
-      }
+      return serializeRelayWrite(async () => {
+        const current = relay[params.sessionId];
+        const decision = await decideRelayWrite(
+          current,
+          body,
+          request.headers.get("x-kapi-organizer-secret"),
+          request.headers.get("x-kapi-participant-secret"),
+        );
+        if (!decision.ok) {
+          set.status = decision.status;
+          return decision.body;
+        }
 
-      relay[params.sessionId] = applyRelayWrite(current, body, decision);
-      await writeJson(relayFile, relay);
-      broadcastRelayRecord(params.sessionId, relay[params.sessionId]);
-      return publicRelayRecord(relay[params.sessionId]);
+        const next = applyRelayWrite(current, body, decision);
+        const persistedRelay = { ...relay, [params.sessionId]: next };
+        await writeJson(relayFile, persistedRelay);
+        relay[params.sessionId] = next;
+        broadcastRelayRecord(params.sessionId, next);
+        return publicRelayRecord(next);
+      });
     },
     {
       params: t.Object({ sessionId: t.String() }),

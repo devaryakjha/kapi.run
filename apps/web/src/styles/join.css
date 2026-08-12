@@ -56,11 +56,6 @@
     font-size: 0.875rem;
   }
 
-  .join-info {
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-large);
-  }
-
   .join-error > svg {
     width: 1rem;
     height: 1rem;

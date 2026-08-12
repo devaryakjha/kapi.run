@@ -40,7 +40,6 @@ const state: JoinState = {
 const description = required<HTMLElement>('[data-session-description]')
 const loading = required<HTMLElement>('[data-join-loading]')
 const form = required<HTMLFormElement>('.join-form')
-const info = required<HTMLElement>('[data-join-info]')
 const errorAlert = required<HTMLElement>('.join-error')
 const errorMessage = required<HTMLElement>('[data-error-message]')
 const nameInput = required<HTMLInputElement>('#join-name')
@@ -129,7 +128,6 @@ function render() {
     ? `${state.session.restaurant.name} · ${state.session.cutoffTime} cutoff`
     : 'Confirm your name before adding items.'
 
-  info.hidden = !state.session
   errorAlert.hidden = !state.error
   errorMessage.textContent = state.error ?? ''
   nameInput.disabled = !state.session
