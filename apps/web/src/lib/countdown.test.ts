@@ -4,7 +4,63 @@ import {
   countdownLabel,
   countdownShouldRun,
   countdownStatus,
+  startLiveCountdown,
 } from './countdown.ts'
+
+function withCountdownEnvironment(run: (activeTimers: Map<number, () => void>) => void) {
+  const documentDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'document')
+  const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  const activeTimers = new Map<number, () => void>()
+  let nextTimerId = 1
+
+  class TestElement {
+    className = ''
+    dataset: Record<string, string> = {}
+    textContent = ''
+    children: TestElement[] = []
+
+    replaceChildren(...children: TestElement[]) {
+      this.children = children
+    }
+  }
+
+  const testDocument = {
+    hidden: false,
+    createElement: () => new TestElement(),
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }
+  const testWindow = {
+    addEventListener: () => undefined,
+    clearTimeout: (id?: number) => {
+      if (id) activeTimers.delete(id)
+    },
+    setTimeout: (callback: () => void) => {
+      const id = nextTimerId
+      nextTimerId += 1
+      activeTimers.set(id, callback)
+      return id
+    },
+  }
+
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: testDocument,
+  })
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: testWindow,
+  })
+
+  try {
+    run(activeTimers)
+  } finally {
+    if (documentDescriptor) Object.defineProperty(globalThis, 'document', documentDescriptor)
+    else Reflect.deleteProperty(globalThis, 'document')
+    if (windowDescriptor) Object.defineProperty(globalThis, 'window', windowDescriptor)
+    else Reflect.deleteProperty(globalThis, 'window')
+  }
+}
 
 describe('countdown label', () => {
   it('keeps scheduling while session data loads', () => {
@@ -21,7 +77,7 @@ describe('countdown label', () => {
         },
         new Date('2026-08-11T17:25:00.000Z'),
       ),
-    ).toBe('Order locked')
+    ).toBe('Session locked')
   })
 
   it('marks the timer expired at the cutoff', () => {
@@ -58,6 +114,32 @@ describe('countdown label', () => {
     ).toBe('locked')
   })
 
+  it('shows a session label for the closed state', () => {
+    expect(
+      countdownLabel(
+        {
+          cutoffAt: '2026-08-11T17:50:00.000Z',
+          cutoffTime: '11:20 PM',
+          status: 'closed',
+        },
+        new Date('2026-08-11T17:25:00.000Z'),
+      ),
+    ).toBe('Session closed')
+  })
+
+  it('shows progress instead of a frozen countdown while syncing', () => {
+    expect(
+      countdownLabel(
+        {
+          cutoffAt: '2026-08-11T17:50:00.000Z',
+          cutoffTime: '11:20 PM',
+          status: 'syncing',
+        },
+        new Date('2026-08-11T17:25:00.000Z'),
+      ),
+    ).toBe('Syncing cart')
+  })
+
   it('keeps an open status without a valid cutoff timestamp', () => {
     expect(
       countdownStatus(
@@ -71,5 +153,44 @@ describe('countdown label', () => {
         new Date('2026-08-11T17:51:00.000Z'),
       ),
     ).toBe('open')
+  })
+
+  it('restarts scheduling after a terminal session reopens', () => {
+    withCountdownEnvironment((activeTimers) => {
+      let source = {
+        cutoffAt: new Date(Date.now() + 60_000).toISOString(),
+        cutoffTime: '11:20 PM',
+        status: 'locked',
+      }
+      const element = document.createElement('span')
+      const refresh = startLiveCountdown(element, () => source)
+
+      expect(activeTimers.size).toBe(0)
+
+      source = { ...source, status: 'open' }
+      refresh()
+
+      expect(activeTimers.size).toBe(1)
+      expect(element.dataset.status).toBe('open')
+    })
+  })
+
+  it('announces a status change when the cutoff expires', () => {
+    withCountdownEnvironment((activeTimers) => {
+      const statuses: string[] = []
+      const source = {
+        cutoffAt: new Date(Date.now() + 60_000).toISOString(),
+        cutoffTime: '11:20 PM',
+        status: 'open',
+      }
+      const element = document.createElement('span')
+      startLiveCountdown(element, () => source, (status) => statuses.push(status))
+      const timer = [...activeTimers.values()][0]
+
+      source.cutoffAt = new Date(Date.now() - 1).toISOString()
+      timer?.()
+
+      expect(statuses).toEqual(['expired'])
+    })
   })
 })

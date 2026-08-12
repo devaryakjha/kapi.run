@@ -14,6 +14,7 @@ import { startLiveCountdown } from './lib/countdown.ts'
 import { bindDismissibleDialog } from './lib/dialog.ts'
 import { buildOrganizerMenuPath } from './lib/join-target.ts'
 import {
+  applySessionWindowChange,
   audit,
   getSessionLinkParts,
   hasOrganizerCapability,
@@ -22,6 +23,7 @@ import {
   publishSession,
   resolveSessionLinkParts,
   safeLocalStorageSet,
+  sessionWindowAction,
 } from './lib/session.ts'
 
 function required<T extends Element>(selector: string) {
@@ -42,6 +44,7 @@ const staleAlert = required<HTMLElement>('.review-stale')
 const invitePanel = required<HTMLElement>('.invite-panel')
 const inviteLink = required<HTMLInputElement>('[data-invite-link]')
 const lockButton = required<HTMLButtonElement>('.lock-order')
+const sessionWindowButton = required<HTMLButtonElement>('.session-window')
 const refreshButton = required<HTMLButtonElement>('.refresh-order')
 const orderGroups = required<HTMLElement>('.order-groups')
 const ordersEmpty = required<HTMLElement>('.orders-empty')
@@ -54,6 +57,10 @@ const actionError = required<HTMLElement>('.review-action-error')
 const actionErrorMessage = required<HTMLElement>('[data-review-action-error]')
 const syncButton = required<HTMLButtonElement>('.sync-cart')
 const lockDialog = required<HTMLDialogElement>('.lock-dialog')
+const sessionWindowDialog = required<HTMLDialogElement>('.session-window-dialog')
+const sessionCutoffInput = required<HTMLInputElement>('#session-cutoff')
+const sessionCutoffError = required<HTMLElement>('[data-session-cutoff-error]')
+const confirmSessionWindow = required<HTMLButtonElement>('.confirm-session-window')
 const syncDialog = required<HTMLDialogElement>('.sync-dialog')
 const accountPopover = required<HTMLElement>('#review-account')
 
@@ -67,7 +74,9 @@ let pending = false
 let swiggyCart: SwiggyCartSummary | null = null
 let relayUpdatedAt: string | null = null
 
-const refreshTimer = startLiveCountdown(timer, () => session)
+const refreshTimer = startLiveCountdown(timer, () => session, () => {
+  renderSessionControls()
+})
 
 bindEvents()
 void initialize()
@@ -95,6 +104,7 @@ async function initialize() {
 
 function bindEvents() {
   bindDismissibleDialog(lockDialog)
+  bindDismissibleDialog(sessionWindowDialog)
   bindDismissibleDialog(syncDialog)
   required<HTMLButtonElement>('.menu-mode').addEventListener('click', () => {
     const parts = getSessionLinkParts()
@@ -109,9 +119,14 @@ function bindEvents() {
   })
   required<HTMLButtonElement>('.copy-invite').addEventListener('click', () => void copyInvite())
   lockButton.addEventListener('click', () => lockDialog.showModal())
+  sessionWindowButton.addEventListener('click', openSessionWindowDialog)
   refreshButton.addEventListener('click', () => void refresh())
   syncButton.addEventListener('click', () => void inspectSwiggyCart())
   required<HTMLButtonElement>('.confirm-lock').addEventListener('click', () => void lockOrder())
+  sessionWindowDialog.querySelector('form')?.addEventListener('submit', (event) => {
+    event.preventDefault()
+    void changeSessionWindow()
+  })
   required<HTMLButtonElement>('.confirm-sync').addEventListener('click', () => void syncSwiggyCart())
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-dialog-cancel]')) {
     button.addEventListener('click', () => button.closest('dialog')?.close())
@@ -189,11 +204,93 @@ async function lockOrder() {
   pending = true; render()
   try {
     await save({ ...session, status: 'locked', audit: [...session.audit, audit('Organiser', 'locked session')] })
-    toast('Order locked. No one can change their items now.', undefined, {
+    toast('Session locked. No one can change their items now.', undefined, {
       placement: 'bottom-center',
       variant: 'success',
     })
   } catch (caught) { showActionError(caught) } finally { pending = false; render() }
+}
+
+function localDateTimeValue(date: Date) {
+  const offset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+}
+
+function openSessionWindowDialog() {
+  if (!session || !isOrganizer) return
+  const action = sessionWindowAction(session)
+  const suggested = new Date(Date.now() + 45 * 60_000)
+  const currentCutoff = session.cutoffAt ? new Date(session.cutoffAt) : null
+  const initial =
+    action === 'extend' && currentCutoff && Number.isFinite(currentCutoff.getTime())
+      ? new Date(Math.max(suggested.getTime(), currentCutoff.getTime() + 15 * 60_000))
+      : suggested
+  required<HTMLElement>('[data-session-window-title]').textContent =
+    action === 'extend' ? 'Extend this session?' : 'Re-open this session?'
+  confirmSessionWindow.textContent =
+    action === 'extend' ? 'Extend session' : 'Re-open session'
+  sessionCutoffInput.min = localDateTimeValue(new Date(Date.now() + 60_000))
+  sessionCutoffInput.value = localDateTimeValue(initial)
+  sessionCutoffInput.removeAttribute('aria-invalid')
+  sessionCutoffError.textContent = ''
+  sessionWindowDialog.showModal()
+}
+
+async function changeSessionWindow() {
+  if (!session || !isOrganizer || pending) return
+  const requestedCutoff = new Date(sessionCutoffInput.value)
+  let completedAction: 'extend' | 'reopen' | null = null
+  pending = true
+  render()
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const result = applySessionWindowChange(session, requestedCutoff)
+    if ('error' in result) {
+      sessionCutoffInput.setAttribute('aria-invalid', 'true')
+      sessionCutoffError.textContent = result.error
+      pending = false
+      render()
+      sessionCutoffInput.focus()
+      return
+    }
+    try {
+      await save(result.session)
+      completedAction = result.action
+      break
+    } catch (caught) {
+      if (!(caught instanceof ApiError) || caught.status !== 409 || attempt === 2) {
+        showSessionWindowError(caught)
+        return
+      }
+      try {
+        const loaded = await loadEncryptedSessionRecord(session.id, sessionKey)
+        session = loaded.session
+        relayUpdatedAt = loaded.relayUpdatedAt
+        stale = loaded.relayUpdatedAt === null
+      } catch (caught) {
+        showSessionWindowError(caught)
+        return
+      }
+    }
+  }
+  pending = false
+  if (!completedAction) return
+  error = null
+  sessionWindowDialog.close()
+  render()
+  toast(
+    completedAction === 'extend' ? 'Session extended.' : 'Session re-opened.',
+    undefined,
+    { placement: 'bottom-center', variant: 'success' },
+  )
+}
+
+function showSessionWindowError(caught: unknown) {
+  pending = false
+  sessionCutoffInput.setAttribute('aria-invalid', 'true')
+  sessionCutoffError.textContent =
+    caught instanceof Error ? caught.message : 'Could not update this session.'
+  render()
+  sessionCutoffInput.focus()
 }
 
 async function inspectSwiggyCart() {
@@ -294,7 +391,7 @@ function render() {
   staleAlert.hidden = !stale
   invitePanel.hidden = !isOrganizer
   inviteLink.value = session.shareUrl
-  lockButton.hidden = !isOrganizer || session.status !== 'open'
+  renderSessionControls()
   refreshButton.hidden = !isOrganizer
   syncButton.hidden = !isOrganizer
   syncButton.disabled = pending || session.items.length === 0
@@ -304,6 +401,20 @@ function render() {
   actionErrorMessage.textContent = error ?? ''
   refreshTimer()
   renderOrders()
+}
+
+function renderSessionControls() {
+  if (!session) return
+  const windowAction = sessionWindowAction(session)
+  const windowLabel = windowAction === 'extend' ? 'Extend session' : 'Re-open session'
+  sessionWindowButton.hidden = !isOrganizer
+  sessionWindowButton.disabled = pending
+  sessionWindowButton.ariaLabel = windowLabel
+  sessionWindowButton.dataset.tooltip = windowLabel
+  required<HTMLElement>('[data-session-window-label]').textContent = windowLabel
+  lockButton.hidden = !isOrganizer || windowAction !== 'extend'
+  lockButton.disabled = pending
+  confirmSessionWindow.disabled = pending
 }
 
 function groupsByParticipant(items: CartLine[]) {

@@ -1,10 +1,11 @@
 @import '@knadh/oat/css/dialog.css';
 @import '@knadh/oat/css/spinner.css';
+@import '@knadh/oat/css/tooltip.css';
 
 @layer components {
-  .menu-mode,.lock-order,.refresh-order { height:2rem; }
+  .menu-mode,.session-window,.lock-order,.refresh-order { height:2rem; }
   .menu-mode { width:5rem; }
-  .menu-mode svg,.lock-order svg,.refresh-order svg,.copy-invite svg,.sync-cart svg { width:.875rem; height:.875rem; flex:none; }
+  .menu-mode svg,.session-window svg,.lock-order svg,.refresh-order svg,.copy-invite svg,.sync-cart svg { width:.875rem; height:.875rem; flex:none; }
   .review-shell { max-width:72rem; margin-inline:auto; padding:2rem 1.5rem; }
   .review-intro { align-items:flex-start; margin-bottom:1.5625rem; }
   .review-intro h1 { margin:0; font-size:1.5rem; font-weight:600; line-height:2rem; letter-spacing:-.025em; }
@@ -51,4 +52,4 @@
   .review-load-error strong,.review-load-error span,.review-action-error strong,.review-action-error span { display:block; }
 }
 
-@media (max-width:47.99rem) { @layer components { .review-shell { padding:1.5rem 1rem; } .review-grid { grid-template-columns:1fr; } .summary-section { position:static; } .review-header__context { display:none; } .invite-panel>div { flex-direction:column; } .copy-invite { width:100%; } } }
+@media (max-width:47.99rem) { @layer components { .review-shell { padding:1.5rem 1rem; } .review-intro__actions button { width:2rem; padding:0; } .review-intro__actions button>span { display:none; } .review-grid { grid-template-columns:1fr; } .summary-section { position:static; } .review-header__context { display:none; } .invite-panel>div { flex-direction:column; } .copy-invite { width:100%; } } }

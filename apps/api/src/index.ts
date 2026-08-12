@@ -345,6 +345,18 @@ function sanitizeRelayMetadata(
   };
 }
 
+function relayMetadataError(metadata: RelaySessionMetadata | null) {
+  if (!metadata) return null;
+  if (metadata.status === "open" && !metadata.cutoffAt)
+    return "Open sessions require a cutoff.";
+  if (!metadata.cutoffAt) return null;
+  const cutoff = new Date(metadata.cutoffAt).getTime();
+  if (!Number.isFinite(cutoff)) return "Session cutoff is invalid.";
+  if (metadata.status === "open" && cutoff <= Date.now())
+    return "Session cutoff must be in the future.";
+  return null;
+}
+
 function isPastCutoff(metadata: RelaySessionMetadata, now = new Date()) {
   if (!metadata.cutoffAt) return false;
   const time = new Date(metadata.cutoffAt).getTime();
@@ -597,6 +609,14 @@ export async function decideRelayWrite(
         status: 400,
         body: { error: "Session metadata is required." },
       } as const;
+    const metadataError = relayMetadataError(metadata);
+    if (metadataError) {
+      return {
+        ok: false,
+        status: 400,
+        body: { error: metadataError },
+      } as const;
+    }
     if (
       role === "organizer" &&
       !(await hasOrganizerProof(metadata, organizerSecret))
@@ -628,10 +648,19 @@ export async function decideRelayWrite(
         body: { error: "Organizer proof is required." },
       } as const;
     }
+    const metadata = sanitizeRelayMetadata(body.metadata) ?? current.metadata;
+    const metadataError = relayMetadataError(metadata ?? null);
+    if (metadataError) {
+      return {
+        ok: false,
+        status: 400,
+        body: { error: metadataError },
+      } as const;
+    }
     return {
       ok: true,
       role: "organizer",
-      metadata: sanitizeRelayMetadata(body.metadata) ?? current.metadata,
+      metadata,
     } as const;
   }
 

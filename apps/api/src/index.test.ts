@@ -222,6 +222,7 @@ async function createRelaySession(
       ciphertext,
       metadata: {
         status: "open",
+        cutoffAt: new Date(Date.now() + 60 * 60_000).toISOString(),
         organizerSecretHash: await hash(organizerSecret),
       },
       role: "organizer",
@@ -500,6 +501,7 @@ describe("relay session events", () => {
           ciphertext: "initial-ciphertext",
           metadata: {
             status: "open",
+            cutoffAt: new Date(Date.now() + 60 * 60_000).toISOString(),
             organizerSecretHash: await hash(organizerSecret),
           },
           role: "organizer",
@@ -565,6 +567,147 @@ describe("relay session events", () => {
 });
 
 describe("participant relay writes", () => {
+  it("rejects an open organizer session without a cutoff", async () => {
+    const organizerSecret = "missing-cutoff-organizer-secret";
+    const response = await putRelaySession(
+      `missing-cutoff-${crypto.randomUUID()}`,
+      {
+        ciphertext: "missing-cutoff-ciphertext",
+        metadata: {
+          status: "open",
+          organizerSecretHash: await hash(organizerSecret),
+        },
+        role: "organizer",
+      },
+      { organizer: organizerSecret },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Open sessions require a cutoff.",
+    });
+  });
+
+  it("lets only the organizer reopen a session with a future cutoff", async () => {
+    const sessionId = `reopen-${crypto.randomUUID()}`;
+    const organizerSecret = "reopen-organizer-secret";
+    const created = await createRelaySession(sessionId, organizerSecret);
+    const lockedResponse = await putRelaySession(
+      sessionId,
+      {
+        ciphertext: "locked-organizer-ciphertext",
+        expectedUpdatedAt: created.updatedAt,
+        metadata: {
+          status: "locked",
+          cutoffAt: new Date(Date.now() - 60_000).toISOString(),
+          organizerSecretHash: await hash(organizerSecret),
+        },
+        role: "organizer",
+      },
+      { organizer: organizerSecret },
+    );
+    expect(lockedResponse.status).toBe(200);
+    const locked = (await lockedResponse.json()) as RelaySessionRecord;
+    const cutoffAt = new Date(Date.now() + 60 * 60_000).toISOString();
+
+    const denied = await putRelaySession(
+      sessionId,
+      {
+        ciphertext: "forged-reopen-ciphertext",
+        expectedUpdatedAt: locked.updatedAt,
+        metadata: {
+          status: "open",
+          cutoffAt,
+          organizerSecretHash: await hash(organizerSecret),
+        },
+        role: "organizer",
+      },
+      { organizer: "wrong-secret" },
+    );
+    expect(denied.status).toBe(403);
+
+    const reopenedResponse = await putRelaySession(
+      sessionId,
+      {
+        ciphertext: "reopened-organizer-ciphertext",
+        expectedUpdatedAt: locked.updatedAt,
+        metadata: {
+          status: "open",
+          cutoffAt,
+          organizerSecretHash: await hash(organizerSecret),
+        },
+        role: "organizer",
+      },
+      { organizer: organizerSecret },
+    );
+    expect(reopenedResponse.status).toBe(200);
+    const reopened = (await reopenedResponse.json()) as RelaySessionRecord;
+    expect(reopened).toMatchObject({
+      ciphertext: "reopened-organizer-ciphertext",
+      metadata: { status: "open", cutoffAt },
+    });
+
+    const staleParticipant = await submitRelayParticipant(
+      sessionId,
+      locked.updatedAt,
+      "participant-one",
+    );
+    expect(staleParticipant.status).toBe(409);
+    const refreshedParticipant = await submitRelayParticipant(
+      sessionId,
+      reopened.updatedAt,
+      "participant-one",
+    );
+    expect(refreshedParticipant.status).toBe(200);
+  });
+
+  it("rejects malformed organizer cutoff metadata", async () => {
+    const sessionId = `invalid-cutoff-${crypto.randomUUID()}`;
+    const organizerSecret = "invalid-cutoff-organizer-secret";
+    const created = await createRelaySession(sessionId, organizerSecret);
+    const response = await putRelaySession(
+      sessionId,
+      {
+        ciphertext: "invalid-cutoff-ciphertext",
+        expectedUpdatedAt: created.updatedAt,
+        metadata: {
+          status: "open",
+          cutoffAt: "not-a-date",
+          organizerSecretHash: await hash(organizerSecret),
+        },
+        role: "organizer",
+      },
+      { organizer: organizerSecret },
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects an elapsed cutoff when the organizer reopens a session", async () => {
+    const sessionId = `elapsed-reopen-${crypto.randomUUID()}`;
+    const organizerSecret = "elapsed-reopen-organizer-secret";
+    const created = await createRelaySession(sessionId, organizerSecret);
+    const response = await putRelaySession(
+      sessionId,
+      {
+        ciphertext: "elapsed-reopen-ciphertext",
+        expectedUpdatedAt: created.updatedAt,
+        metadata: {
+          status: "open",
+          cutoffAt: new Date(Date.now() - 60_000).toISOString(),
+          organizerSecretHash: await hash(organizerSecret),
+        },
+        role: "organizer",
+      },
+      { organizer: organizerSecret },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Session cutoff must be in the future.",
+    });
+  });
+
   it("preserves concurrent independent participant submissions", async () => {
     const sessionId = `participant-race-${crypto.randomUUID()}`;
     const organizerSecret = "participant-race-organizer-secret";
@@ -790,6 +933,7 @@ describe("participant relay writes", () => {
         expectedUpdatedAt: submitted.updatedAt,
         metadata: {
           status: "open",
+          cutoffAt: new Date(Date.now() + 60 * 60_000).toISOString(),
           organizerSecretHash: await hash(organizerSecret),
         },
         role: "organizer",
@@ -855,6 +999,7 @@ describe("participant relay writes", () => {
               ciphertext: `${sessionId}-ciphertext`,
               metadata: {
                 status: "open",
+                cutoffAt: new Date(Date.now() + 60 * 60_000).toISOString(),
                 organizerSecretHash: await hash(organizerSecret),
               },
               role: "organizer",
@@ -912,6 +1057,7 @@ describe("participant relay writes", () => {
           ciphertext: "unpersisted-ciphertext",
           metadata: {
             status: "open",
+            cutoffAt: new Date(Date.now() + 60 * 60_000).toISOString(),
             organizerSecretHash: await hash(organizerSecret),
           },
           role: "organizer",

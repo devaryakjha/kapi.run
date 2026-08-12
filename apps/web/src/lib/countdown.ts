@@ -23,7 +23,9 @@ export function countdownStatus(
 }
 
 export function countdownLabel(source: CountdownSource, now = new Date()) {
-  if (source.status === 'locked') return 'Order locked'
+  if (source.status === 'locked') return 'Session locked'
+  if (source.status === 'closed') return 'Session closed'
+  if (source.status === 'syncing') return 'Syncing cart'
   if (source.status === 'synced') return 'Cart synced'
   if (source.status === 'sync_failed') return 'Sync failed'
 
@@ -41,8 +43,10 @@ export function countdownLabel(source: CountdownSource, now = new Date()) {
 export function startLiveCountdown(
   element: HTMLElement,
   getSource: () => CountdownSource | null,
+  onStatusChange?: (status: string) => void,
 ) {
   let timeout: number | undefined
+  let previousStatus: string | null = null
   const value = document.createElement('span')
   value.className = 'timer-pill__value'
   element.replaceChildren(value)
@@ -56,6 +60,10 @@ export function startLiveCountdown(
     if (status === 'expired') element.dataset.variant = 'danger'
     else delete element.dataset.variant
     value.textContent = countdownLabel(source, now)
+    if (previousStatus !== null && status !== previousStatus) {
+      onStatusChange?.(status)
+    }
+    previousStatus = status
     return countdownShouldRun(source, now)
   }
 
@@ -78,5 +86,5 @@ export function startLiveCountdown(
     document.removeEventListener('visibilitychange', onVisibilityChange)
   }, { once: true })
   schedule()
-  return paint
+  return schedule
 }

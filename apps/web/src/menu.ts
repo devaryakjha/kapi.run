@@ -22,6 +22,7 @@ import {
 } from './lib/customization-cache.ts'
 import { bindDismissibleDialog } from './lib/dialog.ts'
 import { buildOrganizerReviewPath } from './lib/join-target.ts'
+import { subscribeToRelaySession } from './lib/relay-events.ts'
 import {
   addPlainDraftItem,
   applyParticipantSubmission,
@@ -98,9 +99,13 @@ let isOrganizer = false
 let organizerReviewPath: string | null = null
 let activeParts: SessionLinkParts | null = null
 let relayUpdatedAt: string | null = null
+let closeRelayEvents: (() => void) | null = null
+let latestRelayRevision: string | null = null
+let relayRefreshRunning = false
+let relayRefreshRetry: number | undefined
 const customizationRequests = new Map<string, Promise<MenuCustomization>>()
 
-const lockedMessage = 'This group order is locked. No changes can be made.'
+const lockedMessage = 'This session is locked. No changes can be made.'
 
 const menuFreshFor = 5 * 60 * 1000
 const refreshTimer = startLiveCountdown(timer, () => session)
@@ -163,6 +168,75 @@ async function initialize() {
     else error = caught instanceof Error ? caught.message : 'Could not load this order.'
   } finally {
     render()
+    startRelaySubscription()
+  }
+}
+
+function startRelaySubscription() {
+  closeRelayEvents?.()
+  closeRelayEvents = null
+  if (!activeParts?.sessionId || !relayUpdatedAt) return
+  const watchedSessionId = activeParts.sessionId
+  closeRelayEvents = subscribeToRelaySession(
+    watchedSessionId,
+    relayUpdatedAt,
+    (revision) => {
+      if (activeParts?.sessionId !== watchedSessionId) return
+      latestRelayRevision = revision
+      void refreshSessionFromRelay()
+    },
+  )
+}
+
+async function refreshSessionFromRelay() {
+  if (relayRefreshRunning) return
+  window.clearTimeout(relayRefreshRetry)
+  relayRefreshRetry = undefined
+  relayRefreshRunning = true
+  let attemptedRevision: string | null = null
+  try {
+    while (
+      latestRelayRevision &&
+      latestRelayRevision !== relayUpdatedAt &&
+      session &&
+      activeParts
+    ) {
+      const sessionId = session.id
+      attemptedRevision = latestRelayRevision
+      latestRelayRevision = null
+      const loaded = await loadEncryptedSessionRecord(sessionId, sessionKey)
+      if (!loaded.relayUpdatedAt) throw new Error('Relay refresh is unavailable.')
+      if (activeParts.sessionId !== sessionId) return
+      session = loaded.session
+      relayUpdatedAt = loaded.relayUpdatedAt
+      stale = loaded.relayUpdatedAt === null
+      error = null
+      writeWorkspaceCache({
+        parts: activeParts,
+        loaded,
+        isOrganizer,
+      })
+      render()
+      attemptedRevision = null
+    }
+  } catch {
+    latestRelayRevision ??= attemptedRevision
+    stale = true
+    render()
+    window.clearTimeout(relayRefreshRetry)
+    relayRefreshRetry = window.setTimeout(() => {
+      relayRefreshRetry = undefined
+      void refreshSessionFromRelay()
+    }, 3_000)
+  } finally {
+    relayRefreshRunning = false
+    if (
+      relayRefreshRetry === undefined &&
+      latestRelayRevision &&
+      latestRelayRevision !== relayUpdatedAt
+    ) {
+      void refreshSessionFromRelay()
+    }
   }
 }
 
@@ -234,6 +308,13 @@ function bindEvents() {
     itemDialog.close()
   })
   required<HTMLButtonElement>('.cart-submit').addEventListener('click', () => void submitDraft())
+  window.addEventListener('pagehide', () => {
+    closeRelayEvents?.()
+    window.clearTimeout(relayRefreshRetry)
+  })
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) startRelaySubscription()
+  })
 }
 
 async function submitDraft() {
@@ -346,6 +427,7 @@ function render() {
   renderCategories()
   renderMenu()
   renderCart()
+  if (itemDialog.open && activeItem) updateItemAddButton()
 }
 
 function renderCategories() {

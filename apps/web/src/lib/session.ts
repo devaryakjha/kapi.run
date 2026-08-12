@@ -521,6 +521,57 @@ export function defaultSetupCutoffTime(now = new Date()) {
   return setupCutoffTimeAfter(45, now)
 }
 
+export type SessionWindowAction = 'extend' | 'reopen'
+
+export function sessionWindowAction(
+  session: KapiSession,
+  now = new Date(),
+): SessionWindowAction {
+  if (session.status !== 'open') return 'reopen'
+  const cutoff = session.cutoffAt ? new Date(session.cutoffAt).getTime() : NaN
+  return Number.isFinite(cutoff) && cutoff > now.getTime() ? 'extend' : 'reopen'
+}
+
+export function applySessionWindowChange(
+  session: KapiSession,
+  cutoff: Date,
+  now = new Date(),
+):
+  | { action: SessionWindowAction; session: KapiSession }
+  | { error: string } {
+  const cutoffTime = cutoff.getTime()
+  if (!Number.isFinite(cutoffTime) || cutoffTime <= now.getTime()) {
+    return { error: 'Choose a valid future cutoff.' }
+  }
+
+  const action = sessionWindowAction(session, now)
+  const currentCutoff = session.cutoffAt
+    ? new Date(session.cutoffAt).getTime()
+    : NaN
+  if (
+    action === 'extend' &&
+    Number.isFinite(currentCutoff) &&
+    cutoffTime <= currentCutoff
+  ) {
+    return { error: 'Choose a cutoff later than the current cutoff.' }
+  }
+
+  const { sync: _, ...current } = session
+  return {
+    action,
+    session: {
+      ...current,
+      cutoffAt: cutoff.toISOString(),
+      cutoffTime: formatTimeLabel(formatTimeInput(cutoff)),
+      status: 'open',
+      audit: [
+        ...session.audit,
+        audit('Organiser', action === 'extend' ? 'extended session' : 're-opened session'),
+      ],
+    },
+  }
+}
+
 export function resolveSetupCutoffAt(
   value: string,
   now = new Date(),

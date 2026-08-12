@@ -51,7 +51,10 @@
     background: var(--danger);
   }
 
-  .timer-pill:is([data-status='locked'], [data-status='synced'], [data-status='sync_failed']) {
+  .timer-pill:is([data-status='locked'], [data-status='syncing'], [data-status='synced'], [data-status='sync_failed'], [data-status='closed']) {
+    width: auto;
+    min-width: 8rem;
+    padding-inline: 0.75rem;
     border-color: color-mix(in oklch, var(--primary) 24%, var(--border));
     background: color-mix(in oklch, var(--primary) 8%, var(--background));
     color: var(--primary);
@@ -99,6 +102,16 @@
       width: 6.5rem;
       overflow: hidden;
       padding-inline: 0.5rem;
+    }
+
+    .timer-pill:is([data-status='locked'], [data-status='syncing'], [data-status='synced'], [data-status='sync_failed'], [data-status='closed']) {
+      width: auto;
+      min-width: 0;
+      padding-inline: 0.625rem;
+    }
+
+    .timer-pill:is([data-status='locked'], [data-status='syncing'], [data-status='synced'], [data-status='sync_failed'], [data-status='closed'])::before {
+      display: none;
     }
   }
 }

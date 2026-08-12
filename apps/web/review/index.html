@@ -35,7 +35,10 @@
       <section class="review-shell w-100" aria-labelledby="review-title" hidden>
         <header class="review-intro flex justify-between gap-4">
           <hgroup><h1 id="review-title">Review order</h1><p class="text-light" data-review-subtitle></p></hgroup>
-          <button class="outline small lock-order" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="16" height="12" x="4" y="8" rx="2"></rect><path d="M8 8V6a4 4 0 0 1 8 0v2"></path></svg><span>Lock order</span></button>
+          <div class="review-intro__actions flex gap-2" role="group" aria-label="Session controls">
+            <button class="outline small session-window" type="button" aria-label="Extend session" data-tooltip="Extend session" data-tooltip-placement="left"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span data-session-window-label>Extend session</span></button>
+            <button class="outline small lock-order" type="button" aria-label="Lock session" data-tooltip="Lock session" data-tooltip-placement="left"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="16" height="12" x="4" y="8" rx="2"></rect><path d="M8 8V6a4 4 0 0 1 8 0v2"></path></svg><span>Lock session</span></button>
+          </div>
         </header>
 
         <div class="review-stale items-center" role="alert" data-variant="warning" hidden><span>⚠</span><span>Showing a saved copy. Refresh before changing this order.</span></div>
@@ -77,9 +80,25 @@
 
     <dialog class="confirm-dialog lock-dialog" closedby="any" aria-labelledby="lock-dialog-title">
       <form method="dialog">
-        <header><h2 id="lock-dialog-title">Lock this group order?</h2></header>
-        <div><p>No one can change their items after you lock the order.</p></div>
-        <footer><button class="outline" data-dialog-cancel>Keep open</button><button class="confirm-lock" type="button">Lock order</button></footer>
+        <header><h2 id="lock-dialog-title">Lock this session?</h2></header>
+        <div><p>No one can change their items after you lock the session.</p></div>
+        <footer><button class="outline" data-dialog-cancel>Keep open</button><button class="confirm-lock" type="button">Lock session</button></footer>
+      </form>
+    </dialog>
+    <dialog class="session-window-dialog" closedby="any" aria-labelledby="session-window-title" aria-describedby="session-window-description">
+      <form>
+        <header>
+          <h2 id="session-window-title" data-session-window-title>Extend this session?</h2>
+          <p id="session-window-description">Participants can add or update items until the new cutoff.</p>
+        </header>
+        <div>
+          <label data-field for="session-cutoff">
+            New cutoff
+            <input id="session-cutoff" name="cutoff" type="datetime-local" step="60" required aria-describedby="session-cutoff-error" />
+            <small class="error" id="session-cutoff-error" role="status" data-session-cutoff-error></small>
+          </label>
+        </div>
+        <footer><button class="outline" type="button" data-dialog-cancel>Cancel</button><button class="confirm-session-window" type="submit">Extend session</button></footer>
       </form>
     </dialog>
     <dialog class="confirm-dialog sync-dialog" closedby="any" aria-labelledby="sync-dialog-title">
