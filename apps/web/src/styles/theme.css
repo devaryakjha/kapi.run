@@ -89,6 +89,11 @@
 }
 
 @layer components {
+  button.icon.small {
+    height: var(--space-8);
+    flex: none;
+  }
+
   [role='alert'][data-variant='error'] {
     padding: var(--space-3) var(--space-4);
     border: 1px solid var(--border);

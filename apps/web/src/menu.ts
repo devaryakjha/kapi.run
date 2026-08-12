@@ -630,8 +630,10 @@ function addonGroup(group: MenuAddonGroup) {
 
 function optionGroup(name: string, rule = '') {
   const root = document.createElement('fieldset'); root.className = 'item-option-group'
-  const title = document.createElement('legend'); title.textContent = name; root.append(title)
-  if (rule) { const detail = document.createElement('small'); detail.textContent = rule; root.append(detail) }
+  const title = document.createElement('legend')
+  const label = document.createElement('span'); label.textContent = name; title.append(label)
+  if (rule) { const detail = document.createElement('small'); detail.textContent = rule; title.append(detail) }
+  root.append(title)
   const list = document.createElement('div'); list.className = 'item-option-list'; root.append(list)
   return root
 }
