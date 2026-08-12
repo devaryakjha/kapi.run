@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'bun:test'
-import type { KapiSession } from '@kapi/spec'
+import type { CartLine, KapiSession } from '@kapi/spec'
 
 import {
+  applyParticipantSubmission,
   applySessionWindowChange,
   defaultSetupCutoffTime,
+  draftCartFromParticipantItems,
   formatAddressOption,
   formatRestaurantLocationMeta,
   formatRestaurantValueMeta,
@@ -161,5 +163,113 @@ describe('owner session window changes', () => {
         now,
       ),
     ).toEqual({ error: 'Choose a valid future cutoff.' })
+  })
+})
+
+describe('participant submitted items', () => {
+  const submittedItems = [
+    {
+      id: 'line-1',
+      participantId: 'participant-1',
+      participantName: 'Sam',
+      menuItemId: 'item-1',
+      name: 'Paprika sandwich',
+      quantity: 2,
+      price: 455,
+      available: true,
+      swiggyItemId: 'swiggy-1',
+      customization: {
+        addons: [{
+          group_id: 'bread',
+          choice_id: 'milk-bread',
+          groupName: 'Bread',
+          name: 'Milk bread',
+          price: 40,
+        }],
+      },
+      customizationSummary: 'Bread: Milk bread',
+    },
+    {
+      id: 'line-2',
+      participantId: 'participant-2',
+      participantName: 'Sam',
+      menuItemId: 'item-2',
+      name: 'Cold coffee',
+      quantity: 1,
+      price: 210,
+      available: true,
+      swiggyItemId: 'swiggy-2',
+    },
+  ] satisfies CartLine[]
+
+  it('restores only the current participant items with customization intact', () => {
+    expect(
+      draftCartFromParticipantItems(submittedItems, 'participant-1'),
+    ).toEqual({
+      'line-1': {
+        id: 'line-1',
+        menuItemId: 'item-1',
+        quantity: 2,
+        unitPrice: 455,
+        customization: submittedItems[0]?.customization,
+        customizationSummary: 'Bread: Milk bread',
+      },
+    })
+  })
+
+  it('lets a participant remove their final item without changing another order', () => {
+    const updated = applyParticipantSubmission({
+      latest: {
+        ...session,
+        participants: [
+          ...session.participants,
+          {
+            id: 'participant-2',
+            displayName: 'Alex',
+            status: 'submitted',
+            joinedAt: '2026-08-12T04:01:00.000Z',
+          },
+        ],
+        items: submittedItems,
+      },
+      menu: [],
+      participantId: 'participant-1',
+      participantName: 'Sam',
+      draftItems: [],
+    })
+
+    expect(updated.items).toEqual([submittedItems[1]])
+    expect(
+      updated.participants.find(({ id }) => id === 'participant-1')?.status,
+    ).toBe('submitted')
+  })
+
+  it('preserves an existing submitted item when it leaves the current menu', () => {
+    const existing = submittedItems[0]!
+    const updated = applyParticipantSubmission({
+      latest: { ...session, items: [existing] },
+      menu: [],
+      participantId: 'participant-1',
+      participantName: 'Sam',
+      draftItems: [{
+        id: existing.id,
+        menuItemId: existing.menuItemId,
+        quantity: 3,
+        unitPrice: existing.price,
+        customization: existing.customization,
+        customizationSummary: existing.customizationSummary,
+      }],
+    })
+
+    expect(updated.items).toEqual([
+      expect.objectContaining({
+        participantId: 'participant-1',
+        menuItemId: existing.menuItemId,
+        name: existing.name,
+        quantity: 3,
+        customization: existing.customization,
+        customizationSummary: existing.customizationSummary,
+      }),
+    ])
   })
 })

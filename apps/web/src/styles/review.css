@@ -30,8 +30,11 @@
   .order-group__identity small { font-size:.6875rem; }
   .order-group>header>strong { font-family:ui-monospace,monospace; font-size:.875rem; }
   .review-items { margin:0; }
-  .review-item { min-height:3.3125rem; gap:1rem; margin:0; padding:.75rem 1rem; border-bottom:1px solid var(--border); font-size:.875rem; }
+  .review-item { min-height:3.3125rem; align-items:flex-start; gap:1rem; margin:0; padding:.75rem 1rem; border-bottom:1px solid var(--border); font-size:.875rem; }
   .review-item:last-child { border-bottom:0; }
+  .review-item__copy { min-width:0; flex:1; }
+  .review-item__customizations { margin:var(--space-1) 0 0; font-size:var(--text-8); line-height:var(--leading-normal); }
+  .review-item__actions { flex:none; }
   .review-item__actions>strong { margin-right:.5rem; font-family:ui-monospace,monospace; font-size:.875rem; }
   .review-item__actions button { width:1.75rem; height:1.75rem; padding:0; border:0; background:transparent; }
   .review-item__actions button:first-of-type { border:1px solid var(--border); border-right:0; border-radius:999px 0 0 999px; }

@@ -109,14 +109,18 @@
           <strong>Your cart is empty</strong>
           <span class="text-light">Add an item to build your order.</span>
         </section>
-        <section class="cart-lines" aria-labelledby="cart-lines-title" hidden>
-          <h3 class="text-light" id="cart-lines-title">Your draft</h3>
+        <section class="cart-lines cart-submitted mb-4" aria-labelledby="cart-submitted-title" hidden>
+          <h3 class="text-light" id="cart-submitted-title">Submitted items</h3>
+          <ul class="unstyled vstack" data-submitted-line-list></ul>
+        </section>
+        <section class="cart-lines cart-draft" aria-labelledby="cart-draft-title" hidden>
+          <h3 class="text-light" id="cart-draft-title">Your draft</h3>
           <ul class="unstyled vstack" data-cart-line-list></ul>
         </section>
       </div>
       <footer class="cart-footer vstack" hidden>
         <div class="cart-items-total flex justify-between text-light"><span>Items</span><span data-cart-items-total>₹0</span></div>
-        <div class="cart-total flex justify-between"><span>Draft subtotal</span><strong data-cart-total>₹0</strong></div>
+        <div class="cart-total flex justify-between"><span>Items subtotal</span><strong data-cart-total>₹0</strong></div>
         <button class="large cart-submit w-100" type="button">Submit items</button>
       </footer>
     </dialog>

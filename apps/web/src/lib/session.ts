@@ -224,6 +224,29 @@ export function changeDraftLineQuantity(
   return { ...draft, [lineId]: { ...current, quantity } }
 }
 
+export function draftCartFromParticipantItems(
+  items: CartLine[],
+  participantId: string,
+): DraftCart {
+  return Object.fromEntries(
+    items.flatMap((item) =>
+      item.participantId === participantId && item.quantity > 0
+        ? [[
+            item.id,
+            {
+              id: item.id,
+              menuItemId: item.menuItemId,
+              quantity: item.quantity,
+              customization: item.customization,
+              customizationSummary: item.customizationSummary,
+              unitPrice: item.price,
+            },
+          ]]
+        : [],
+    ),
+  )
+}
+
 export function isSessionLockedForParticipants(
   session: KapiSession,
   now = new Date(),
@@ -456,17 +479,23 @@ export function applyParticipantSubmission({
         candidate.id === line.menuItemId &&
         candidate.restaurantId === latest.restaurant.id,
     )
-    if (!item || line.quantity <= 0) return []
+    const existing = latest.items.find(
+      (candidate) =>
+        candidate.id === line.id &&
+        candidate.participantId === participantId &&
+        candidate.menuItemId === line.menuItemId,
+    )
+    if ((!item && !existing) || line.quantity <= 0) return []
     return [{
       id: crypto.randomUUID(),
       participantId,
       participantName,
-      menuItemId: item.id,
-      name: item.name,
+      menuItemId: item?.id ?? existing!.menuItemId,
+      name: item?.name ?? existing!.name,
       quantity: line.quantity,
-      price: line.unitPrice ?? item.price,
-      available: item.available,
-      swiggyItemId: item.swiggyItemId,
+      price: line.unitPrice ?? item?.price ?? existing!.price,
+      available: item?.available ?? existing!.available,
+      swiggyItemId: item?.swiggyItemId ?? existing!.swiggyItemId,
       customization: line.customization,
       customizationSummary: line.customizationSummary,
     }]

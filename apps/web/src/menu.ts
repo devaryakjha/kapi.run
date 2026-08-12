@@ -20,13 +20,22 @@ import {
   readCustomizationCache,
   writeCustomizationCache,
 } from './lib/customization-cache.ts'
+import { cartCustomizationDetails } from './lib/cart-customization.ts'
 import { bindDismissibleDialog } from './lib/dialog.ts'
 import { buildOrganizerReviewPath } from './lib/join-target.ts'
+import {
+  applyParticipantCartUpdate,
+  hasParticipantSubmission,
+  participantCartExpectedRevision,
+  participantCartLinesForDisplay,
+  participantSubmissionItems,
+  reconcileParticipantCartRefresh,
+} from './lib/participant-cart.ts'
 import { subscribeToRelaySession } from './lib/relay-events.ts'
 import {
   addPlainDraftItem,
-  applyParticipantSubmission,
   changeDraftLineQuantity,
+  draftCartFromParticipantItems,
   getOrCreateLocalParticipantId,
   getOrCreateLocalParticipantSecret,
   getSessionLinkParts,
@@ -70,7 +79,10 @@ const cartCount = required<HTMLElement>('[data-cart-count]')
 const cartSummary = required<HTMLElement>('[data-cart-summary]')
 const cartName = required<HTMLInputElement>('#cart-participant-name')
 const cartEmpty = required<HTMLElement>('.cart-empty')
-const cartLines = required<HTMLElement>('.cart-lines')
+const cartBody = required<HTMLElement>('.cart-body')
+const cartSubmitted = required<HTMLElement>('.cart-submitted')
+const cartDraft = required<HTMLElement>('.cart-draft')
+const submittedLineList = required<HTMLUListElement>('[data-submitted-line-list]')
 const cartLineList = required<HTMLUListElement>('[data-cart-line-list]')
 const cartFooter = required<HTMLElement>('.cart-footer')
 const cartTotal = required<HTMLElement>('[data-cart-total]')
@@ -83,6 +95,9 @@ const accountPopover = required<HTMLElement>('#menu-account')
 let session: KapiSession | null = null
 let menu: MenuItem[] = []
 let draft: DraftCart = {}
+let submittedDraft: DraftCart = {}
+let submittedDraftDirty = false
+let submittedDraftBaseRevision: string | null = null
 let participantName = ''
 let query = ''
 let activeCategory = 'All'
@@ -209,6 +224,15 @@ async function refreshSessionFromRelay() {
       if (activeParts.sessionId !== sessionId) return
       session = loaded.session
       relayUpdatedAt = loaded.relayUpdatedAt
+      const refreshedCart = reconcileParticipantCartRefresh({
+        current: submittedDraft,
+        incoming: draftCartFromParticipantItems(session.items, participantId),
+        dirty: submittedDraftDirty,
+        editBaseRevision: submittedDraftBaseRevision,
+        incomingRevision: loaded.relayUpdatedAt,
+      })
+      submittedDraft = refreshedCart.submitted
+      submittedDraftBaseRevision = refreshedCart.editBaseRevision
       stale = loaded.relayUpdatedAt === null
       error = null
       writeWorkspaceCache({
@@ -247,6 +271,8 @@ function applyWorkspace(
   organizer: boolean,
 ) {
   if (!parts.sessionId || !parts.key) return
+  const preserveSubmittedEdit =
+    session?.id === parts.sessionId && submittedDraftDirty
   activeParts = parts
   sessionKey = parts.key
   participantId = getOrCreateLocalParticipantId(parts.sessionId)
@@ -266,6 +292,16 @@ function applyWorkspace(
   stale = loaded.relayUpdatedAt === null
   participantName = safeLocalStorageGet(localParticipantNameKey(parts.sessionId)) ?? ''
   draft = loadStoredDraft(parts.sessionId)
+  const refreshedCart = reconcileParticipantCartRefresh({
+    current: submittedDraft,
+    incoming: draftCartFromParticipantItems(session.items, participantId),
+    dirty: preserveSubmittedEdit,
+    editBaseRevision: submittedDraftBaseRevision,
+    incomingRevision: loaded.relayUpdatedAt,
+  })
+  submittedDraft = refreshedCart.submitted
+  submittedDraftBaseRevision = refreshedCart.editBaseRevision
+  submittedDraftDirty = preserveSubmittedEdit
   error = null
 }
 
@@ -292,11 +328,15 @@ function bindEvents() {
     participantName = cartName.value
     if (session) localStorage.setItem(localParticipantNameKey(session.id), participantName)
   })
-  cartLines.addEventListener('click', (event) => {
+  cartBody.addEventListener('click', (event) => {
     const button = (event.target as Element).closest<HTMLButtonElement>('button[data-line-id]')
     if (!button) return
     if (button.getAttribute('aria-disabled') === 'true') { announceLocked(); return }
-    changeQuantity(button.dataset.lineId ?? '', Number(button.dataset.delta))
+    changeQuantity(
+      button.dataset.lineId ?? '',
+      Number(button.dataset.delta),
+      button.dataset.lineSource === 'submitted' ? 'submitted' : 'draft',
+    )
   })
   required<HTMLButtonElement>('.item-dialog__close').addEventListener('click', () => itemDialog.close())
   itemForm.addEventListener('submit', (event) => {
@@ -318,7 +358,10 @@ function bindEvents() {
 }
 
 async function submitDraft() {
-  if (!session || !sessionKey || !Object.keys(draft).length) return
+  if (!session || !sessionKey) return
+  const updatingSubmission = hasParticipantSubmission(session, participantId)
+  const items = participantSubmissionItems(submittedDraft, draft)
+  if (!items.length && !updatingSubmission) return
   if (isSessionLockedForParticipants(session)) { announceLocked(); return }
   const name = participantName.trim()
   if (!name) {
@@ -329,41 +372,48 @@ async function submitDraft() {
   button.disabled = true
   button.textContent = 'Submitting…'
   try {
-    const updated = applyParticipantSubmission({
-      latest: session,
+    const update = applyParticipantCartUpdate(
+      session,
       menu,
       participantId,
-      participantName: name,
-      draftItems: Object.values(draft),
-    })
-    const saved = await publishSession(updated, sessionKey, {
-      expectedUpdatedAt: relayUpdatedAt,
+      name,
+      submittedDraft,
+      draft,
+    )
+    const saved = await publishSession(update.session, sessionKey, {
+      expectedUpdatedAt: participantCartExpectedRevision(
+        submittedDraftDirty,
+        submittedDraftBaseRevision,
+        relayUpdatedAt,
+      ),
       participantId,
       participantSecret,
       role: 'participant',
     })
-    session = updated
+    session = update.session
     relayUpdatedAt = saved.relayUpdatedAt
     if (activeParts) {
       writeWorkspaceCache({
         parts: activeParts,
-        loaded: { session: updated, relayUpdatedAt: saved.relayUpdatedAt },
+        loaded: { session: update.session, relayUpdatedAt: saved.relayUpdatedAt },
         isOrganizer,
       })
     }
-    draft = {}
+    submittedDraft = update.submitted
+    submittedDraftDirty = false
+    submittedDraftBaseRevision = saved.relayUpdatedAt
+    draft = update.draft
     storeDraft(session.id, draft)
     renderMenu()
     renderCart()
-    button.textContent = 'Update my items'
     cartDialog.close()
-    toast('Items submitted to the group.', undefined, {
+    toast(updatingSubmission ? 'Items updated.' : 'Items submitted to the group.', undefined, {
       placement: 'bottom-center',
       variant: 'success',
     })
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : 'Could not submit items.'
-    button.textContent = 'Submit items'
+    button.textContent = updatingSubmission ? 'Update my items' : 'Submit items'
     toast(message, undefined, {
       placement: 'bottom-center',
       variant: 'danger',
@@ -392,11 +442,20 @@ function addItem(itemId: string) {
   renderCart()
 }
 
-function changeQuantity(lineId: string, delta: number) {
+function changeQuantity(
+  lineId: string,
+  delta: number,
+  source: 'draft' | 'submitted' = 'draft',
+) {
   if (!session) return
   if (isSessionLockedForParticipants(session)) { announceLocked(); return }
-  draft = changeDraftLineQuantity(draft, lineId, delta)
-  storeDraft(session.id, draft)
+  if (source === 'submitted') {
+    submittedDraft = changeDraftLineQuantity(submittedDraft, lineId, delta)
+    submittedDraftDirty = true
+  } else {
+    draft = changeDraftLineQuantity(draft, lineId, delta)
+    storeDraft(session.id, draft)
+  }
   renderMenu()
   renderCart()
 }
@@ -518,7 +577,8 @@ function controlButton(text: string, action: string, itemId: string, label: stri
 }
 
 function updateCartCount() {
-  const count = Object.values(draft).reduce((sum, line) => sum + line.quantity, 0)
+  const count = [...Object.values(submittedDraft), ...Object.values(draft)]
+    .reduce((sum, line) => sum + line.quantity, 0)
   cartCount.hidden = count === 0
   cartCount.textContent = count > 99 ? '99+' : String(count)
   cartSummary.textContent = `${count} ${count === 1 ? 'item' : 'items'}`
@@ -526,47 +586,85 @@ function updateCartCount() {
 
 function renderCart() {
   updateCartCount()
-  const lines = Object.values(draft).flatMap((line) => {
+  const submittedLines = participantCartLinesForDisplay(
+    submittedDraft,
+    menu,
+    session?.items ?? [],
+    participantId,
+  )
+  const draftLines = cartLinesWithItems(draft)
+  const visibleLineCount = submittedLines.length + draftLines.length
+  const updatingSubmission = Boolean(
+    session && hasParticipantSubmission(session, participantId),
+  )
+  cartEmpty.hidden = visibleLineCount > 0
+  cartSubmitted.hidden = submittedLines.length === 0
+  cartDraft.hidden = draftLines.length === 0
+  cartFooter.hidden = visibleLineCount === 0 && !updatingSubmission
+  submittedLineList.replaceChildren()
+  cartLineList.replaceChildren()
+  let total = 0
+  for (const { item, line } of submittedLines) {
+    total += (line.unitPrice ?? item.price) * line.quantity
+    submittedLineList.append(createCartLine(item, line, 'submitted'))
+  }
+  for (const { item, line } of draftLines) {
+    total += (line.unitPrice ?? item.price) * line.quantity
+    cartLineList.append(createCartLine(item, line, 'draft'))
+  }
+  cartTotal.textContent = `₹${total}`
+  cartItemsTotal.textContent = `₹${total}`
+  const submit = required<HTMLButtonElement>('.cart-submit')
+  submit.textContent = updatingSubmission ? 'Update my items' : 'Submit items'
+  setLockedInteraction(
+    submit,
+    Boolean(session && isSessionLockedForParticipants(session)),
+  )
+}
+
+function cartLinesWithItems(source: DraftCart) {
+  return Object.values(source).flatMap((line) => {
     const item = menu.find((candidate) => candidate.id === line.menuItemId)
     return item ? [{ item, line }] : []
   })
-  cartEmpty.hidden = lines.length > 0
-  cartLines.hidden = lines.length === 0
-  cartFooter.hidden = lines.length === 0
-  cartLineList.replaceChildren()
-  let total = 0
-  for (const { item, line } of lines) {
-    total += (line.unitPrice ?? item.price) * line.quantity
+}
+
+function createCartLine(
+  item: Pick<MenuItem, 'name' | 'price'>,
+  line: DraftCart[string],
+  source: 'draft' | 'submitted',
+) {
     const row = document.createElement('li'); row.className = 'cart-line flex justify-between'
     const copy = document.createElement('span'); copy.className = 'cart-line__copy'
     const title = document.createElement('strong'); title.textContent = item.name
     const value = document.createElement('small'); value.className = 'text-light'; value.textContent = `₹${line.unitPrice ?? item.price} × ${line.quantity}`
     copy.append(title, value)
-    if (line.customizationSummary) {
+    for (const detail of cartCustomizationDetails(line)) {
       const options = document.createElement('small')
       options.className = 'cart-line__customization text-light'
-      options.textContent = line.customizationSummary
+      options.textContent = detail
       copy.append(options)
     }
     const controls = document.createElement('span'); controls.className = 'cart-line__controls flex items-center'
     controls.append(
-      cartLineButton('−', line.id, -1, `Decrease ${item.name}`),
+      cartLineButton('−', line.id, -1, `Decrease ${item.name}`, source),
       Object.assign(document.createElement('b'), { textContent: String(line.quantity) }),
-      cartLineButton('+', line.id, 1, `Increase ${item.name}`),
+      cartLineButton('+', line.id, 1, `Increase ${item.name}`, source),
     )
-    row.append(copy, controls); cartLineList.append(row)
-  }
-  cartTotal.textContent = `₹${total}`
-  cartItemsTotal.textContent = `₹${total}`
-  setLockedInteraction(
-    required<HTMLButtonElement>('.cart-submit'),
-    Boolean(session && isSessionLockedForParticipants(session)),
-  )
+    row.append(copy, controls)
+    return row
 }
 
-function cartLineButton(text: string, lineId: string, delta: number, label: string) {
+function cartLineButton(
+  text: string,
+  lineId: string,
+  delta: number,
+  label: string,
+  source: 'draft' | 'submitted',
+) {
   const button = document.createElement('button'); button.type = 'button'; button.textContent = text
   button.dataset.lineId = lineId; button.dataset.delta = String(delta)
+  button.dataset.lineSource = source
   button.setAttribute('aria-label', label)
   setLockedInteraction(button, Boolean(session && isSessionLockedForParticipants(session)))
   return button

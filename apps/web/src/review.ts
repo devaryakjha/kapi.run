@@ -9,6 +9,7 @@ import './styles/review.css'
 
 import { api, ApiError } from './lib/api.ts'
 import { renderAccountPopover } from './lib/account-popover.ts'
+import { cartCustomizationDetails } from './lib/cart-customization.ts'
 import { toSwiggyCartItem } from './lib/cart-payload.ts'
 import { startLiveCountdown } from './lib/countdown.ts'
 import { bindDismissibleDialog } from './lib/dialog.ts'
@@ -457,15 +458,29 @@ function createGroup(name: string, items: CartLine[]) {
 }
 
 function createReviewItem(item: CartLine) {
-  const row = document.createElement('li'); row.className = 'review-item flex items-center justify-between'
+  const row = document.createElement('li'); row.className = 'review-item flex justify-between'
+  const copy = document.createElement('div'); copy.className = 'review-item__copy'
   const name = document.createElement('span'); name.textContent = item.name
+  copy.append(name)
+  const customizationDetails = cartCustomizationDetails(item)
+  if (customizationDetails.length) {
+    const details = document.createElement('ul')
+    details.className = 'review-item__customizations unstyled text-light'
+    details.setAttribute('aria-label', `Customizations for ${item.name}`)
+    for (const detail of customizationDetails) {
+      const choice = document.createElement('li')
+      choice.textContent = detail
+      details.append(choice)
+    }
+    copy.append(details)
+  }
   const actions = document.createElement('span'); actions.className = 'review-item__actions flex items-center gap-1'
   const value = document.createElement('strong'); value.textContent = `₹${item.price} ×${item.quantity}`
   actions.append(value)
   if (isOrganizer) {
     actions.append(itemButton('−','decrease',item.id,`Decrease ${item.name}`), Object.assign(document.createElement('b'),{textContent:String(item.quantity)}), itemButton('+','increase',item.id,`Increase ${item.name}`), itemButton('×','remove',item.id,`Remove ${item.name}`))
   }
-  row.append(name,actions); return row
+  row.append(copy,actions); return row
 }
 
 function itemButton(text: string, action: string, itemId: string, label: string) {
