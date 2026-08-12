@@ -1,5 +1,7 @@
 import type { CartLine, KapiSession, SwiggyCartSummary } from '@kapi/spec'
 
+import { toast } from '@knadh/oat/js/toast.js'
+
 import './styles/base.css'
 import './styles/session.css'
 import './styles/review.css'
@@ -104,9 +106,7 @@ function bindEvents() {
       }),
     )
   })
-  required<HTMLButtonElement>('.copy-invite').addEventListener('click', () => {
-    if (session) void navigator.clipboard.writeText(session.shareUrl)
-  })
+  required<HTMLButtonElement>('.copy-invite').addEventListener('click', () => void copyInvite())
   lockButton.addEventListener('click', () => lockDialog.showModal())
   refreshButton.addEventListener('click', () => void refresh())
   syncButton.addEventListener('click', () => void inspectSwiggyCart())
@@ -126,12 +126,36 @@ function bindEvents() {
   })
 }
 
+async function copyInvite() {
+  if (!session) return
+  try {
+    await navigator.clipboard.writeText(session.shareUrl)
+    toast('The invite link is ready to share.', 'Link copied', {
+      placement: 'bottom-center',
+      variant: 'success',
+    })
+  } catch {
+    toast('Copy the link from the field and try again.', 'Could not copy link', {
+      placement: 'bottom-center',
+      variant: 'danger',
+    })
+  }
+}
+
 async function refresh() {
   if (!session || !sessionKey) return
   try {
     pending = true; render()
+    const currentItems = new Set(session.items.map(({ id }) => id))
     const loaded = await loadEncryptedSessionRecord(session.id, sessionKey)
+    const addedItems = loaded.session.items.filter(({ id }) => !currentItems.has(id)).length
     session = loaded.session; relayUpdatedAt = loaded.relayUpdatedAt; stale = loaded.relayUpdatedAt === null; error = null
+    if (addedItems > 0) {
+      toast(`${addedItems} new ${addedItems === 1 ? 'item is' : 'items are'} ready to review.`, 'New group items', {
+        placement: 'bottom-center',
+        variant: 'success',
+      })
+    }
   } catch (caught) {
     error = caught instanceof Error ? caught.message : 'Could not refresh.'
   } finally { pending = false; render() }
@@ -164,6 +188,10 @@ async function lockOrder() {
   pending = true; render()
   try {
     await save({ ...session, status: 'locked', audit: [...session.audit, audit('Organiser', 'locked session')] })
+    toast('No one can change their items now.', 'Order locked', {
+      placement: 'bottom-center',
+      variant: 'success',
+    })
   } catch (caught) { showActionError(caught) } finally { pending = false; render() }
 }
 
@@ -199,6 +227,16 @@ async function syncSwiggyCart() {
       }),
     })
     await save({ ...session, status: result?.status === 'synced' ? 'synced' : 'sync_failed', sync: result })
+    toast(
+      result?.status === 'synced'
+        ? 'The group items are now in your Swiggy cart.'
+        : 'Swiggy did not accept every item.',
+      result?.status === 'synced' ? 'Cart synced' : 'Cart sync incomplete',
+      {
+        placement: 'bottom-center',
+        variant: result?.status === 'synced' ? 'success' : 'warning',
+      },
+    )
   } catch (caught) { showActionError(caught) } finally { pending = false; swiggyCart = null; render() }
 }
 
@@ -266,23 +304,23 @@ function renderOrders() {
 
 function createGroup(name: string, items: CartLine[]) {
   const group = document.createElement('article'); group.className = 'card order-group'
-  const header = document.createElement('header')
-  const identity = document.createElement('div'); identity.className = 'order-group__identity'
+  const header = document.createElement('header'); header.className = 'flex items-center justify-between'
+  const identity = document.createElement('div'); identity.className = 'order-group__identity flex items-center'
   const initial = document.createElement('figure'); initial.className = 'participant-avatar'; initial.dataset.variant = 'avatar'; initial.ariaHidden = 'true'; initial.textContent = name.slice(0,1).toUpperCase()
   const title = document.createElement('h3'); title.textContent = name
-  const count = document.createElement('small'); count.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`
+  const count = document.createElement('small'); count.className = 'text-light'; count.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`
   identity.append(initial,title,count)
   const total = document.createElement('strong'); total.textContent = `₹${items.reduce((sum,item)=>sum+item.price*item.quantity,0)}`
-  const list = document.createElement('ul'); list.className = 'review-items'
+  const list = document.createElement('ul'); list.className = 'review-items unstyled'
   header.append(identity,total); group.append(header, list)
   for (const item of items) list.append(createReviewItem(item))
   return group
 }
 
 function createReviewItem(item: CartLine) {
-  const row = document.createElement('li'); row.className = 'review-item'
+  const row = document.createElement('li'); row.className = 'review-item flex items-center justify-between'
   const name = document.createElement('span'); name.textContent = item.name
-  const actions = document.createElement('span'); actions.className = 'review-item__actions'
+  const actions = document.createElement('span'); actions.className = 'review-item__actions flex items-center gap-1'
   const value = document.createElement('strong'); value.textContent = `₹${item.price} ×${item.quantity}`
   actions.append(value)
   if (isOrganizer) {
@@ -292,5 +330,5 @@ function createReviewItem(item: CartLine) {
 }
 
 function itemButton(text: string, action: string, itemId: string, label: string) {
-  const button = document.createElement('button'); button.type='button'; button.textContent=text; button.dataset.action=action; button.dataset.itemId=itemId; button.setAttribute('aria-label',label); return button
+  const button = document.createElement('button'); button.className='text-light'; button.type='button'; button.textContent=text; button.dataset.action=action; button.dataset.itemId=itemId; button.setAttribute('aria-label',label); return button
 }

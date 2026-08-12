@@ -4,24 +4,19 @@
   }
 
   .home-page__content {
-    display: flex;
     flex: 1;
-    align-items: center;
     padding: 2rem 1rem;
   }
 
   .home-layout {
     display: grid;
-    width: 100%;
     max-width: 72rem;
     gap: 2.5rem;
     margin-inline: auto;
   }
 
   .home-intro {
-    display: flex;
     max-width: 36rem;
-    flex-direction: column;
     align-items: center;
     margin-inline: auto;
     text-align: center;
@@ -44,7 +39,6 @@
     margin: 1.5rem 0 0;
     font-size: 1rem;
     line-height: 1.75rem;
-    color: var(--muted-foreground);
     text-wrap: pretty;
   }
 
@@ -53,13 +47,12 @@
     margin: 2rem 0 0;
     font-size: 0.875rem;
     font-weight: 500;
-    line-height: 1.75rem;
+    line-height: 1.25rem;
     color: color-mix(in oklch, var(--foreground) 70%, transparent);
   }
 
   .order-ticket {
     position: relative;
-    width: 100%;
     max-width: 36rem;
     margin-inline: auto;
   }
@@ -91,9 +84,6 @@
   }
 
   .order-card__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     padding: 1rem 1.25rem;
     background: var(--primary);
     color: var(--primary-foreground);
@@ -115,11 +105,8 @@
   }
 
   .order-card__mark {
-    display: flex;
     width: 2.5rem;
     height: 2.5rem;
-    align-items: center;
-    justify-content: center;
     border: 1px solid color-mix(in oklch, var(--primary-foreground) 20%, transparent);
     border-radius: 0.875rem;
     background: color-mix(in oklch, var(--primary-foreground) 10%, transparent);
@@ -135,10 +122,8 @@
   }
 
   .start-order {
-    display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 1rem;
     padding-bottom: 1.25rem;
   }
 
@@ -155,14 +140,12 @@
     margin: 0.25rem 0 0;
     font-size: 0.875rem;
     line-height: 1.25rem;
-    color: var(--muted-foreground);
   }
 
   .join-order__heading p {
     margin: 0;
     font-size: 0.875rem;
     line-height: 1.25rem;
-    color: var(--muted-foreground);
   }
 
   .start-order__action {
@@ -181,19 +164,14 @@
   }
 
   .join-order__heading {
-    display: flex;
-    align-items: center;
     gap: 0.75rem;
     margin-bottom: 1rem;
   }
 
   .join-order__icon {
-    display: flex;
     width: 2.25rem;
     height: 2.25rem;
     flex: none;
-    align-items: center;
-    justify-content: center;
     border-radius: 0.875rem;
     background: var(--muted);
     color: var(--muted-foreground);
@@ -204,14 +182,24 @@
     height: 1rem;
   }
 
-  .join-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+  .join-form__field {
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .join-form__field input {
+    height: 2.75rem;
+    margin: 0;
+    padding-inline: 0.875rem;
+    border-color: var(--input);
+    border-radius: 0.75rem;
+    background: var(--background);
   }
 
   .join-form__submit {
-    width: 100%;
+    height: 2.5rem;
+    border-radius: 0.75rem;
+    background: var(--card);
   }
 }
 

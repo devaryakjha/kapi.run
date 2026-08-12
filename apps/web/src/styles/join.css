@@ -2,13 +2,11 @@
 
 @layer components {
   .join-page__content {
-    display: flex;
     flex: 1;
     padding: 2.5rem 1.5rem;
   }
 
   .join-card {
-    width: 100%;
     max-width: 28rem;
     margin: auto;
     padding: var(--space-5);
@@ -16,7 +14,6 @@
   }
 
   .join-intro {
-    display: flex;
     align-items: flex-start;
     gap: 0.75rem;
     min-height: 3.25rem;
@@ -24,12 +21,9 @@
   }
 
   .join-intro__icon {
-    display: flex;
     width: 2.5rem;
     height: 2.5rem;
     flex: none;
-    align-items: center;
-    justify-content: center;
     border-radius: 0.625rem;
     background: var(--primary);
     color: var(--primary-foreground);
@@ -54,23 +48,12 @@
 
   .join-intro__description {
     margin-top: 0.25rem;
-    color: var(--muted-foreground);
     font-size: 0.8125rem;
     line-height: 1.25rem;
   }
 
   .join-loading {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--muted-foreground);
     font-size: 0.875rem;
-  }
-
-  .join-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
   }
 
   .join-info {
@@ -101,7 +84,6 @@
   }
 
   .join-field > span {
-    color: var(--muted-foreground);
     font-size: 0.6875rem;
     font-weight: 600;
     line-height: 0.875rem;
@@ -110,7 +92,9 @@
   }
 
   .join-submit {
-    width: 100%;
+    height: 2.5rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
   }
 
   .join-submit svg {

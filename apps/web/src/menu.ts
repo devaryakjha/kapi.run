@@ -1,5 +1,7 @@
 import type { CartCustomization, KapiSession, MenuAddonGroup, MenuCustomization, MenuItem, MenuVariantGroup } from '@kapi/spec'
 
+import { toast } from '@knadh/oat/js/toast.js'
+
 import './styles/base.css'
 import './styles/session.css'
 import './styles/menu.css'
@@ -71,7 +73,6 @@ const itemDialog = required<HTMLDialogElement>('.item-dialog')
 const itemForm = required<HTMLFormElement>('.item-dialog__form')
 const itemOptions = required<HTMLElement>('[data-item-options]')
 const accountPopover = required<HTMLElement>('#menu-account')
-const lockFeedback = required<HTMLElement>('.lock-feedback')
 
 let session: KapiSession | null = null
 let menu: MenuItem[] = []
@@ -92,7 +93,6 @@ let isOrganizer = false
 let organizerReviewPath: string | null = null
 let activeParts: SessionLinkParts | null = null
 let relayUpdatedAt: string | null = null
-let lockFeedbackTimeout: number | undefined
 const customizationRequests = new Map<string, Promise<MenuCustomization>>()
 
 const lockedMessage = 'This group order is locked. No changes can be made.'
@@ -271,8 +271,17 @@ async function submitDraft() {
     renderCart()
     button.textContent = 'Update my items'
     cartDialog.close()
+    toast('Your items are now visible to the group.', 'Items submitted', {
+      placement: 'bottom-center',
+      variant: 'success',
+    })
   } catch (caught) {
-    button.textContent = caught instanceof Error ? caught.message : 'Could not submit items.'
+    const message = caught instanceof Error ? caught.message : 'Could not submit items.'
+    button.textContent = 'Submit items'
+    toast(message, 'Could not submit items', {
+      placement: 'bottom-center',
+      variant: 'danger',
+    })
   } finally {
     button.disabled = false
   }
@@ -340,13 +349,16 @@ function renderCategories() {
   categoryList.hidden = categories.length <= 2
   categoryList.replaceChildren()
   for (const category of categories) {
+    const item = document.createElement('li')
     const button = document.createElement('button')
     button.type = 'button'
     button.className = 'badge outline'
     button.dataset.category = category
     button.dataset.active = String(activeCategory === category && !query)
+    button.setAttribute('aria-pressed', String(activeCategory === category && !query))
     button.textContent = category
-    categoryList.append(button)
+    item.append(button)
+    categoryList.append(item)
   }
 }
 
@@ -377,6 +389,7 @@ function createMenuCard(item: MenuItem) {
   card.dataset.selected = String(quantity > 0)
   card.toggleAttribute('data-unavailable', !item.available)
   media.dataset.action = 'view'; media.dataset.itemId = item.id
+  media.setAttribute('aria-label', `View ${item.name}`)
   name.dataset.action = 'view'; name.dataset.itemId = item.id; name.textContent = item.name
   description.textContent = item.description
   price.textContent = `₹${item.price}`
@@ -393,7 +406,7 @@ function createMenuCard(item: MenuItem) {
       Object.assign(document.createElement('strong'), { textContent: String(quantity) }),
       controlButton('+', 'add', item.id, `Add ${item.name}`),
     )
-    controls.className = 'menu-card__controls quantity-control'
+    controls.className = 'menu-card__controls quantity-control flex items-center'
   } else {
     const customizable = Boolean(item.hasVariants || item.hasAddons)
     const add = controlButton(
@@ -438,18 +451,18 @@ function renderCart() {
   let total = 0
   for (const { item, line } of lines) {
     total += (line.unitPrice ?? item.price) * line.quantity
-    const row = document.createElement('li'); row.className = 'cart-line'
+    const row = document.createElement('li'); row.className = 'cart-line flex justify-between'
     const copy = document.createElement('span'); copy.className = 'cart-line__copy'
     const title = document.createElement('strong'); title.textContent = item.name
-    const value = document.createElement('small'); value.textContent = `₹${line.unitPrice ?? item.price} × ${line.quantity}`
+    const value = document.createElement('small'); value.className = 'text-light'; value.textContent = `₹${line.unitPrice ?? item.price} × ${line.quantity}`
     copy.append(title, value)
     if (line.customizationSummary) {
       const options = document.createElement('small')
-      options.className = 'cart-line__customization'
+      options.className = 'cart-line__customization text-light'
       options.textContent = line.customizationSummary
       copy.append(options)
     }
-    const controls = document.createElement('span'); controls.className = 'cart-line__controls'
+    const controls = document.createElement('span'); controls.className = 'cart-line__controls flex items-center'
     controls.append(
       cartLineButton('−', line.id, -1, `Decrease ${item.name}`),
       Object.assign(document.createElement('b'), { textContent: String(line.quantity) }),
@@ -485,13 +498,11 @@ function setLockedInteraction(element: HTMLElement, locked: boolean) {
 }
 
 function announceLocked() {
-  window.clearTimeout(lockFeedbackTimeout)
-  lockFeedback.hidden = false
-  lockFeedback.dataset.visible = 'true'
-  lockFeedbackTimeout = window.setTimeout(() => {
-    lockFeedback.hidden = true
-    delete lockFeedback.dataset.visible
-  }, 2600)
+  toast(lockedMessage, 'Order locked', {
+    duration: 2600,
+    placement: 'bottom-center',
+    variant: 'warning',
+  })
 }
 
 function showItem(itemId: string) {
@@ -630,9 +641,9 @@ function addonGroup(group: MenuAddonGroup) {
 
 function optionGroup(name: string, rule = '') {
   const root = document.createElement('fieldset'); root.className = 'item-option-group'
-  const title = document.createElement('legend')
+  const title = document.createElement('legend'); title.className = 'flex flex-col w-100 text-light'
   const label = document.createElement('span'); label.textContent = name; title.append(label)
-  if (rule) { const detail = document.createElement('small'); detail.textContent = rule; title.append(detail) }
+  if (rule) { const detail = document.createElement('small'); detail.className = 'text-light'; detail.textContent = rule; title.append(detail) }
   root.append(title)
   const list = document.createElement('div'); list.className = 'item-option-list'; root.append(list)
   return root
@@ -641,7 +652,7 @@ function optionGroup(name: string, rule = '') {
 function optionRow(input: HTMLInputElement, name: string, price: string) {
   const row = document.createElement('label'); row.className = 'item-option'
   const title = document.createElement('span'); title.textContent = name
-  const cost = document.createElement('small'); cost.textContent = price
+  const cost = document.createElement('small'); cost.className = 'text-light'; cost.textContent = price
   row.append(input, title, cost); return row
 }
 

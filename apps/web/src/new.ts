@@ -363,10 +363,11 @@ function renderAddresses() {
   addressMenu.replaceChildren()
 
   for (const address of state.addresses) {
+    const item = document.createElement('li')
     const button = document.createElement('button')
     button.type = 'button'
     button.role = 'menuitem'
-    button.className = 'ghost address-option'
+    button.className = 'ghost address-option flex-col align-left'
     button.dataset.addressId = address.id
     button.setAttribute('popovertarget', 'address-menu')
     button.setAttribute('popovertargetaction', 'hide')
@@ -376,9 +377,11 @@ function renderAddresses() {
     const label = document.createElement('strong')
     label.textContent = address.label
     const detail = document.createElement('small')
+    detail.className = 'text-light'
     detail.textContent = address.detail
     button.append(label, detail)
-    addressMenu.append(button)
+    item.append(button)
+    addressMenu.append(item)
   }
 }
 

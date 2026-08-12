@@ -25,24 +25,24 @@
     <title>kapi.run</title>
   </head>
   <body>
-    <main class="app-page home-page">
+    <main class="app-page home-page flex flex-col">
       <header class="app-header" data-app-header>
-        <div class="app-header__inner">
-          <a class="app-header__brand" href="/" aria-label="kapi.run home">
+        <div class="app-header__inner items-center w-100">
+          <a class="app-header__brand flex items-center" href="/" aria-label="kapi.run home">
             <img src="/kapi-icon.png" alt="" />
             <span>kapi.run</span>
           </a>
         </div>
       </header>
 
-      <div class="home-page__content">
-        <div class="home-layout">
-          <hgroup class="home-intro">
+      <div class="home-page__content flex items-center">
+        <div class="home-layout w-100">
+          <hgroup class="home-intro flex flex-col">
             <h1 class="home-intro__title">
               <span>Pick together.</span>
               <span>Pay once.</span>
             </h1>
-            <p class="home-intro__lead">
+            <p class="home-intro__lead text-light">
               Share one link, collect everyone's picks, and sync the final cart
               when the group is ready.
             </p>
@@ -52,17 +52,17 @@
             </p>
           </hgroup>
 
-          <section class="order-ticket" aria-labelledby="group-order-title">
+          <section class="order-ticket w-100" aria-labelledby="group-order-title">
             <span class="order-ticket__notch order-ticket__notch--start" aria-hidden="true"></span>
             <span class="order-ticket__notch order-ticket__notch--end" aria-hidden="true"></span>
 
             <article class="card order-card">
-              <header class="order-card__header">
+              <header class="order-card__header flex items-center justify-between">
                 <hgroup>
                   <h2 id="group-order-title">Group order</h2>
                   <p>Create one or join one</p>
                 </hgroup>
-                <span class="order-card__mark" aria-hidden="true">
+                <span class="order-card__mark flex items-center justify-center" aria-hidden="true">
                   <svg viewBox="0 0 24 24">
                     <path d="M5 12h14"></path>
                     <path d="M12 5v14"></path>
@@ -71,10 +71,10 @@
               </header>
 
               <div class="order-card__body">
-                <section class="start-order">
+                <section class="start-order flex gap-4">
                   <hgroup>
                     <h3>Start a new order</h3>
-                    <p>Choose the address, restaurant, and cutoff.</p>
+                    <p class="text-light">Choose the address, restaurant, and cutoff.</p>
                   </hgroup>
                   <a class="button start-order__action" href="/new/">
                     Start order
@@ -86,8 +86,8 @@
                 </section>
 
                 <section class="join-order">
-                  <div class="join-order__heading">
-                    <span class="join-order__icon" aria-hidden="true">
+                  <div class="join-order__heading flex items-center">
+                    <span class="join-order__icon flex items-center justify-center" aria-hidden="true">
                       <svg viewBox="0 0 24 24">
                         <path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.15"></path>
                         <path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.15-1.15"></path>
@@ -95,12 +95,12 @@
                     </span>
                     <hgroup>
                       <h3>Join an order</h3>
-                      <p>Use the invite link or code from the organiser.</p>
+                      <p class="text-light">Use the invite link or code from the organiser.</p>
                     </hgroup>
                   </div>
 
-                  <form class="join-form" novalidate>
-                    <label class="join-form__field" for="session-info">
+                  <form class="join-form vstack" novalidate>
+                    <label class="join-form__field vstack gap-2" for="session-info">
                       <span>Invite link or code</span>
                       <input
                         id="session-info"
@@ -110,7 +110,7 @@
                       />
                     </label>
                     <div class="join-form__error" role="alert" data-variant="error" hidden></div>
-                    <button class="outline large join-form__submit" type="submit">
+                    <button class="outline join-form__submit w-100" type="submit">
                       Join order
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M5 12h14"></path>

@@ -10,12 +10,12 @@
     <title>Menu · kapi.run</title>
   </head>
   <body>
-    <main class="app-page menu-page">
+    <main class="app-page menu-page flex flex-col">
       <header class="app-header menu-header">
-        <div class="app-header__inner">
-          <a class="app-header__brand" href="/" aria-label="kapi.run home"><img src="/kapi-icon.png" alt="" /><span>kapi.run</span></a>
-          <h1 class="menu-header__context" data-restaurant-name></h1>
-          <div class="menu-header__actions" role="group" aria-label="Session actions">
+        <div class="app-header__inner items-center w-100">
+          <a class="app-header__brand flex items-center" href="/" aria-label="kapi.run home"><img src="/kapi-icon.png" alt="" /><span>kapi.run</span></a>
+          <h1 class="menu-header__context text-light" data-restaurant-name></h1>
+          <div class="menu-header__actions flex items-center gap-2" role="group" aria-label="Session actions">
             <a class="button outline small menu-review" data-review-link hidden>
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M9 12h6"></path><path d="M9 16h6"></path></svg>
               <span>Review</span>
@@ -38,25 +38,25 @@
           <div class="menu-toolbar__inner">
             <label class="menu-search" for="menu-search">
               <span class="sr-only">Search menu</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+              <svg class="text-light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
               <input id="menu-search" type="search" />
             </label>
-            <nav class="category-list" aria-label="Menu categories" hidden></nav>
+            <ul class="category-list unstyled flex" aria-label="Menu categories" hidden></ul>
           </div>
         </header>
 
         <div class="menu-content">
           <div class="menu-content__inner">
-            <div class="saved-copy" role="alert" data-variant="warning" hidden>
+            <div class="saved-copy items-center" role="alert" data-variant="warning" hidden>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
               <span>Showing a saved copy. Refresh before changing this order.</span>
             </div>
-            <article class="card empty-state menu-empty" hidden>
-              <span class="empty-state__icon" aria-hidden="true">
+            <article class="card empty-state menu-empty flex flex-col items-center justify-center gap-2 align-center" hidden>
+              <span class="empty-state__icon flex items-center justify-center" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg>
               </span>
               <strong>No items found</strong>
-              <span>Try a different search or category.</span>
+              <span class="text-light">Try a different search or category.</span>
             </article>
             <section class="menu-grid" aria-label="Menu items"></section>
           </div>
@@ -65,15 +65,15 @@
 
       <div class="workspace-loading" role="status" aria-label="Loading menu">
         <span class="sr-only">Loading menu</span>
-        <div class="menu-skeleton">
+        <div class="menu-skeleton w-100">
           <div role="status" class="skeleton line menu-skeleton__search" aria-hidden="true"></div>
           <div class="menu-skeleton__grid" aria-hidden="true">
-            <article class="card menu-skeleton__card"><div role="status" class="skeleton box"></div><div><div role="status" class="skeleton line"></div><div role="status" class="skeleton line menu-skeleton__short"></div><div role="status" class="skeleton line menu-skeleton__price"></div></div></article>
-            <article class="card menu-skeleton__card"><div role="status" class="skeleton box"></div><div><div role="status" class="skeleton line"></div><div role="status" class="skeleton line menu-skeleton__short"></div><div role="status" class="skeleton line menu-skeleton__price"></div></div></article>
-            <article class="card menu-skeleton__card"><div role="status" class="skeleton box"></div><div><div role="status" class="skeleton line"></div><div role="status" class="skeleton line menu-skeleton__short"></div><div role="status" class="skeleton line menu-skeleton__price"></div></div></article>
-            <article class="card menu-skeleton__card"><div role="status" class="skeleton box"></div><div><div role="status" class="skeleton line"></div><div role="status" class="skeleton line menu-skeleton__short"></div><div role="status" class="skeleton line menu-skeleton__price"></div></div></article>
-            <article class="card menu-skeleton__card"><div role="status" class="skeleton box"></div><div><div role="status" class="skeleton line"></div><div role="status" class="skeleton line menu-skeleton__short"></div><div role="status" class="skeleton line menu-skeleton__price"></div></div></article>
-            <article class="card menu-skeleton__card"><div role="status" class="skeleton box"></div><div><div role="status" class="skeleton line"></div><div role="status" class="skeleton line menu-skeleton__short"></div><div role="status" class="skeleton line menu-skeleton__price"></div></div></article>
+            <article class="card menu-skeleton__card flex"><div role="status" class="skeleton box"></div><div><div role="status" class="skeleton line"></div><div role="status" class="skeleton line menu-skeleton__short"></div><div role="status" class="skeleton line menu-skeleton__price"></div></div></article>
+            <article class="card menu-skeleton__card flex"><div role="status" class="skeleton box"></div><div><div role="status" class="skeleton line"></div><div role="status" class="skeleton line menu-skeleton__short"></div><div role="status" class="skeleton line menu-skeleton__price"></div></div></article>
+            <article class="card menu-skeleton__card flex"><div role="status" class="skeleton box"></div><div><div role="status" class="skeleton line"></div><div role="status" class="skeleton line menu-skeleton__short"></div><div role="status" class="skeleton line menu-skeleton__price"></div></div></article>
+            <article class="card menu-skeleton__card flex"><div role="status" class="skeleton box"></div><div><div role="status" class="skeleton line"></div><div role="status" class="skeleton line menu-skeleton__short"></div><div role="status" class="skeleton line menu-skeleton__price"></div></div></article>
+            <article class="card menu-skeleton__card flex"><div role="status" class="skeleton box"></div><div><div role="status" class="skeleton line"></div><div role="status" class="skeleton line menu-skeleton__short"></div><div role="status" class="skeleton line menu-skeleton__price"></div></div></article>
+            <article class="card menu-skeleton__card flex"><div role="status" class="skeleton box"></div><div><div role="status" class="skeleton line"></div><div role="status" class="skeleton line menu-skeleton__short"></div><div role="status" class="skeleton line menu-skeleton__price"></div></div></article>
           </div>
         </div>
       </div>
@@ -84,65 +84,62 @@
       </div>
     </main>
 
-    <output class="lock-feedback" aria-live="polite" hidden>
-      This group order is locked. No changes can be made.
-    </output>
     <span class="sr-only" id="locked-control-help">This group order is locked. Activating this control will not change the order.</span>
 
     <aside class="card account-popover" id="menu-account" popover aria-label="Your account">
-      <header><figure class="small account-popover__avatar" data-variant="avatar" data-account-avatar>?</figure><span><strong data-account-name></strong><small data-account-status></small></span></header>
-      <div class="account-popover__address"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg><span><strong data-account-address-label></strong><small data-account-address-detail></small></span></div>
+      <header class="flex items-center"><figure class="small account-popover__avatar" data-variant="avatar" aria-hidden="true"><span data-account-avatar></span></figure><span><strong data-account-name></strong><small class="flex items-center text-light" data-account-status></small></span></header>
+      <div class="account-popover__address flex"><svg class="text-light" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg><span><strong data-account-address-label></strong><small class="text-light" data-account-address-detail></small></span></div>
     </aside>
 
     <dialog class="cart-dialog" closedby="any" aria-labelledby="cart-title">
       <header class="cart-header">
-        <hgroup><h2 id="cart-title">Your cart</h2><p data-cart-summary>0 items</p></hgroup>
+        <hgroup><h2 id="cart-title">Your cart</h2><p class="text-light" data-cart-summary>0 items</p></hgroup>
         <button class="ghost icon small cart-close" type="button" aria-label="Close cart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
         <label class="cart-name" for="cart-participant-name">
-          <span>Your name</span>
+          <span class="text-light">Your name</span>
           <input id="cart-participant-name" placeholder="Enter your name" />
         </label>
       </header>
       <div class="cart-body">
-        <section class="empty-state cart-empty" aria-live="polite">
-          <span class="empty-state__icon" aria-hidden="true">
+        <section class="empty-state cart-empty flex flex-col items-center justify-center gap-2 align-center" aria-live="polite">
+          <span class="empty-state__icon flex items-center justify-center" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg>
           </span>
           <strong>Your cart is empty</strong>
-          <span>Add an item to build your order.</span>
+          <span class="text-light">Add an item to build your order.</span>
         </section>
         <section class="cart-lines" aria-labelledby="cart-lines-title" hidden>
-          <h3 id="cart-lines-title">Your draft</h3>
-          <ul data-cart-line-list></ul>
+          <h3 class="text-light" id="cart-lines-title">Your draft</h3>
+          <ul class="unstyled vstack" data-cart-line-list></ul>
         </section>
       </div>
-      <footer class="cart-footer" hidden>
-        <div class="cart-items-total"><span>Items</span><span data-cart-items-total>₹0</span></div>
-        <div class="cart-total"><span>Draft subtotal</span><strong data-cart-total>₹0</strong></div>
-        <button class="large cart-submit" type="button">Submit items</button>
+      <footer class="cart-footer vstack" hidden>
+        <div class="cart-items-total flex justify-between text-light"><span>Items</span><span data-cart-items-total>₹0</span></div>
+        <div class="cart-total flex justify-between"><span>Draft subtotal</span><strong data-cart-total>₹0</strong></div>
+        <button class="large cart-submit w-100" type="button">Submit items</button>
       </footer>
     </dialog>
 
     <dialog class="item-dialog" closedby="any" aria-labelledby="item-dialog-title">
       <form class="item-dialog__form" method="dialog">
         <button class="ghost icon small item-dialog__close" type="button" aria-label="Close item details"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
-        <figure class="item-dialog__media"></figure>
+        <figure class="item-dialog__media text-light"></figure>
         <div class="item-dialog__content">
           <h2 id="item-dialog-title" data-item-name></h2>
-          <div class="item-dialog__meta">
+          <div class="item-dialog__meta hstack gap-2 text-light">
             <span class="item-dialog__price" data-item-price></span>
             <span class="badge" data-variant="success" data-item-rating hidden></span>
             <span data-item-category hidden></span>
           </div>
-          <p class="item-dialog__description" data-item-description></p>
-          <section class="item-options" aria-label="Customize item" data-item-options hidden></section>
+          <p class="item-dialog__description text-light" data-item-description></p>
+          <section class="item-options vstack gap-4" aria-label="Customize item" data-item-options hidden></section>
           <div class="item-dialog__error" role="alert" data-variant="error" hidden>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
             <span><strong>Something went wrong</strong><span data-item-error></span></span>
           </div>
         </div>
         <footer class="item-dialog__footer">
-          <button class="large item-dialog__add" type="submit">
+          <button class="large item-dialog__add w-100" type="submit">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
             <span data-item-add-label></span>
           </button>
@@ -151,12 +148,12 @@
     </dialog>
 
     <template id="menu-card-template">
-      <article class="card menu-card">
-        <button class="menu-card__media" type="button"><span class="menu-card__fallback" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg></span><span class="veg-mark" hidden><i></i></span></button>
-        <div class="menu-card__body">
-          <h2><button class="menu-card__name" type="button"></button></h2>
-          <p class="menu-card__description"></p>
-          <div class="menu-card__footer">
+      <article class="card menu-card flex">
+        <button class="menu-card__media text-light" type="button"><span class="menu-card__fallback" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg></span><span class="veg-mark" hidden><i></i></span></button>
+        <div class="menu-card__body flex flex-col justify-between">
+          <h2><button class="menu-card__name w-100 align-left" type="button"></button></h2>
+          <p class="menu-card__description text-light"></p>
+          <div class="menu-card__footer flex items-center justify-between mt-2">
             <strong class="menu-card__price"></strong>
             <span class="menu-card__controls"></span>
           </div>

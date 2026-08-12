@@ -10,12 +10,12 @@
     <title>Review order · kapi.run</title>
   </head>
   <body>
-    <main class="app-page review-page">
+    <main class="app-page review-page flex flex-col">
       <header class="app-header review-header">
-        <div class="app-header__inner">
-          <a class="app-header__brand" href="/" aria-label="kapi.run home"><img src="/kapi-icon.png" alt="" /><span>kapi.run</span></a>
-          <span class="review-header__context" data-review-restaurant></span>
-          <div class="review-header__actions" role="group" aria-label="Session actions">
+        <div class="app-header__inner items-center w-100">
+          <a class="app-header__brand flex items-center" href="/" aria-label="kapi.run home"><img src="/kapi-icon.png" alt="" /><span>kapi.run</span></a>
+          <p class="review-header__context text-light" data-review-restaurant></p>
+          <div class="review-header__actions flex items-center gap-2" role="group" aria-label="Session actions">
             <button class="outline small menu-mode" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg><span>Menu</span></button>
             <span class="badge outline timer-pill" data-review-timer></span>
             <button class="session-avatar" type="button" aria-label="View your account" popovertarget="review-account" data-review-avatar data-review-avatar-trigger></button>
@@ -23,27 +23,27 @@
         </div>
       </header>
 
-      <output class="review-loading" aria-busy="true" data-spinner="small"><span>Loading order</span></output>
+      <output class="review-loading flex items-center justify-center gap-2 text-light" aria-busy="true" data-spinner="small"><span>Loading order</span></output>
       <div class="review-load-error" role="alert" data-variant="error" hidden><strong>Something went wrong</strong><span data-review-load-error></span></div>
 
-      <section class="review-shell" aria-labelledby="review-title" hidden>
-        <header class="review-intro">
-          <hgroup><h1 id="review-title">Review order</h1><p data-review-subtitle></p></hgroup>
+      <section class="review-shell w-100" aria-labelledby="review-title" hidden>
+        <header class="review-intro flex justify-between">
+          <hgroup><h1 id="review-title">Review order</h1><p class="text-light" data-review-subtitle></p></hgroup>
           <button class="outline small lock-order" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="16" height="12" x="4" y="8" rx="2"></rect><path d="M8 8V6a4 4 0 0 1 8 0v2"></path></svg><span>Lock order</span></button>
         </header>
 
-        <div class="review-stale" role="alert" data-variant="warning" hidden><span>⚠</span><span>Showing a saved copy. Refresh before changing this order.</span></div>
+        <div class="review-stale items-center" role="alert" data-variant="warning" hidden><span>⚠</span><span>Showing a saved copy. Refresh before changing this order.</span></div>
 
-        <section class="card invite-panel" hidden>
-          <header><span class="invite-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span><hgroup><h2>Invite your group</h2><p>Share the link. New orders appear below after submission.</p></hgroup></header>
-          <div><input aria-label="Invite link" readonly data-invite-link /><button class="small copy-invite" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07.07l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.15"></path><path d="M14 11a5 5 0 0 0-7.07-.07l-2 2A5 5 0 0 0 12 20l1.15-1.15"></path></svg><span>Copy invite link</span></button></div>
+        <section class="card invite-panel p-4" aria-labelledby="invite-heading" hidden>
+          <header class="flex"><span class="invite-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span><hgroup><h2 id="invite-heading">Invite your group</h2><p class="text-light">Share the link. New orders appear below after submission.</p></hgroup></header>
+          <div class="flex gap-2"><input aria-label="Invite link" readonly data-invite-link /><button class="small copy-invite" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07.07l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.15"></path><path d="M14 11a5 5 0 0 0-7.07-.07l-2 2A5 5 0 0 0 12 20l1.15-1.15"></path></svg><span>Copy invite link</span></button></div>
         </section>
 
         <div class="review-grid">
           <section class="orders-section" aria-labelledby="orders-heading">
-            <header><hgroup><h2 id="orders-heading">Orders</h2><p data-orders-meta></p></hgroup><button class="ghost small refresh-order" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg><span>Refresh</span></button></header>
-            <article class="card empty-state orders-empty" hidden>
-              <span class="empty-state__icon" aria-hidden="true">
+            <header class="flex justify-between"><hgroup><h2 id="orders-heading">Orders</h2><p class="text-light" data-orders-meta></p></hgroup><button class="ghost small refresh-order" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg><span>Refresh</span></button></header>
+            <article class="card empty-state orders-empty flex flex-col items-center justify-center gap-2 align-center" hidden>
+              <span class="empty-state__icon flex items-center justify-center" aria-hidden="true">
                 <svg viewBox="0 0 24 24">
                   <circle cx="8" cy="21" r="1"></circle>
                   <circle cx="19" cy="21" r="1"></circle>
@@ -51,18 +51,18 @@
                 </svg>
               </span>
               <strong>No orders yet</strong>
-              <span>Share the invite link. Submitted orders will appear here.</span>
+              <span class="text-light">Share the invite link. Submitted orders will appear here.</span>
             </article>
-            <section class="order-groups" aria-label="Submitted orders"></section>
+            <section class="order-groups vstack" aria-label="Submitted orders"></section>
           </section>
 
           <aside class="summary-section" aria-labelledby="summary-heading">
-            <header><h2 id="summary-heading">Order summary</h2><p data-summary-items></p></header>
-            <article class="card summary-card">
-              <dl><div><dt>People</dt><dd data-summary-people>0</dd></div><div><dt>Items</dt><dd data-summary-quantity>0</dd></div><div><dt>Subtotal</dt><dd data-summary-subtotal>₹0</dd></div></dl>
-              <p>Swiggy adds taxes, fees, coupons, and the final total.</p>
+            <header><h2 id="summary-heading">Order summary</h2><p class="text-light" data-summary-items></p></header>
+            <article class="card summary-card flex flex-col">
+              <dl class="flex flex-col"><div class="flex justify-between"><dt class="text-light">People</dt><dd data-summary-people>0</dd></div><div class="flex justify-between"><dt class="text-light">Items</dt><dd data-summary-quantity>0</dd></div><div class="flex justify-between"><dt class="text-light">Subtotal</dt><dd data-summary-subtotal>₹0</dd></div></dl>
+              <p class="text-light">Swiggy adds taxes, fees, coupons, and the final total.</p>
               <div class="review-action-error" role="alert" data-variant="error" hidden><strong>Something went wrong</strong><span data-review-action-error></span></div>
-              <button class="large sync-cart" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2H5l2.66 12.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L21 6H6"></path></svg><span data-sync-label>Sync to Swiggy cart</span></button>
+              <button class="large sync-cart w-100" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2H5l2.66 12.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L21 6H6"></path></svg><span data-sync-label>Sync to Swiggy cart</span></button>
             </article>
           </aside>
         </div>
@@ -70,8 +70,8 @@
     </main>
 
     <aside class="card account-popover" id="review-account" popover aria-label="Your account">
-      <header><figure class="small account-popover__avatar" data-variant="avatar" data-account-avatar>?</figure><span><strong data-account-name></strong><small data-account-status></small></span></header>
-      <div class="account-popover__address"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg><span><strong data-account-address-label></strong><small data-account-address-detail></small></span></div>
+      <header class="flex items-center"><figure class="small account-popover__avatar" data-variant="avatar" aria-hidden="true"><span data-account-avatar></span></figure><span><strong data-account-name></strong><small class="flex items-center text-light" data-account-status></small></span></header>
+      <div class="account-popover__address flex"><svg class="text-light" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg><span><strong data-account-address-label></strong><small class="text-light" data-account-address-detail></small></span></div>
     </aside>
 
     <dialog class="confirm-dialog lock-dialog" closedby="any" aria-labelledby="lock-dialog-title">
@@ -88,7 +88,6 @@
         <footer><button class="outline" data-dialog-cancel>Cancel</button><button class="confirm-sync" type="button">Add to Swiggy cart</button></footer>
       </form>
     </dialog>
-
     <script type="module" src="/src/review.ts"></script>
   </body>
 </html>

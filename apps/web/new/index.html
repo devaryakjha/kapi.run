@@ -13,39 +13,39 @@
     <title>Start a group order · kapi.run</title>
   </head>
   <body>
-    <main class="app-page setup-page">
+    <main class="app-page setup-page flex flex-col">
       <header class="app-header" data-app-header>
-        <div class="app-header__inner">
-          <a class="app-header__brand" href="/" aria-label="kapi.run home">
+        <div class="app-header__inner items-center w-100">
+          <a class="app-header__brand flex items-center" href="/" aria-label="kapi.run home">
             <img src="/kapi-icon.png" alt="" />
             <span>kapi.run</span>
           </a>
         </div>
       </header>
 
-      <div class="setup-page__content">
-        <form class="setup-shell" aria-labelledby="setup-title" novalidate>
-          <hgroup class="setup-intro">
+      <div class="setup-page__content flex flex-col items-center">
+        <form class="setup-shell w-100" aria-labelledby="setup-title" novalidate>
+          <hgroup class="setup-intro mb-8">
             <h1 id="setup-title">Start a group order</h1>
-            <p>Connect Swiggy, pick a spot, share the link.</p>
+            <p class="text-light">Connect Swiggy, pick a spot, share the link.</p>
           </hgroup>
 
-          <ol class="setup-steps">
+          <ol class="setup-steps unstyled vstack">
             <li>
               <article class="card setup-step" data-step="account">
-              <header class="setup-step__heading">
-                <span class="setup-step__number" data-step-number>1</span>
+              <header class="setup-step__heading flex items-center">
+                <span class="setup-step__number flex items-center justify-center" data-step-number>1</span>
                 <h2>Swiggy account</h2>
                 <span class="setup-step__done-label" hidden>✓ Connected</span>
               </header>
 
-              <output class="account-state account-state--loading" data-account-state="loading" aria-busy="true" data-spinner="small">
+              <output class="account-state account-state--loading flex items-center text-light" data-account-state="loading" aria-busy="true" data-spinner="small">
                 <span>Checking your Swiggy connection…</span>
               </output>
 
-              <div class="account-state account-state--disconnected" data-account-state="disconnected" hidden>
-                <div class="account-state__message">
-                  <span class="account-state__icon" aria-hidden="true">
+              <div class="account-state account-state--disconnected flex items-center justify-between text-light" data-account-state="disconnected" hidden>
+                <div class="account-state__message flex items-center">
+                  <span class="account-state__icon flex items-center justify-center" aria-hidden="true">
                     <svg viewBox="0 0 24 24">
                       <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path>
                       <path d="M7 2v20"></path>
@@ -57,7 +57,7 @@
                 <button class="small account-connect" type="button">Connect</button>
               </div>
 
-              <div class="account-state account-state--connected" data-account-state="connected" hidden>
+              <div class="account-state account-state--connected flex items-center justify-between text-light" data-account-state="connected" hidden>
                 <p>Your Swiggy addresses are ready to use.</p>
                 <button class="ghost small account-reconnect" type="button">Reconnect</button>
               </div>
@@ -66,27 +66,27 @@
 
             <li>
               <article class="card setup-step" data-step="address">
-              <header class="setup-step__heading">
-                <span class="setup-step__number">2</span>
+              <header class="setup-step__heading flex items-center">
+                <span class="setup-step__number flex items-center justify-center">2</span>
                 <h2>Address &amp; cutoff</h2>
               </header>
 
               <div class="setup-fields">
                 <div class="setup-field">
-                  <span id="address-field-label">Delivery address</span>
+                  <span class="text-light" id="address-field-label">Delivery address</span>
                   <ot-dropdown class="address-dropdown">
-                    <button class="address-trigger outline" type="button" popovertarget="address-menu" aria-labelledby="address-field-label address-trigger-label" disabled>
+                    <button class="address-trigger outline w-100" type="button" popovertarget="address-menu" aria-labelledby="address-field-label address-trigger-label" disabled>
                       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                       <span id="address-trigger-label" data-address-trigger-label>Connect first</span>
                       <svg class="address-trigger__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
                     </button>
-                    <div id="address-menu" role="menu" popover data-address-menu></div>
+                    <menu class="unstyled" id="address-menu" role="menu" popover data-address-menu></menu>
                   </ot-dropdown>
                 </div>
 
                 <label class="setup-field" data-field for="cutoff-time">
-                  <span>Order cutoff</span>
-                  <input id="cutoff-time" type="time" step="60" aria-describedby="cutoff-error" />
+                  <span class="text-light">Order cutoff</span>
+                  <input id="cutoff-time" name="cutoff-time" type="time" step="60" aria-describedby="cutoff-error" />
                   <small class="error" id="cutoff-error" data-cutoff-error></small>
                 </label>
               </div>
@@ -95,12 +95,12 @@
 
             <li>
               <article class="card setup-step" data-step="restaurant">
-              <header class="setup-step__heading">
-                <span class="setup-step__number">3</span>
+              <header class="setup-step__heading flex items-center">
+                <span class="setup-step__number flex items-center justify-center">3</span>
                 <h2 id="restaurant-field-label">Restaurant</h2>
               </header>
 
-              <button class="outline restaurant-trigger" type="button" aria-labelledby="restaurant-field-label restaurant-trigger-label" disabled>
+              <button class="outline restaurant-trigger w-100 align-left" type="button" aria-labelledby="restaurant-field-label restaurant-trigger-label" disabled>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <circle cx="11" cy="11" r="8"></circle>
                   <path d="m21 21-4.3-4.3"></path>
@@ -111,7 +111,7 @@
             </li>
           </ol>
 
-          <div class="setup-actions">
+          <div class="setup-actions vstack mt-6">
             <div class="setup-error" role="alert" data-variant="error" hidden>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
@@ -124,14 +124,14 @@
               </span>
             </div>
 
-            <button class="large create-session" type="submit" data-spinner="small" disabled>
+            <button class="large create-session w-100" type="submit" data-spinner="small" disabled>
               <span>Create session</span>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 12h14"></path>
                 <path d="m12 5 7 7-7 7"></path>
               </svg>
             </button>
-            <p>The invite link is generated instantly.</p>
+            <p class="text-light align-center">The invite link is generated instantly.</p>
           </div>
         </form>
       </div>
@@ -142,29 +142,31 @@
         <h2 class="sr-only" id="restaurant-dialog-title">Choose Restaurant</h2>
         <p class="sr-only">Search restaurants or cuisine</p>
         <label class="restaurant-search" for="restaurant-search">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
+          <svg class="text-light" viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.3-4.3"></path>
           </svg>
           <input
             id="restaurant-search"
+            name="restaurant-search"
+            type="search"
             autocomplete="off"
             placeholder="Search restaurants or cuisine"
           />
         </label>
-        <div class="restaurant-empty" data-restaurant-empty>
+        <div class="restaurant-empty text-light align-center" data-restaurant-empty>
           Type to search restaurants.
         </div>
         <section class="restaurant-results" data-restaurant-results hidden>
-          <h3>Restaurants</h3>
-          <ul aria-label="Restaurants" data-restaurant-list></ul>
+          <h3 class="text-light">Restaurants</h3>
+          <ul class="unstyled flex flex-col" aria-label="Restaurants" data-restaurant-list></ul>
         </section>
       </section>
     </dialog>
 
     <template id="restaurant-option-template">
-      <button class="ghost restaurant-option" type="button">
-        <span class="restaurant-option__image" aria-hidden="true">
+      <button class="ghost restaurant-option w-100 align-left" type="button">
+        <span class="restaurant-option__image flex items-center justify-center text-light" aria-hidden="true">
           <svg viewBox="0 0 24 24">
             <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path>
             <path d="M7 2v20"></path>
@@ -173,10 +175,10 @@
         </span>
         <span class="restaurant-option__copy">
           <strong></strong>
-          <span data-location></span>
-          <span data-value></span>
+          <span class="text-light" data-location></span>
+          <span class="text-light" data-value></span>
         </span>
-        <span class="restaurant-option__rating" data-rating>
+        <span class="restaurant-option__rating flex items-center justify-end gap-1" data-rating>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path>
           </svg>

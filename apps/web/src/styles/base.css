@@ -4,12 +4,8 @@
 @import '@knadh/oat/css/button.css';
 @import '@knadh/oat/css/form.css';
 @import '@knadh/oat/css/alert.css';
-@import '@knadh/oat/css/avatar.css';
-@import '@knadh/oat/css/badge.css';
 @import '@knadh/oat/css/card.css';
-@import '@knadh/oat/css/dialog.css';
-@import '@knadh/oat/css/dropdown.css';
-@import '@knadh/oat/css/skeleton.css';
+@import '@knadh/oat/css/utilities.css';
 
 @import './theme.css';
 
@@ -31,9 +27,7 @@
 
 @layer components {
   .app-page {
-    display: flex;
     min-height: 100svh;
-    flex-direction: column;
   }
 
   .app-header {
@@ -48,19 +42,15 @@
 
   .app-header__inner {
     display: grid;
-    width: 100%;
     max-width: 72rem;
     height: 100%;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
     gap: 0.75rem;
     margin-inline: auto;
     padding-inline: 1rem;
   }
 
   .app-header__brand {
-    display: inline-flex;
-    align-items: center;
     gap: 0.45rem;
     justify-self: start;
     font-family: var(--font-heading);
@@ -87,32 +77,23 @@
     width:16rem;
   }
 
-  .account-popover header { display:flex; align-items:center; gap:.625rem; }
+  .account-popover header { gap:.625rem; }
   .account-popover header>span:last-child,.account-popover__address>span { min-width:0; flex:1; }
   .account-popover strong,.account-popover small { display:block; }
   .account-popover header strong { overflow:hidden; font-size:.875rem; text-overflow:ellipsis; white-space:nowrap; }
-  .account-popover small { color:var(--muted-foreground); font-size:.75rem; line-height:1rem; }
-  .account-popover header small { display:flex; align-items:center; gap:.375rem; }
+  .account-popover small { font-size:.75rem; line-height:1rem; }
+  .account-popover header small { gap:.375rem; }
   .account-popover header small::before { color:var(--primary); content:'✓'; font-weight:700; }
   .account-popover[data-connected='false'] header small::before { color:var(--muted-foreground); content:'○'; }
   .account-popover__avatar { flex:none; font-size:.75rem; }
-  .account-popover__address { display:flex; align-items:flex-start; gap:.625rem; margin-top:.625rem; padding-top:.625rem; border-top:1px solid var(--border); }
-  .account-popover__address svg { width:1rem; height:1rem; flex:none; margin-top:.125rem; color:var(--muted-foreground); }
+  .account-popover__address { align-items:flex-start; gap:.625rem; margin-top:.625rem; padding-top:.625rem; border-top:1px solid var(--border); }
+  .account-popover__address svg { width:1rem; height:1rem; flex:none; margin-top:.125rem; }
   .account-popover__address strong { font-size:.75rem; font-weight:500; }
   .account-popover__address small { display:-webkit-box; margin-top:.125rem; overflow:hidden; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp: 2 }
 
-  .empty-state {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    text-align: center;
-  }
-
-  .empty-state:not([hidden]) { display:flex; }
   .empty-state > :is(strong, span) { display:block; }
   .empty-state > strong { font-family:var(--font-heading); font-size:var(--text-5); font-weight:var(--font-medium); letter-spacing:-.025em; }
-  .empty-state > span:last-child { color:var(--muted-foreground); font-size:var(--text-7); }
+  .empty-state > span:last-child { font-size:var(--text-7); }
 }
 
 @media (min-width: 48rem) {

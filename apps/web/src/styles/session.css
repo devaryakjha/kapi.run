@@ -1,9 +1,12 @@
+@import '@knadh/oat/css/avatar.css';
+@import '@knadh/oat/css/badge.css';
+@import '@knadh/oat/css/toast.css';
+
 @layer components {
   :is(.menu-header__context, .review-header__context) {
     min-width: 0;
     margin: 0;
     overflow: hidden;
-    color: var(--muted-foreground);
     font-family: var(--font-sans);
     font-size: 0.875rem;
     font-weight: 500;
@@ -14,11 +17,8 @@
   }
 
   :is(.menu-header__actions, .review-header__actions) {
-    display: flex;
     width: max-content;
-    align-items: center;
     justify-self: end;
-    gap: 0.5rem;
   }
 
   .timer-pill {
@@ -65,12 +65,9 @@
   }
 
   .empty-state__icon {
-    display: flex !important;
     width: 2.5rem;
     height: 2.5rem;
     flex: none;
-    align-items: center;
-    justify-content: center;
     margin-bottom: 0.5rem;
     border-radius: var(--radius-large);
     background: var(--muted);
@@ -85,8 +82,12 @@
 
 @media (max-width: 47.99rem) {
   @layer components {
+    :is(.menu-header, .review-header) .app-header__brand > span {
+      display: none;
+    }
+
     .timer-pill {
-      max-width: 7.5rem;
+      width: 6.5rem;
       overflow: hidden;
       padding-inline: 0.5rem;
     }
