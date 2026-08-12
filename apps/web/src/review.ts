@@ -1,6 +1,7 @@
 import type { CartLine, KapiSession, SwiggyCartSummary } from '@kapi/spec'
 
 import { toast } from '@knadh/oat/js/toast.js'
+import '@knadh/oat/js/dropdown.js'
 
 import './styles/base.css'
 import './styles/session.css'
@@ -36,7 +37,6 @@ const restaurant = required<HTMLElement>('[data-review-restaurant]')
 const subtitle = required<HTMLElement>('[data-review-subtitle]')
 const timer = required<HTMLElement>('[data-review-timer]')
 const avatar = required<HTMLElement>('[data-review-avatar]')
-const avatarTrigger = required<HTMLElement>('[data-review-avatar-trigger]')
 const staleAlert = required<HTMLElement>('.review-stale')
 const invitePanel = required<HTMLElement>('.invite-panel')
 const inviteLink = required<HTMLInputElement>('[data-invite-link]')
@@ -261,7 +261,6 @@ function render() {
     connected: isOrganizer,
     name: session.organiserName,
     popover: accountPopover,
-    trigger: avatarTrigger,
   })
   staleAlert.hidden = !stale
   invitePanel.hidden = !isOrganizer

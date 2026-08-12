@@ -31,8 +31,7 @@
           </hgroup>
 
           <ol class="setup-steps unstyled vstack">
-            <li>
-              <article class="card setup-step" data-step="account">
+            <li class="card setup-step" data-step="account">
               <header class="setup-step__heading flex items-center">
                 <span class="setup-step__number flex items-center justify-center" data-step-number>1</span>
                 <h2>Swiggy account</h2>
@@ -61,11 +60,9 @@
                 <p>Your Swiggy addresses are ready to use.</p>
                 <button class="ghost small account-reconnect" type="button">Reconnect</button>
               </div>
-              </article>
             </li>
 
-            <li>
-              <article class="card setup-step" data-step="address">
+            <li class="card setup-step" data-step="address">
               <header class="setup-step__heading flex items-center">
                 <span class="setup-step__number flex items-center justify-center">2</span>
                 <h2>Address &amp; cutoff</h2>
@@ -90,11 +87,9 @@
                   <small class="error" id="cutoff-error" data-cutoff-error></small>
                 </label>
               </div>
-              </article>
             </li>
 
-            <li>
-              <article class="card setup-step" data-step="restaurant">
+            <li class="card setup-step" data-step="restaurant">
               <header class="setup-step__heading flex items-center">
                 <span class="setup-step__number flex items-center justify-center">3</span>
                 <h2 id="restaurant-field-label">Restaurant</h2>
@@ -107,7 +102,6 @@
                 </svg>
                 <span id="restaurant-trigger-label" data-restaurant-trigger-label>Search restaurants or cuisine…</span>
               </button>
-              </article>
             </li>
           </ol>
 
@@ -137,10 +131,16 @@
       </div>
     </main>
 
-    <dialog id="restaurant-dialog" class="restaurant-dialog" closedby="any" aria-labelledby="restaurant-dialog-title">
+    <dialog
+      id="restaurant-dialog"
+      class="restaurant-dialog"
+      closedby="any"
+      aria-labelledby="restaurant-dialog-title"
+      aria-describedby="restaurant-dialog-description"
+    >
       <section class="restaurant-picker">
         <h2 class="sr-only" id="restaurant-dialog-title">Choose Restaurant</h2>
-        <p class="sr-only">Search restaurants or cuisine</p>
+        <p class="sr-only" id="restaurant-dialog-description">Search restaurants or cuisine</p>
         <label class="restaurant-search" for="restaurant-search">
           <svg class="text-light" viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="11" cy="11" r="8"></circle>
@@ -151,12 +151,17 @@
             name="restaurant-search"
             type="search"
             autocomplete="off"
+            aria-label="Search restaurants or cuisine"
             placeholder="Search restaurants or cuisine"
           />
         </label>
-        <div class="restaurant-empty text-light align-center" data-restaurant-empty>
+        <output
+          class="restaurant-empty text-light align-center"
+          aria-live="polite"
+          data-restaurant-empty
+        >
           Type to search restaurants.
-        </div>
+        </output>
         <section class="restaurant-results" data-restaurant-results hidden>
           <h3 class="text-light">Restaurants</h3>
           <ul class="unstyled flex flex-col" aria-label="Restaurants" data-restaurant-list></ul>

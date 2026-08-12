@@ -6,7 +6,7 @@
   .menu-mode { width:5rem; }
   .menu-mode svg,.lock-order svg,.refresh-order svg,.copy-invite svg,.sync-cart svg { width:.875rem; height:.875rem; flex:none; }
   .review-shell { max-width:72rem; margin-inline:auto; padding:2rem 1.5rem; }
-  .review-intro { align-items:flex-start; gap:1rem; margin-bottom:1.5625rem; }
+  .review-intro { align-items:flex-start; margin-bottom:1.5625rem; }
   .review-intro h1 { margin:0; font-size:1.5rem; font-weight:600; line-height:2rem; letter-spacing:-.025em; }
   .review-intro p { margin:.25rem 0 0; overflow:hidden; font-size:.875rem; text-overflow:ellipsis; white-space:nowrap; }
   .review-stale { min-height:3rem; margin-bottom:1.25rem; }

@@ -25,7 +25,6 @@
   .home-intro__title {
     margin: 0;
     font-size: 3rem;
-    font-weight: 600;
     line-height: 0.98;
     letter-spacing: -0.045em;
   }
@@ -37,14 +36,12 @@
   .home-intro__lead {
     max-width: 28rem;
     margin: 1.5rem 0 0;
-    font-size: 1rem;
     line-height: 1.75rem;
     text-wrap: pretty;
   }
 
   .home-intro__note {
     max-width: 28rem;
-    margin: 2rem 0 0;
     font-size: 0.875rem;
     font-weight: 500;
     line-height: 1.25rem;
@@ -92,13 +89,10 @@
   .order-card__header h2 {
     margin: 0;
     font-size: 1.25rem;
-    font-weight: 600;
     line-height: 1.5rem;
-    color: inherit;
   }
 
   .order-card__header p {
-    margin: 0;
     font-size: 0.75rem;
     line-height: 1.25rem;
     color: color-mix(in oklch, var(--primary-foreground) 75%, transparent);
@@ -130,9 +124,7 @@
   .start-order h3,
   .join-order h3 {
     margin: 0;
-    font-family: var(--font-heading);
     font-size: 1rem;
-    font-weight: 600;
     line-height: 1.25rem;
   }
 
@@ -143,7 +135,6 @@
   }
 
   .join-order__heading p {
-    margin: 0;
     font-size: 0.875rem;
     line-height: 1.25rem;
   }
@@ -165,7 +156,6 @@
 
   .join-order__heading {
     gap: 0.75rem;
-    margin-bottom: 1rem;
   }
 
   .join-order__icon {

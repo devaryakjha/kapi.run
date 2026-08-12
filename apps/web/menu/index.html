@@ -17,18 +17,24 @@
           <h1 class="menu-header__context text-light" data-restaurant-name></h1>
           <div class="menu-header__actions flex items-center gap-2" role="group" aria-label="Session actions">
             <a class="button outline small menu-review" data-review-link hidden>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M9 12h6"></path><path d="M9 16h6"></path></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M9 12h6"></path><path d="M9 16h6"></path></svg>
               <span>Review</span>
             </a>
             <span class="badge outline timer-pill" data-timer></span>
             <button class="icon small outline menu-icon-button cart-trigger" type="button" aria-label="Open cart">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle>
                 <path d="M2.05 2H5l2.66 12.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L21 6H6"></path>
               </svg>
-              <span class="cart-count" data-cart-count hidden>0</span>
+              <span class="badge cart-count" data-cart-count hidden>0</span>
             </button>
-            <button class="session-avatar" type="button" aria-label="View your account" popovertarget="menu-account" data-avatar data-avatar-trigger></button>
+            <ot-dropdown class="account-dropdown">
+              <button class="session-avatar" type="button" aria-label="View your account" popovertarget="menu-account" data-avatar></button>
+              <aside class="card account-popover" id="menu-account" popover aria-label="Your account">
+                <header class="flex items-center"><figure class="small account-popover__avatar" data-variant="avatar" aria-hidden="true"><span data-account-avatar></span></figure><span><strong data-account-name></strong><small class="flex items-center text-light" data-account-status></small></span></header>
+                <div class="account-popover__address flex"><svg class="text-light" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg><span><strong data-account-address-label></strong><small class="text-light" data-account-address-detail></small></span></div>
+              </aside>
+            </ot-dropdown>
           </div>
         </div>
       </header>
@@ -38,7 +44,7 @@
           <div class="menu-toolbar__inner">
             <label class="menu-search" for="menu-search">
               <span class="sr-only">Search menu</span>
-              <svg class="text-light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+              <svg class="text-light" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
               <input id="menu-search" type="search" />
             </label>
             <ul class="category-list unstyled flex" aria-label="Menu categories" hidden></ul>
@@ -48,7 +54,7 @@
         <div class="menu-content">
           <div class="menu-content__inner">
             <div class="saved-copy items-center" role="alert" data-variant="warning" hidden>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
               <span>Showing a saved copy. Refresh before changing this order.</span>
             </div>
             <article class="card empty-state menu-empty flex flex-col items-center justify-center gap-2 align-center" hidden>
@@ -79,22 +85,17 @@
       </div>
 
       <div class="workspace-error" role="alert" data-variant="error" hidden>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
         <span><strong>Something went wrong</strong><span data-workspace-error></span></span>
       </div>
     </main>
 
     <span class="sr-only" id="locked-control-help">This group order is locked. Activating this control will not change the order.</span>
 
-    <aside class="card account-popover" id="menu-account" popover aria-label="Your account">
-      <header class="flex items-center"><figure class="small account-popover__avatar" data-variant="avatar" aria-hidden="true"><span data-account-avatar></span></figure><span><strong data-account-name></strong><small class="flex items-center text-light" data-account-status></small></span></header>
-      <div class="account-popover__address flex"><svg class="text-light" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg><span><strong data-account-address-label></strong><small class="text-light" data-account-address-detail></small></span></div>
-    </aside>
-
     <dialog class="cart-dialog" closedby="any" aria-labelledby="cart-title">
       <header class="cart-header">
         <hgroup><h2 id="cart-title">Your cart</h2><p class="text-light" data-cart-summary>0 items</p></hgroup>
-        <button class="ghost icon small cart-close" type="button" aria-label="Close cart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+        <button class="ghost icon small cart-close" type="button" aria-label="Close cart"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
         <label class="cart-name" for="cart-participant-name">
           <span class="text-light">Your name</span>
           <input id="cart-participant-name" placeholder="Enter your name" />
@@ -122,7 +123,7 @@
 
     <dialog class="item-dialog" closedby="any" aria-labelledby="item-dialog-title">
       <form class="item-dialog__form" method="dialog">
-        <button class="ghost icon small item-dialog__close" type="button" aria-label="Close item details"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+        <button class="ghost icon small item-dialog__close" type="button" aria-label="Close item details"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
         <figure class="item-dialog__media text-light"></figure>
         <div class="item-dialog__content">
           <h2 id="item-dialog-title" data-item-name></h2>
@@ -134,13 +135,13 @@
           <p class="item-dialog__description text-light" data-item-description></p>
           <section class="item-options vstack gap-4" aria-label="Customize item" data-item-options hidden></section>
           <div class="item-dialog__error" role="alert" data-variant="error" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
             <span><strong>Something went wrong</strong><span data-item-error></span></span>
           </div>
         </div>
         <footer class="item-dialog__footer">
           <button class="large item-dialog__add w-100" type="submit">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
             <span data-item-add-label></span>
           </button>
         </footer>

@@ -55,7 +55,6 @@
 @layer base {
   html {
     min-height: 100%;
-    text-rendering: optimizeLegibility;
   }
 
   body { min-height: 100%; }
@@ -74,7 +73,6 @@
   h2,
   h3 {
     font-family: var(--font-heading);
-    color: var(--foreground);
     text-wrap: balance;
   }
 

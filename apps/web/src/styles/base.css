@@ -72,8 +72,6 @@
   }
 
   .account-popover {
-    position:fixed;
-    inset:auto;
     width:16rem;
   }
 

@@ -1,6 +1,7 @@
 import type { CartCustomization, KapiSession, MenuAddonGroup, MenuCustomization, MenuItem, MenuVariantGroup } from '@kapi/spec'
 
 import { toast } from '@knadh/oat/js/toast.js'
+import '@knadh/oat/js/dropdown.js'
 
 import './styles/base.css'
 import './styles/session.css'
@@ -56,7 +57,6 @@ const restaurantName = required<HTMLElement>('[data-restaurant-name]')
 const timer = required<HTMLElement>('[data-timer]')
 const reviewLink = required<HTMLAnchorElement>('[data-review-link]')
 const avatar = required<HTMLElement>('[data-avatar]')
-const avatarTrigger = required<HTMLElement>('[data-avatar-trigger]')
 const searchInput = required<HTMLInputElement>('#menu-search')
 const categoryList = required<HTMLElement>('.category-list')
 const savedCopy = required<HTMLElement>('.saved-copy')
@@ -220,7 +220,7 @@ function bindEvents() {
   cartLines.addEventListener('click', (event) => {
     const button = (event.target as Element).closest<HTMLButtonElement>('button[data-line-id]')
     if (!button) return
-    if (button.dataset.locked !== undefined) { announceLocked(); return }
+    if (button.getAttribute('aria-disabled') === 'true') { announceLocked(); return }
     changeQuantity(button.dataset.lineId ?? '', Number(button.dataset.delta))
   })
   required<HTMLButtonElement>('.item-dialog__close').addEventListener('click', () => itemDialog.close())
@@ -294,7 +294,7 @@ async function submitDraft() {
 function handleMenuClick(event: MouseEvent) {
   const button = (event.target as Element).closest<HTMLButtonElement>('button[data-action]')
   if (!button) return
-  if (button.dataset.locked !== undefined) { announceLocked(); return }
+  if (button.getAttribute('aria-disabled') === 'true') { announceLocked(); return }
   const itemId = button.dataset.itemId ?? ''
   if (button.dataset.action === 'add') addItem(itemId)
   if (button.dataset.action === 'remove') changeQuantity(itemId, -1)
@@ -338,7 +338,6 @@ function render() {
     connected: isOrganizer,
     name: participantName || session.organiserName,
     popover: accountPopover,
-    trigger: avatarTrigger,
   })
   cartName.value = participantName
   savedCopy.hidden = !stale
@@ -491,11 +490,12 @@ function cartLineButton(text: string, lineId: string, delta: number, label: stri
 }
 
 function setLockedInteraction(element: HTMLElement, locked: boolean) {
-  element.toggleAttribute('data-locked', locked)
   if (locked) {
+    element.setAttribute('aria-disabled', 'true')
     element.setAttribute('aria-describedby', 'locked-control-help')
     element.setAttribute('title', lockedMessage)
   } else {
+    element.removeAttribute('aria-disabled')
     element.removeAttribute('aria-describedby')
     element.removeAttribute('title')
   }

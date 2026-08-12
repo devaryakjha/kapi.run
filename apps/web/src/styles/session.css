@@ -1,5 +1,6 @@
 @import '@knadh/oat/css/avatar.css';
 @import '@knadh/oat/css/badge.css';
+@import '@knadh/oat/css/dropdown.css';
 @import '@knadh/oat/css/toast.css';
 
 @layer components {
@@ -66,6 +67,10 @@
     border-radius: var(--radius-full);
     font-size: 0.875rem;
     font-weight: 600;
+  }
+
+  .account-dropdown {
+    display: flex;
   }
 
   .empty-state__icon {
