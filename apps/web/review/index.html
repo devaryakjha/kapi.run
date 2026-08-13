@@ -85,6 +85,13 @@
         <footer><button class="outline" data-dialog-cancel>Keep open</button><button class="confirm-lock" type="button">Lock session</button></footer>
       </form>
     </dialog>
+    <dialog class="confirm-dialog role-dialog" closedby="any" aria-labelledby="role-dialog-title">
+      <form method="dialog">
+        <header><h2 id="role-dialog-title" data-role-dialog-title>Make this member an admin?</h2></header>
+        <div><p data-role-dialog-description>They can connect a separate Swiggy account for this session.</p></div>
+        <footer><button class="outline" data-dialog-cancel>Cancel</button><button class="confirm-role" type="button">Make admin</button></footer>
+      </form>
+    </dialog>
     <dialog class="session-window-dialog" closedby="any" aria-labelledby="session-window-title" aria-describedby="session-window-description">
       <form>
         <header>

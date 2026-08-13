@@ -9,6 +9,9 @@ import {
   formatAddressOption,
   formatRestaurantLocationMeta,
   formatRestaurantValueMeta,
+  participantRole,
+  sessionAdminParticipantIds,
+  setParticipantRole,
   formatTimeLabel,
   resolveSetupCutoffAt,
   sessionWindowAction,
@@ -271,5 +274,44 @@ describe('participant submitted items', () => {
         customizationSummary: existing.customizationSummary,
       }),
     ])
+  })
+})
+
+describe('session roles', () => {
+  it('treats participants from existing sessions as members', () => {
+    expect(participantRole({
+      id: 'participant-1',
+      displayName: 'Sam',
+      status: 'joined',
+      joinedAt: '2026-08-12T04:00:00.000Z',
+    })).toBe('member')
+  })
+
+  it('lets the owner promote and demote a session participant', () => {
+    const promoted = setParticipantRole(session, 'participant-1', 'admin')
+    expect(promoted.participants[0]?.role).toBe('admin')
+    expect(promoted.audit.at(-1)?.action).toBe('promoted Sam to admin')
+    expect(sessionAdminParticipantIds(promoted)).toEqual(['participant-1'])
+
+    const demoted = setParticipantRole(promoted, 'participant-1', 'member')
+    expect(demoted.participants[0]?.role).toBe('member')
+    expect(demoted.audit.at(-1)?.action).toBe('removed Sam as admin')
+  })
+
+  it('keeps an admin role when that participant submits again', () => {
+    const promoted = setParticipantRole(session, 'participant-1', 'admin')
+    const updated = applyParticipantSubmission({
+      latest: promoted,
+      menu: [],
+      participantId: 'participant-1',
+      participantName: 'Sam',
+      draftItems: [],
+    })
+
+    expect(updated.participants[0]?.role).toBe('admin')
+  })
+
+  it('does not change a session for an unknown participant', () => {
+    expect(setParticipantRole(session, 'missing', 'admin')).toBe(session)
   })
 })

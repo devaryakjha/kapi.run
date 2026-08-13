@@ -88,6 +88,7 @@
   .account-popover__address svg { width:1rem; height:1rem; flex:none; margin-top:.125rem; }
   .account-popover__address strong { font-size:.75rem; font-weight:500; }
   .account-popover__address small { display:-webkit-box; margin-top:.125rem; overflow:hidden; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp: 2 }
+  .account-popover .admin-connect { margin-top:var(--space-4); }
 
   .empty-state > :is(strong, span) { display:block; }
   .empty-state > strong { font-family:var(--font-heading); font-size:var(--text-5); font-weight:var(--font-medium); letter-spacing:-.025em; }

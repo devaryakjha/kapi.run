@@ -153,6 +153,35 @@ async function finishOAuth(next: string) {
   };
 }
 
+async function startAdminOAuth(
+  sessionId: string,
+  participantId: string,
+  participantSecret: string,
+  next = `/menu?session=${sessionId}`,
+) {
+  return app.handle(
+    new Request('http://api.test/auth/admin/start', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: publicWebUrl,
+        'x-kapi-participant-secret': participantSecret,
+      },
+      body: JSON.stringify({ sessionId, participantId, next }),
+    }),
+  )
+}
+
+async function finishAdminOAuth(startResponse: Response) {
+  expect(startResponse.status).toBe(200)
+  const { url } = (await startResponse.json()) as { url: string }
+  const state = new URL(url).searchParams.get('state')
+  expect(state).toBeTruthy()
+  return app.handle(
+    new Request(`http://api.test/auth/callback?code=ok&state=${state}`),
+  )
+}
+
 async function readStreamUntil(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   needle: string,
@@ -282,6 +311,155 @@ describe("OAuth return URLs", () => {
     });
   });
 });
+
+describe('admin Swiggy connections', () => {
+  it('lets only an owner-promoted member start and finish their connection', async () => {
+    const sessionId = `admin-oauth-${crypto.randomUUID()}`
+    const participantId = 'participant-admin'
+    const participantSecret = 'participant-admin-secret'
+    const created = await createRelaySession(sessionId, 'owner-secret')
+    const submitted = await submitRelayParticipant(
+      sessionId,
+      created.updatedAt,
+      participantId,
+      participantSecret,
+    )
+    expect(submitted.status).toBe(200)
+    const current = await getRelaySession(sessionId)
+    const promoted = await putRelaySession(
+      sessionId,
+      {
+        ciphertext: 'promoted-session',
+        expectedUpdatedAt: current.updatedAt,
+        metadata: {
+          status: 'open',
+          cutoffAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+          organizerSecretHash: await hash('owner-secret'),
+          adminParticipantIds: [participantId],
+        },
+        role: 'organizer',
+      },
+      { organizer: 'owner-secret' },
+    )
+    expect(promoted.status).toBe(200)
+
+    const start = await startAdminOAuth(
+      sessionId,
+      participantId,
+      participantSecret,
+    )
+    const callback = await finishAdminOAuth(start)
+    expect(callback.status).toBe(302)
+
+    const status = await app.handle(
+      new Request(
+        `http://api.test/auth/admin/status?sessionId=${sessionId}&participantId=${participantId}`,
+        { headers: { 'x-kapi-participant-secret': participantSecret } },
+      ),
+    )
+    expect(status.status).toBe(200)
+    expect(await status.json()).toEqual({
+      connected: true,
+      expiresAt: expect.any(Number),
+    })
+  })
+
+  it('rejects a member who is not an admin', async () => {
+    const sessionId = `member-oauth-${crypto.randomUUID()}`
+    const participantId = 'participant-member'
+    const participantSecret = 'participant-member-secret'
+    const created = await createRelaySession(sessionId, 'owner-secret')
+    await submitRelayParticipant(
+      sessionId,
+      created.updatedAt,
+      participantId,
+      participantSecret,
+    )
+
+    const response = await startAdminOAuth(
+      sessionId,
+      participantId,
+      participantSecret,
+    )
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Admin access required.' })
+  })
+
+  it('rejects an admin with the wrong participant proof', async () => {
+    const sessionId = `admin-proof-${crypto.randomUUID()}`
+    const participantId = 'participant-admin'
+    const participantSecret = 'participant-admin-secret'
+    const created = await createRelaySession(sessionId, 'owner-secret')
+    await submitRelayParticipant(
+      sessionId,
+      created.updatedAt,
+      participantId,
+      participantSecret,
+    )
+    const current = await getRelaySession(sessionId)
+    await putRelaySession(
+      sessionId,
+      {
+        ciphertext: 'promoted-session',
+        expectedUpdatedAt: current.updatedAt,
+        metadata: {
+          status: 'open',
+          cutoffAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+          organizerSecretHash: await hash('owner-secret'),
+          adminParticipantIds: [participantId],
+        },
+        role: 'organizer',
+      },
+      { organizer: 'owner-secret' },
+    )
+
+    const response = await startAdminOAuth(
+      sessionId,
+      participantId,
+      'wrong-secret',
+    )
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Admin proof is required.' })
+  })
+
+  it('does not let a participant promote themselves through relay metadata', async () => {
+    const sessionId = `admin-forgery-${crypto.randomUUID()}`
+    const participantId = 'participant-member'
+    const participantSecret = 'participant-member-secret'
+    const created = await createRelaySession(sessionId, 'owner-secret')
+    const submitted = await submitRelayParticipant(
+      sessionId,
+      created.updatedAt,
+      participantId,
+      participantSecret,
+    )
+    expect(submitted.status).toBe(200)
+    const current = await getRelaySession(sessionId)
+    const forged = await putRelaySession(
+      sessionId,
+      {
+        ciphertext: 'forged-admin-submission',
+        expectedUpdatedAt: current.updatedAt,
+        participantId,
+        metadata: {
+          status: 'open',
+          adminParticipantIds: [participantId],
+        },
+        role: 'participant',
+      },
+      { participant: participantSecret },
+    )
+    expect(forged.status).toBe(200)
+
+    const response = await startAdminOAuth(
+      sessionId,
+      participantId,
+      participantSecret,
+    )
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Admin access required.' })
+  })
+})
 
 describe("Swiggy read proxy authorization", () => {
   it("rejects unauthenticated address reads before Swiggy is called", async () => {

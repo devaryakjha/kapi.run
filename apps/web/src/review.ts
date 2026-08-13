@@ -22,8 +22,10 @@ import {
   loadEncryptedSessionRecord,
   localOrganizerKeyKey,
   publishSession,
+  participantRole,
   resolveSessionLinkParts,
   safeLocalStorageSet,
+  setParticipantRole,
   sessionWindowAction,
 } from './lib/session.ts'
 
@@ -63,6 +65,8 @@ const sessionCutoffInput = required<HTMLInputElement>('#session-cutoff')
 const sessionCutoffError = required<HTMLElement>('[data-session-cutoff-error]')
 const confirmSessionWindow = required<HTMLButtonElement>('.confirm-session-window')
 const syncDialog = required<HTMLDialogElement>('.sync-dialog')
+const roleDialog = required<HTMLDialogElement>('.role-dialog')
+const confirmRoleButton = required<HTMLButtonElement>('.confirm-role')
 const accountPopover = required<HTMLElement>('#review-account')
 
 let session: KapiSession | null = null
@@ -74,6 +78,7 @@ let error: string | null = null
 let pending = false
 let swiggyCart: SwiggyCartSummary | null = null
 let relayUpdatedAt: string | null = null
+let roleParticipantId: string | null = null
 
 const refreshTimer = startLiveCountdown(timer, () => session, () => {
   renderSessionControls()
@@ -107,6 +112,7 @@ function bindEvents() {
   bindDismissibleDialog(lockDialog)
   bindDismissibleDialog(sessionWindowDialog)
   bindDismissibleDialog(syncDialog)
+  bindDismissibleDialog(roleDialog)
   required<HTMLButtonElement>('.menu-mode').addEventListener('click', () => {
     const parts = getSessionLinkParts()
     window.location.assign(
@@ -129,10 +135,16 @@ function bindEvents() {
     void changeSessionWindow()
   })
   required<HTMLButtonElement>('.confirm-sync').addEventListener('click', () => void syncSwiggyCart())
+  confirmRoleButton.addEventListener('click', () => void changeParticipantRole())
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-dialog-cancel]')) {
     button.addEventListener('click', () => button.closest('dialog')?.close())
   }
   orderGroups.addEventListener('click', (event) => {
+    const roleButton = (event.target as Element).closest<HTMLButtonElement>('button[data-role-participant-id]')
+    if (roleButton && session && isOrganizer) {
+      openRoleDialog(roleButton.dataset.roleParticipantId ?? '')
+      return
+    }
     const button = (event.target as Element).closest<HTMLButtonElement>('button[data-item-id]')
     if (!button || !session || !isOrganizer) return
     const item = session.items.find(({ id }) => id === button.dataset.itemId)
@@ -141,6 +153,48 @@ function bindEvents() {
     if (button.dataset.action === 'decrease') updateItem(item.id, item.quantity - 1)
     if (button.dataset.action === 'increase') updateItem(item.id, item.quantity + 1)
   })
+}
+
+function openRoleDialog(participantId: string) {
+  if (!session || !isOrganizer) return
+  const participant = session.participants.find(({ id }) => id === participantId)
+  if (!participant) return
+  roleParticipantId = participantId
+  const promoting = participantRole(participant) === 'member'
+  required<HTMLElement>('[data-role-dialog-title]').textContent = promoting
+    ? `Make ${participant.displayName} an admin?`
+    : `Remove ${participant.displayName} as admin?`
+  required<HTMLElement>('[data-role-dialog-description]').textContent = promoting
+    ? 'They can connect a separate Swiggy account for this session.'
+    : 'Their Swiggy connection remains saved, but they lose admin access.'
+  confirmRoleButton.textContent = promoting ? 'Make admin' : 'Remove admin'
+  roleDialog.showModal()
+}
+
+async function changeParticipantRole() {
+  if (!session || !roleParticipantId || !isOrganizer) return
+  const participant = session.participants.find(({ id }) => id === roleParticipantId)
+  if (!participant) return
+  const nextRole = participantRole(participant) === 'member' ? 'admin' : 'member'
+  confirmRoleButton.disabled = true
+  try {
+    await save(setParticipantRole(session, participant.id, nextRole))
+    roleDialog.close()
+    toast(
+      nextRole === 'admin'
+        ? `${participant.displayName} is now an admin.`
+        : `${participant.displayName} is now a member.`,
+      undefined,
+      { placement: 'bottom-center', variant: 'success' },
+    )
+  } catch (caught) {
+    showActionError(caught)
+    roleDialog.close()
+  } finally {
+    confirmRoleButton.disabled = false
+    roleParticipantId = null
+    render()
+  }
 }
 
 async function copyInvite() {
@@ -388,6 +442,7 @@ function render() {
     connected: isOrganizer,
     name: session.organiserName,
     popover: accountPopover,
+    role: 'owner',
   })
   staleAlert.hidden = !stale
   invitePanel.hidden = !isOrganizer
@@ -439,10 +494,10 @@ function renderOrders() {
   summarySubtotal.textContent = `₹${subtotal}`
   ordersEmpty.hidden = groups.length > 0
   orderGroups.replaceChildren()
-  for (const group of groups) orderGroups.append(createGroup(group.name, group.items))
+  for (const group of groups) orderGroups.append(createGroup(group.key, group.name, group.items))
 }
 
-function createGroup(name: string, items: CartLine[]) {
+function createGroup(participantId: string, name: string, items: CartLine[]) {
   const group = document.createElement('article'); group.className = 'card order-group'
   const header = document.createElement('header'); header.className = 'flex items-center justify-between'
   const identity = document.createElement('div'); identity.className = 'order-group__identity flex items-center'
@@ -450,9 +505,18 @@ function createGroup(name: string, items: CartLine[]) {
   const title = document.createElement('h3'); title.textContent = name
   const count = document.createElement('small'); count.className = 'text-light'; count.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`
   identity.append(initial,title,count)
+  const headerActions = document.createElement('div'); headerActions.className = 'order-group__header-actions flex items-center gap-2'
+  const participant = session?.participants.find(({ id }) => id === participantId)
+  if (isOrganizer && participant) {
+    const role = participantRole(participant)
+    const roleBadge = document.createElement('span'); roleBadge.className = 'badge outline'; roleBadge.textContent = role === 'admin' ? 'Admin' : 'Member'
+    const roleButton = document.createElement('button'); roleButton.type = 'button'; roleButton.className = 'outline small participant-role'; roleButton.dataset.roleParticipantId = participant.id; roleButton.textContent = role === 'admin' ? 'Remove admin' : 'Make admin'
+    headerActions.append(roleBadge, roleButton)
+  }
   const total = document.createElement('strong'); total.textContent = `₹${items.reduce((sum,item)=>sum+item.price*item.quantity,0)}`
+  headerActions.append(total)
   const list = document.createElement('ul'); list.className = 'review-items unstyled'
-  header.append(identity,total); group.append(header, list)
+  header.append(identity,headerActions); group.append(header, list)
   for (const item of items) list.append(createReviewItem(item))
   return group
 }

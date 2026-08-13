@@ -44,6 +44,7 @@ import {
   loadEncryptedSessionRecord,
   loadStoredDraft,
   localParticipantNameKey,
+  participantRole,
   publishSession,
   resolveSessionLinkParts,
   safeLocalStorageGet,
@@ -91,6 +92,7 @@ const itemDialog = required<HTMLDialogElement>('.item-dialog')
 const itemForm = required<HTMLFormElement>('.item-dialog__form')
 const itemOptions = required<HTMLElement>('[data-item-options]')
 const accountPopover = required<HTMLElement>('#menu-account')
+const adminConnectButton = required<HTMLButtonElement>('.admin-connect')
 
 let session: KapiSession | null = null
 let menu: MenuItem[] = []
@@ -114,6 +116,7 @@ let isOrganizer = false
 let organizerReviewPath: string | null = null
 let activeParts: SessionLinkParts | null = null
 let relayUpdatedAt: string | null = null
+let adminSwiggyConnected = false
 let closeRelayEvents: (() => void) | null = null
 let latestRelayRevision: string | null = null
 let relayRefreshRunning = false
@@ -172,6 +175,7 @@ async function initialize() {
           { headers: { 'x-kapi-session-key': parts.key } },
         )
     applyWorkspace(parts, loaded, nextMenu, organizer)
+    await loadAdminAuthStatus()
     writeWorkspaceCache({
       parts,
       loaded,
@@ -233,6 +237,7 @@ async function refreshSessionFromRelay() {
       })
       submittedDraft = refreshedCart.submitted
       submittedDraftBaseRevision = refreshedCart.editBaseRevision
+      await loadAdminAuthStatus()
       stale = loaded.relayUpdatedAt === null
       error = null
       writeWorkspaceCache({
@@ -348,6 +353,7 @@ function bindEvents() {
     itemDialog.close()
   })
   required<HTMLButtonElement>('.cart-submit').addEventListener('click', () => void submitDraft())
+  adminConnectButton.addEventListener('click', () => void connectAdminSwiggy())
   window.addEventListener('pagehide', () => {
     closeRelayEvents?.()
     window.clearTimeout(relayRefreshRetry)
@@ -355,6 +361,51 @@ function bindEvents() {
   window.addEventListener('pageshow', (event) => {
     if (event.persisted) startRelaySubscription()
   })
+}
+
+function isCurrentParticipantAdmin() {
+  const participant = session?.participants.find(({ id }) => id === participantId)
+  return Boolean(participant && participantRole(participant) === 'admin')
+}
+
+async function loadAdminAuthStatus() {
+  if (!session || !isCurrentParticipantAdmin()) {
+    adminSwiggyConnected = false
+    return
+  }
+  try {
+    const status = await api<{ connected: boolean }>(
+      `/auth/admin/status?sessionId=${encodeURIComponent(session.id)}&participantId=${encodeURIComponent(participantId)}`,
+      { headers: { 'x-kapi-participant-secret': participantSecret } },
+    )
+    adminSwiggyConnected = status.connected
+  } catch {
+    adminSwiggyConnected = false
+  }
+}
+
+async function connectAdminSwiggy() {
+  if (!session || !isCurrentParticipantAdmin()) return
+  adminConnectButton.disabled = true
+  try {
+    const { url } = await api<{ url: string }>('/auth/admin/start', {
+      method: 'POST',
+      headers: { 'x-kapi-participant-secret': participantSecret },
+      body: JSON.stringify({
+        sessionId: session.id,
+        participantId,
+        next: window.location.href,
+      }),
+    })
+    window.location.assign(url)
+  } catch (caught) {
+    toast(
+      caught instanceof Error ? caught.message : 'Could not connect Swiggy.',
+      undefined,
+      { placement: 'bottom-center', variant: 'danger' },
+    )
+    adminConnectButton.disabled = false
+  }
 }
 
 async function submitDraft() {
@@ -476,10 +527,16 @@ function render() {
   renderAccountPopover({
     addressDetail: session.address.detail,
     addressLabel: session.address.label,
-    connected: isOrganizer,
+    connected: isOrganizer || adminSwiggyConnected,
     name: participantName || session.organiserName,
     popover: accountPopover,
+    role: isOrganizer ? 'owner' : isCurrentParticipantAdmin() ? 'admin' : 'member',
   })
+  const admin = isCurrentParticipantAdmin()
+  adminConnectButton.hidden = !admin
+  adminConnectButton.textContent = adminSwiggyConnected
+    ? 'Reconnect Swiggy account'
+    : 'Connect Swiggy account'
   cartName.value = participantName
   savedCopy.hidden = !stale
   refreshTimer()

@@ -12,6 +12,7 @@ export type RelaySessionMetadata = {
   cutoffAt?: string;
   status: SessionStatus;
   organizerSecretHash?: string;
+  adminParticipantIds?: string[];
 };
 
 export type RelayParticipantSubmissionRecord = {
@@ -156,6 +157,7 @@ export type CartLine = {
 export type Participant = {
   id: string;
   displayName: string;
+  role?: "member" | "admin";
   status: "joined" | "submitted";
   joinedAt: string;
   submittedAt?: string;

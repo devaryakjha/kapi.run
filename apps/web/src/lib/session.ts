@@ -247,6 +247,40 @@ export function draftCartFromParticipantItems(
   )
 }
 
+export function participantRole(participant: KapiSession['participants'][number]) {
+  return participant.role === 'admin' ? 'admin' : 'member'
+}
+
+export function sessionAdminParticipantIds(session: KapiSession) {
+  return session.participants
+    .filter((participant) => participantRole(participant) === 'admin')
+    .map(({ id }) => id)
+}
+
+export function setParticipantRole(
+  session: KapiSession,
+  participantId: string,
+  role: 'member' | 'admin',
+) {
+  const participant = session.participants.find(({ id }) => id === participantId)
+  if (!participant || participantRole(participant) === role) return session
+  return {
+    ...session,
+    participants: session.participants.map((current) =>
+      current.id === participantId ? { ...current, role } : current,
+    ),
+    audit: [
+      ...session.audit,
+      audit(
+        'Organiser',
+        role === 'admin'
+          ? `promoted ${participant.displayName} to admin`
+          : `removed ${participant.displayName} as admin`,
+      ),
+    ],
+  } satisfies KapiSession
+}
+
 export function isSessionLockedForParticipants(
   session: KapiSession,
   now = new Date(),
@@ -446,6 +480,7 @@ export async function publishSession(
                 cutoffAt: session.cutoffAt,
                 status: session.status,
                 organizerSecretHash: session.organizerSecretHash,
+                adminParticipantIds: sessionAdminParticipantIds(session),
               },
             }
           : { participantId: options.participantId }),

@@ -36,6 +36,9 @@ const relayFile = dataDir
 const inviteFile = dataDir
   ? join(dataDir, ".kapi-session-invites.json")
   : ".kapi-session-invites.json";
+const adminTokenFile = dataDir
+  ? join(dataDir, ".kapi-swiggy-admin-tokens.json")
+  : ".kapi-swiggy-admin-tokens.json";
 type BunRuntime = {
   file(path: string): { json(): Promise<unknown> };
   write(path: string, value: string): Promise<unknown>;
@@ -80,9 +83,15 @@ type RelayWrite = RelayWritePayload;
 type StatusSetter = { status?: number | string };
 type RequestContext = { request: Request };
 type AuthStartContext = RequestContext & { query: { next?: string } };
+type AdminAuthStartContext = RequestContext & {
+  body: { sessionId: string; participantId: string; next?: string };
+};
 type AuthCallbackContext = {
   query: { code?: string; state?: string };
   set: StatusSetter;
+};
+type AdminAuthStatusContext = RequestContext & {
+  query: { sessionId: string; participantId: string };
 };
 type RestaurantQueryContext = RequestContext & {
   query: { addressId: string; q: string; sessionId?: string };
@@ -122,12 +131,18 @@ type InviteReadContext = RequestContext & {
   set: StatusSetter;
 };
 
-const authStates = new Map<string, { codeVerifier: string; next: string }>();
+type OAuthState = {
+  codeVerifier: string;
+  next: string;
+  admin?: { sessionId: string; participantId: string };
+};
+const authStates = new Map<string, OAuthState>();
 const relay: RelayStore = await readJson<RelayStore>(relayFile, {});
 for (const record of Object.values(relay)) {
   if (!record.organizerUpdatedAt) record.legacyRevision = true;
 }
 const invites: InviteStore = await readJson<InviteStore>(inviteFile, {});
+const adminTokens = await readJson<Record<string, Token>>(adminTokenFile, {});
 let durableStorage: DurableStorage | null = null;
 const relaySubscribers = new Map<string, Set<RelaySubscriber>>();
 let relayWriteQueue = Promise.resolve();
@@ -174,10 +189,11 @@ async function writeJson(path: string, value: unknown) {
 
 export async function hydrateDurableState(storage: DurableStorage) {
   durableStorage = storage;
-  const [storedRelay, storedInvites, storedToken] = await Promise.all([
+  const [storedRelay, storedInvites, storedToken, storedAdminTokens] = await Promise.all([
     storage.get<RelayStore>("relay"),
     storage.get<InviteStore>("invites"),
     storage.get<Token>("token"),
+    storage.get<Record<string, Token>>("adminTokens"),
   ]);
   if (storedRelay) {
     for (const key of Object.keys(relay)) delete relay[key];
@@ -191,6 +207,10 @@ export async function hydrateDurableState(storage: DurableStorage) {
     Object.assign(invites, storedInvites);
   }
   if (storedToken) token = storedToken;
+  if (storedAdminTokens) {
+    for (const key of Object.keys(adminTokens)) delete adminTokens[key];
+    Object.assign(adminTokens, storedAdminTokens);
+  }
 }
 
 export function resetRuntimeStateForTests() {
@@ -219,6 +239,30 @@ async function saveToken(nextToken: Token | null) {
     return;
   }
   await saveTokenToFile(tokenFile, nextToken);
+}
+
+function adminTokenKey(sessionId: string, participantId: string) {
+  return `${sessionId}:${participantId}`;
+}
+
+async function saveAdminToken(
+  sessionId: string,
+  participantId: string,
+  nextToken: Token,
+) {
+  const nextAdminTokens = {
+    ...adminTokens,
+    [adminTokenKey(sessionId, participantId)]: nextToken,
+  };
+  if (durableStorage) {
+    await durableStorage.put("adminTokens", nextAdminTokens);
+  } else {
+    await writeFile(adminTokenFile, JSON.stringify(nextAdminTokens), {
+      mode: 0o600,
+    });
+    await chmod(adminTokenFile, 0o600);
+  }
+  Object.assign(adminTokens, nextAdminTokens);
 }
 
 function assertConnected() {
@@ -342,7 +386,39 @@ function sanitizeRelayMetadata(
     ...(typeof metadata.organizerSecretHash === "string"
       ? { organizerSecretHash: metadata.organizerSecretHash }
       : {}),
+    ...(Array.isArray(metadata.adminParticipantIds)
+      ? {
+          adminParticipantIds: [...new Set(
+            metadata.adminParticipantIds
+              .filter((id): id is string => typeof id === "string")
+              .map((id) => id.trim())
+              .filter(Boolean)
+              .slice(0, 64),
+          )],
+        }
+      : {}),
   };
+}
+
+async function assertAdminProof(
+  request: Request,
+  sessionId: string,
+  participantId: string,
+) {
+  const record = relay[sessionId];
+  if (!record?.metadata?.adminParticipantIds?.includes(participantId)) {
+    throw Object.assign(new Error("Admin access required."), { status: 403 });
+  }
+  const secret = request.headers.get("x-kapi-participant-secret");
+  const expectedHash = record.participantSecretHashes?.[participantId];
+  if (
+    !secret ||
+    !expectedHash ||
+    expectedHash !== (await sha256Base64Url(secret))
+  ) {
+    throw Object.assign(new Error("Admin proof is required."), { status: 403 });
+  }
+  return record;
 }
 
 function relayMetadataError(metadata: RelaySessionMetadata | null) {
@@ -1251,6 +1327,62 @@ export const app = new Elysia(
     },
     { query: t.Object({ next: t.Optional(t.String()) }) },
   )
+  .post(
+    "/auth/admin/start",
+    async ({ body, request }: AdminAuthStartContext) => {
+      assertAllowedOrigin(request);
+      await assertAdminProof(request, body.sessionId, body.participantId);
+      const client = await getOAuthClient();
+      const state = randomBase64Url(24);
+      const codeVerifier = randomBase64Url(64);
+      const authState: OAuthState = {
+        codeVerifier,
+        next: safeReturnUrl(body.next),
+        admin: {
+          sessionId: body.sessionId,
+          participantId: body.participantId,
+        },
+      };
+      authStates.set(state, authState);
+      await durableStorage?.put(`oauth:${state}`, authState);
+      const url = new URL(`${swiggyBase}/auth/authorize`);
+      url.searchParams.set("response_type", "code");
+      url.searchParams.set("client_id", client.client_id);
+      url.searchParams.set("redirect_uri", redirectUri);
+      url.searchParams.set(
+        "code_challenge",
+        await sha256Base64Url(codeVerifier),
+      );
+      url.searchParams.set("code_challenge_method", "S256");
+      url.searchParams.set("state", state);
+      url.searchParams.set("scope", "mcp:tools");
+      return { url: url.toString() };
+    },
+    {
+      body: t.Object({
+        sessionId: t.String(),
+        participantId: t.String(),
+        next: t.Optional(t.String()),
+      }),
+    },
+  )
+  .get(
+    "/auth/admin/status",
+    async ({ query, request }: AdminAuthStatusContext) => {
+      await assertAdminProof(request, query.sessionId, query.participantId);
+      const adminToken =
+        adminTokens[adminTokenKey(query.sessionId, query.participantId)];
+      return {
+        connected: Boolean(
+          adminToken && adminToken.expires_at > Date.now() + 60_000,
+        ),
+        expiresAt: adminToken?.expires_at ?? null,
+      };
+    },
+    {
+      query: t.Object({ sessionId: t.String(), participantId: t.String() }),
+    },
+  )
   .get(
     "/auth/callback",
     async ({ query, set }: AuthCallbackContext) => {
@@ -1261,7 +1393,7 @@ export const app = new Elysia(
       }
       const state =
         authStates.get(stateKey) ??
-        (await durableStorage?.get<{ codeVerifier: string; next: string }>(
+        (await durableStorage?.get<OAuthState>(
           `oauth:${stateKey}`,
         ));
       if (!state) {
@@ -1291,6 +1423,17 @@ export const app = new Elysia(
         expires_in?: number;
       };
       const expiresIn = body.expires_in ?? 432000;
+      if (state.admin) {
+        await saveAdminToken(
+          state.admin.sessionId,
+          state.admin.participantId,
+          {
+            access_token: body.access_token,
+            expires_at: Date.now() + expiresIn * 1000,
+          },
+        );
+        return Response.redirect(state.next, 302);
+      }
       const ownerSecret = randomBase64Url(32);
       await saveToken({
         access_token: body.access_token,
@@ -1629,6 +1772,7 @@ export const app = new Elysia(
               t.Literal("closed"),
             ]),
             organizerSecretHash: t.Optional(t.String()),
+            adminParticipantIds: t.Optional(t.Array(t.String())),
           }),
         ),
         participantId: t.Optional(t.String()),
